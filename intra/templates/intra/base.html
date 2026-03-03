@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Intranet Parceiros{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: #e8e8e8;
+            padding: 1.5rem 0;
+            flex-shrink: 0;
+        }
+        .sidebar-brand {
+            padding: 0 1.25rem 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1rem;
+        }
+        .sidebar-nav { list-style: none; padding: 0; margin: 0; }
+        .sidebar-nav a {
+            display: block;
+            padding: 0.75rem 1.25rem;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .sidebar-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .sidebar-nav a.active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; }
+        .main { flex: 1; padding: 2rem; overflow-auto; }
+        .page-title { margin: 0 0 1.5rem; font-size: 1.5rem; font-weight: 600; color: #1a1a2e; }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
+        .form-group select, .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="file"] {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        .btn { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.95rem; cursor: pointer; border: none; font-weight: 500; }
+        .btn-primary { background: #16213e; color: #fff; }
+        .btn-primary:hover { background: #1a1a2e; }
+        .btn-secondary { background: #e8e8e8; color: #333; }
+        .btn-secondary:hover { background: #ddd; }
+        .linha-despesa { display: grid; grid-template-columns: 1fr 2fr 120px 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
+        .linha-despesa .form-group { margin-bottom: 0; }
+        .linha-despesa .form-group select, .linha-despesa .form-group input { max-width: none; }
+        @media (max-width: 900px) { .linha-despesa { grid-template-columns: 1fr 1fr; } }
+        #linhas-container { margin-top: 1rem; }
+        .add-linha { margin-top: 0.5rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">Intranet Parceiros</div>
+            <ul class="sidebar-nav">
+                <li><a href="{% url 'intra:home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Início</a></li>
+                {% if is_gestor %}
+                <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
+                {% else %}
+                <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
+                <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>
+                <li><a href="/meu-perfil/" {% if request.resolver_match.url_name == 'meu_perfil' %}class="active"{% endif %}>Meu Perfil</a></li>
+                {% endif %}
+                <li><a href="{% url 'intra:logout' %}">Sair</a></li>
+            </ul>
+        </aside>
+        <main class="main">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

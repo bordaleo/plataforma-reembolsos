@@ -1,0 +1,45 @@
+{% extends "intra/base.html" %}
+{% block title %}Meu Perfil - Intranet Parceiros{% endblock %}
+{% block content %}
+<h1 class="page-title">Meu Perfil</h1>
+<p style="margin: 0 0 1rem; color: #666;">Suas informações cadastrais (somente consulta).</p>
+
+<div class="card">
+    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Dados de acesso</h2>
+    <dl class="perfil-lista">
+        <dt>E-mail</dt>
+        <dd>{{ request.user.email|default:"—" }}</dd>
+    </dl>
+</div>
+
+<div class="card">
+    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Nome do solicitante</h2>
+    <dl class="perfil-lista">
+        <dt>Nome</dt>
+        <dd>{{ perfil.nome_solicitante|default:"—" }}</dd>
+    </dl>
+</div>
+
+<div class="card">
+    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Dados de pagamento</h2>
+    <dl class="perfil-lista">
+        <dt>Banco</dt>
+        <dd>{{ perfil.banco|default:"—" }}</dd>
+        <dt>Agência</dt>
+        <dd>{{ perfil.agencia|default:"—" }}</dd>
+        <dt>Tipo de conta</dt>
+        <dd>{{ perfil.get_conta_tipo_display|default:"—" }}</dd>
+        <dt>Conta Corrente ou Poupança</dt>
+        <dd>{{ perfil.conta_numero|default:"—" }}</dd>
+        <dt>Chave PIX</dt>
+        <dd>{{ perfil.chave_pix|default:"—" }}</dd>
+    </dl>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+    .perfil-lista { margin: 0; display: grid; gap: 0.5rem 1.5rem; grid-template-columns: auto 1fr; max-width: 520px; }
+    .perfil-lista dt { font-weight: 600; color: #555; }
+    .perfil-lista dd { margin: 0; color: #1a1a2e; }
+</style>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "intra/base.html" %}
+{% block title %}Aprovar Reembolsos - Intranet Parceiros{% endblock %}
+{% block content %}
+<h1 class="page-title">Aprovar Reembolsos</h1>
+<p style="margin: 0 0 1.5rem; color: #666;">Solicitações de reembolso para análise. Aprove ou rejeite cada solicitação.</p>
+
+{% if messages %}
+<ul class="messages" style="list-style:none; padding:0; margin:0 0 1rem;">
+    {% for message in messages %}
+    <li style="padding:0.5rem; border-radius:6px; margin-bottom:0.5rem; font-size:0.95rem; {% if message.tags == 'success' %}background:#c6f6d5; color:#22543d;{% elif message.tags == 'warning' %}background:#feebc8; color:#744210;{% endif %}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if solicitacoes %}
+<div class="card">
+    <table class="tabela-reembolsos">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Solicitante</th>
+                <th>Centro de custo</th>
+                <th>Código de despesa</th>
+                <th class="valor">Valor total</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitacoes %}
+            <tr>
+                <td>{{ s.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>{{ s.user.email }}</td>
+                <td>{{ s.centro_custo }}</td>
+                <td>{{ s.cod_despesa }}</td>
+                <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
+                <td>
+                    {% if s.status == 'PENDENTE' %}<span class="status-pendente">Pendente</span>{% endif %}
+                    {% if s.status == 'APROVADO' %}<span class="status-aprovado">Aprovado</span>{% endif %}
+                    {% if s.status == 'REJEITADO' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
+                </td>
+                <td class="acoes">
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-link" target="_blank" rel="noopener">PDF</a>
+                    {% if s.status == 'PENDENTE' %}
+                    <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="aprovar">
+                        <button type="submit" class="btn-aprovar">Aprovar</button>
+                    </form>
+                    <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center; padding:2rem;">
+    <p>Nenhuma solicitação de reembolso encontrada.</p>
+</div>
+{% endif %}
+
+<!-- Modal rejeitar -->
+<div id="modal-rejeitar" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2 style="margin:0; font-size:1.1rem;">Rejeitar solicitação</h2>
+            <button type="button" class="modal-fechar" id="modal-rejeitar-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form method="post" id="form-rejeitar">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="rejeitar">
+            <input type="hidden" name="pk" id="rejeitar-pk">
+            <div class="form-group">
+                <label for="motivo_rejeicao">Motivo da rejeição (opcional)</label>
+                <textarea name="motivo_rejeicao" id="motivo_rejeicao" rows="3" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:8px;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Confirmar rejeição</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+    .tabela-reembolsos { width: 100%; border-collapse: collapse; }
+    .tabela-reembolsos th, .tabela-reembolsos td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+    .tabela-reembolsos th { font-weight: 600; color: #555; background: #f8f9fa; }
+    .tabela-reembolsos .valor { text-align: right; white-space: nowrap; }
+    .tabela-reembolsos .acoes { white-space: nowrap; }
+    .btn-link { margin-right: 0.5rem; color: #16213e; }
+    .btn-aprovar { background: #38a169; color: #fff; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn-aprovar:hover { background: #2f855a; }
+    .btn-rejeitar { background: #e53e3e; color: #fff; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .btn-rejeitar:hover { background: #c53030; }
+    .status-pendente { color: #d69e2e; font-weight: 500; }
+    .status-aprovado { color: #38a169; font-weight: 500; }
+    .status-rejeitado { color: #e53e3e; font-weight: 500; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.aberto { display: flex; }
+    .modal-box { background: #fff; border-radius: 12px; max-width: 400px; width: 100%; padding: 1.25rem; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .modal-fechar { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function() {
+    var modal = document.getElementById('modal-rejeitar');
+    var form = document.getElementById('form-rejeitar');
+    document.querySelectorAll('.btn-rejeitar').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var pk = this.getAttribute('data-pk');
+            form.action = '/reembolso/' + pk + '/decidir/';
+            document.getElementById('motivo_rejeicao').value = '';
+            modal.classList.add('aberto');
+        });
+    });
+    document.getElementById('modal-rejeitar-fechar').addEventListener('click', function() {
+        modal.classList.remove('aberto');
+    });
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) modal.classList.remove('aberto');
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completar cadastro - Intranet Parceiros</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 2rem; width: 100%; max-width: 440px; }
+        .box h1 { margin: 0 0 0.5rem; font-size: 1.35rem; font-weight: 600; color: #16213e; }
+        .box .subtitle { margin: 0 0 1.5rem; font-size: 0.95rem; color: #555; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
+        .form-group input, .form-group select { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #16213e; }
+        .btn { width: 100%; padding: 0.65rem 1rem; border-radius: 8px; font-size: 1rem; cursor: pointer; border: none; font-weight: 500; margin-top: 0.25rem; background: #16213e; color: #fff; }
+        .btn:hover { background: #1a1a2e; }
+        .errorlist { list-style: none; padding: 0; margin: 0.25rem 0 0; color: #c53030; font-size: 0.85rem; }
+        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+        .messages li { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .messages .error { background: #fed7d7; color: #c53030; }
+        .messages .success { background: #c6f6d5; color: #22543d; }
+        .section-title { font-size: 0.95rem; font-weight: 600; color: #333; margin: 1.25rem 0 0.5rem; padding-bottom: 0.25rem; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Completar cadastro</h1>
+        <p class="subtitle">Para usar a intranet, preencha seus dados abaixo.</p>
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="{% url 'intra:completar_cadastro' %}">
+            {% csrf_token %}
+            <div class="section-title">Nome do solicitante</div>
+            <div class="form-group">
+                <label for="id_nome_solicitante">{{ form.nome_solicitante.label }}</label>
+                {{ form.nome_solicitante }}
+                {% if form.nome_solicitante.errors %}<ul class="errorlist">{{ form.nome_solicitante.errors }}</ul>{% endif %}
+            </div>
+            <div class="section-title">Dados de pagamento</div>
+            <p style="margin:0 0 0.5rem; font-size:0.9rem; color:#666;">Banco, Agência, Conta Corrente ou Poupança e Chave PIX</p>
+            <div class="form-group">
+                <label for="id_banco">{{ form.banco.label }}</label>
+                {{ form.banco }}
+                {% if form.banco.errors %}<ul class="errorlist">{{ form.banco.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="id_agencia">{{ form.agencia.label }}</label>
+                {{ form.agencia }}
+                {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="id_conta_tipo">{{ form.conta_tipo.label }}</label>
+                {{ form.conta_tipo }}
+                {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="id_conta_numero">{{ form.conta_numero.label }}</label>
+                {{ form.conta_numero }}
+                {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="id_chave_pix">{{ form.chave_pix.label }}</label>
+                {{ form.chave_pix }}
+                {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+            </div>
+            <input type="hidden" name="next" value="{{ request.GET.next }}">
+            <button type="submit" class="btn">Salvar e continuar</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esqueceu seu acesso - Intranet Parceiros</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 2rem; width: 100%; max-width: 380px; }
+        .box h1 { margin: 0 0 1rem; font-size: 1.25rem; font-weight: 600; color: #16213e; }
+        .box p { margin: 0 0 1rem; font-size: 0.95rem; color: #555; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
+        .form-group input { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        .form-group input:focus { outline: none; border-color: #16213e; }
+        .btn { padding: 0.65rem 1rem; border-radius: 8px; font-size: 1rem; cursor: pointer; border: none; font-weight: 500; }
+        .btn-primary { background: #16213e; color: #fff; }
+        .btn-primary:hover { background: #1a1a2e; }
+        .btn-secondary { background: #e8e8e8; color: #333; margin-right: 0.5rem; }
+        .links { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; }
+        .links a { color: #16213e; text-decoration: none; font-size: 0.95rem; }
+        .links a:hover { text-decoration: underline; }
+        .errorlist { list-style: none; padding: 0; margin: 0 0 1rem; color: #c53030; font-size: 0.9rem; }
+        .success-msg { background: #c6f6d5; color: #22543d; padding: 0.75rem; border-radius: 8px; font-size: 0.95rem; margin-bottom: 1rem; }
+        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+        .messages li { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .messages .error { background: #fed7d7; color: #c53030; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Não sabe ou Esqueceu seu acesso?</h1>
+        <p>Informe seu e-mail <strong>@parceirosedu.org.br</strong>. Enviaremos um link para redefinir sua senha.</p>
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if enviado %}
+        <p class="success-msg">Verifique seu e-mail. Você receberá sua senha de acesso. Se era seu primeiro acesso, a conta foi criada; se já estava cadastrado, a senha foi alterada.</p>
+        <div class="links">
+            <a href="{% url 'intra:login' %}">Voltar ao login</a>
+        </div>
+        {% else %}
+        <form method="post" action="{% url 'intra:esqueceu_acesso' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_email">E-mail</label>
+                {{ form.email }}
+                {% if form.email.errors %}<ul class="errorlist">{{ form.email.errors }}</ul>{% endif %}
+            </div>
+            <button type="submit" class="btn btn-primary">Enviar</button>
+        </form>
+        <div class="links" style="margin-top: 1rem;">
+            <a href="{% url 'intra:login' %}">Voltar ao login</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

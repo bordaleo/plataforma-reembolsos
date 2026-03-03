@@ -1,0 +1,9 @@
+{% extends "intra/base.html" %}
+{% block title %}Início - Intranet Parceiros{% endblock %}
+{% block content %}
+<h1 class="page-title">Início</h1>
+<div class="card">
+    <p>Bem-vindo à Intranet Parceiros. Use o menu ao lado para acessar as funcionalidades.</p>
+    <p><a href="{% url 'intra:reembolso' %}">Solicitar Reembolso</a></p>
+</div>
+{% endblock %}

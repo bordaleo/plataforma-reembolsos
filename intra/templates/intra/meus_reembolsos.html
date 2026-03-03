@@ -1,0 +1,151 @@
+{% extends "intra/base.html" %}
+{% block title %}Meus Reembolsos - Intranet Parceiros{% endblock %}
+{% block content %}
+<h1 class="page-title">Meus Reembolsos</h1>
+<p style="margin: 0 0 1.5rem; color: #666;">Histórico das suas solicitações de reembolso.</p>
+
+{% if solicitacoes %}
+<div class="card">
+    <table class="tabela-reembolsos">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Centro de custo</th>
+                <th>Código de despesa</th>
+                <th class="valor">Valor total</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitacoes %}
+            <tr>
+                <td>{{ s.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>{{ s.centro_custo }}</td>
+                <td>{{ s.cod_despesa }}</td>
+                <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
+                <td class="acoes">
+                    <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Gerar PDF</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card card-empty">
+    <p>Você ainda não possui solicitações de reembolso.</p>
+    <p><a href="/reembolso/" class="btn btn-primary">Nova solicitação de reembolso</a></p>
+</div>
+{% endif %}
+
+<!-- Popup visualização da solicitação -->
+<div id="modal-ver-reembolso" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box modal-reembolso">
+        <div class="modal-header">
+            <h2 id="modal-reembolso-titulo">Solicitação de Reembolso</h2>
+            <button type="button" class="modal-fechar" id="modal-reembolso-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="detalhe-campos">
+                <p><strong>Data:</strong> <span id="detalhe-data"></span></p>
+                <p><strong>Centro de custo:</strong> <span id="detalhe-centro"></span></p>
+                <p><strong>Código de despesa:</strong> <span id="detalhe-cod"></span></p>
+            </div>
+            <h3 class="detalhe-subtitulo">Itens de despesa</h3>
+            <table class="tabela-itens">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th class="valor">Valor (R$)</th>
+                    </tr>
+                </thead>
+                <tbody id="detalhe-itens">
+                </tbody>
+            </table>
+            <p class="detalhe-total"><strong>Total: <span id="detalhe-total"></span></strong></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_css %}
+<style>
+    .tabela-reembolsos { width: 100%; border-collapse: collapse; }
+    .tabela-reembolsos th, .tabela-reembolsos td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
+    .tabela-reembolsos th { font-weight: 600; color: #555; background: #f8f9fa; }
+    .tabela-reembolsos .valor { text-align: right; white-space: nowrap; }
+    .tabela-reembolsos .acoes { white-space: nowrap; }
+    .card-empty { text-align: center; padding: 2rem; }
+    .card-empty .btn { display: inline-block; margin-top: 0.5rem; text-decoration: none; }
+    .btn-pdf, .btn-ver { font-size: 0.9rem; color: #16213e; }
+    .btn-pdf { text-decoration: none; margin-left: 0.5rem; }
+    .btn-pdf:hover { text-decoration: underline; }
+    .btn-ver { background: #e8e8e8; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-weight: 500; }
+    .btn-ver:hover { background: #ddd; }
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-overlay.aberto { display: flex; }
+    .modal-box.modal-reembolso { background: #fff; border-radius: 12px; max-width: 560px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; }
+    .modal-header h2 { margin: 0; font-size: 1.2rem; }
+    .modal-fechar { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; line-height: 1; padding: 0 0.25rem; }
+    .modal-fechar:hover { color: #1a1a2e; }
+    .modal-body { padding: 1.25rem; overflow-y: auto; max-height: calc(90vh - 60px); }
+    .detalhe-campos p { margin: 0 0 0.5rem; }
+    .detalhe-subtitulo { margin: 1rem 0 0.5rem; font-size: 1rem; }
+    .tabela-itens { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .tabela-itens th, .tabela-itens td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #eee; }
+    .tabela-itens th { font-weight: 600; color: #555; font-size: 0.9rem; }
+    .tabela-itens .valor { text-align: right; }
+    .detalhe-total { margin: 1rem 0 0; font-size: 1.05rem; }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function() {
+    var modal = document.getElementById('modal-ver-reembolso');
+    var btnFechar = document.getElementById('modal-reembolso-fechar');
+    var titulo = document.getElementById('modal-reembolso-titulo');
+    var detalheData = document.getElementById('detalhe-data');
+    var detalheCentro = document.getElementById('detalhe-centro');
+    var detalheCod = document.getElementById('detalhe-cod');
+    var tbodyItens = document.getElementById('detalhe-itens');
+    var detalheTotal = document.getElementById('detalhe-total');
+
+    function formatarValor(v) {
+        return typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v;
+    }
+
+    function abrirModal() { modal.classList.add('aberto'); modal.setAttribute('aria-hidden', 'false'); }
+    function fecharModal() { modal.classList.remove('aberto'); modal.setAttribute('aria-hidden', 'true'); }
+
+    document.querySelectorAll('.btn-ver').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var pk = this.getAttribute('data-pk');
+            fetch('/reembolso/' + pk + '/detalhe/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) return;
+                    titulo.textContent = 'Solicitação de Reembolso - ' + data.criado_em;
+                    detalheData.textContent = data.criado_em;
+                    detalheCentro.textContent = data.centro_custo;
+                    detalheCod.textContent = data.cod_despesa;
+                    tbodyItens.innerHTML = '';
+                    (data.itens || []).forEach(function(item) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td>' + (item.tipo_despesa || '-') + '</td><td>' + (item.descricao || '-') + '</td><td class="valor">' + formatarValor(item.valor) + '</td>';
+                        tbodyItens.appendChild(tr);
+                    });
+                    detalheTotal.textContent = 'R$ ' + formatarValor(data.valor_total);
+                    abrirModal();
+                })
+                .catch(function() {});
+        });
+    });
+
+    if (btnFechar) btnFechar.addEventListener('click', fecharModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) fecharModal(); });
+})();
+</script>
+{% endblock %}

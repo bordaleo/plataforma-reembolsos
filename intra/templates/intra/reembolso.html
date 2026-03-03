@@ -1,0 +1,223 @@
+{% extends "intra/base.html" %}
+{% block title %}Reembolso - Intranet Parceiros{% endblock %}
+{% block extra_css %}
+<style>
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.aberto { display: flex; }
+    .modal-box { background: #fff; border-radius: 12px; padding: 1.5rem 2rem; min-width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal-box h3 { margin: 0 0 1rem; font-size: 1.15rem; }
+    .modal-box .form-group { margin-bottom: 1rem; }
+    .modal-box .form-group input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+    .modal-botoes { display: flex; gap: 0.75rem; margin-top: 1.25rem; justify-content: flex-end; }
+    .valor-total-container { margin: 1.25rem 0 0; padding: 0.75rem 1rem; background: #edf2f7; border-radius: 8px; font-size: 1.1rem; color: #2d3748; }
+    .valor-total-container span { color: #16213e; }
+    .success-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); opacity: 1; transition: opacity 0.35s ease-out; }
+    .success-overlay.fechando { opacity: 0; pointer-events: none; }
+    .success-overlay .success-msg { background: #fff; padding: 2rem 3rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); font-size: 1.25rem; font-weight: 600; color: #16213e; text-align: center; }
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Solicitação de Reembolso</h1>
+
+<form method="post" action="" enctype="multipart/form-data" id="form-reembolso">
+    {% csrf_token %}
+
+    <div class="card">
+        <h2 style="margin-top:0; font-size:1.1rem;">Dados gerais</h2>
+        <div class="form-group">
+            <label for="centro_custo">Centro de Custo</label>
+            <select name="centro_custo" id="centro_custo" required>
+                <option value="">Selecione...</option>
+                {% for valor, label in centros_custo %}
+                <option value="{{ valor }}">{{ valor }} - {{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="cod_despesa">Código de Despesa</label>
+            <select name="cod_despesa" id="cod_despesa" required>
+                <option value="">Selecione...</option>
+                {% for valor, label in codigos_despesa %}
+                <option value="{{ valor }}">{{ valor }} - {{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0; font-size:1.1rem;">Itens de despesa</h2>
+        <div id="linhas-container">
+            <div class="linha-despesa" data-index="0">
+                <div class="form-group">
+                    <label>Tipo de Despesa</label>
+                    <select name="tipo_despesa_0" required>
+                        <option value="">Selecione...</option>
+                        {% for valor, label in tipos_despesa %}
+                        <option value="{{ valor }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <input type="text" name="descricao_0" placeholder="Descrição do item" required>
+                </div>
+                <div class="form-group">
+                    <label>Valor Solicitado (R$)</label>
+                    <input type="number" name="valor_0" step="0.01" min="0" placeholder="0,00" required>
+                </div>
+                <div class="form-group">
+                    <label>Anexo</label>
+                    <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png">
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn btn-secondary btn-remover" title="Remover linha">Remover</button>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-secondary add-linha" id="btn-add-linha">+ Adicionar linha</button>
+        <p id="valor-total-container" class="valor-total-container">
+            <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
+        </p>
+    </div>
+
+    <div class="card">
+        <button type="submit" class="btn btn-primary">Enviar solicitação</button>
+    </div>
+</form>
+
+{% if success %}
+<div class="success-overlay" id="success-overlay">
+    <p class="success-msg">Solicitação de Reembolso enviada com Sucesso</p>
+</div>
+<script>
+(function() {
+    var el = document.getElementById('success-overlay');
+    if (el) {
+        setTimeout(function() {
+            el.classList.add('fechando');
+            setTimeout(function() { el.remove(); }, 350);
+        }, 2000);
+    }
+})();
+</script>
+{% endif %}
+
+<!-- Popup KM para Deslocamento -->
+<div id="modal-deslocamento" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box">
+        <h3>Deslocamento — Informe a quilometragem</h3>
+        <div class="form-group">
+            <label for="modal-km">KM</label>
+            <input type="number" id="modal-km" min="0" step="0.01" placeholder="Ex: 50">
+        </div>
+        <p style="margin:0; font-size:0.9rem; color:#666;">Valor será calculado: KM × R$ 1,10</p>
+        <div class="modal-botoes">
+            <button type="button" class="btn btn-secondary" id="modal-cancelar">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="modal-confirmar">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var container = document.getElementById('linhas-container');
+    var btnAdd = document.getElementById('btn-add-linha');
+    var tiposDespesa = {{ tipos_despesa_json|safe }};
+    var count = 1;
+
+    var modal = document.getElementById('modal-deslocamento');
+    var inputKm = document.getElementById('modal-km');
+    var btnModalConfirmar = document.getElementById('modal-confirmar');
+    var btnModalCancelar = document.getElementById('modal-cancelar');
+    var valorInputRef = null;
+
+    function abrirModalDeslocamento(linha) {
+        valorInputRef = linha.querySelector('input[name^="valor_"]');
+        inputKm.value = '';
+        inputKm.focus();
+        modal.classList.add('aberto');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function fecharModalDeslocamento() {
+        modal.classList.remove('aberto');
+        modal.setAttribute('aria-hidden', 'true');
+        valorInputRef = null;
+    }
+
+    btnModalConfirmar.addEventListener('click', function() {
+        var km = parseFloat(inputKm.value.replace(',', '.'), 10);
+        if (isNaN(km) || km < 0) {
+            inputKm.focus();
+            return;
+        }
+        var valor = Math.round(km * 1.10 * 100) / 100;
+        if (valorInputRef) valorInputRef.value = valor.toFixed(2);
+        fecharModalDeslocamento();
+        if (typeof atualizarTotal === 'function') atualizarTotal();
+    });
+
+    btnModalCancelar.addEventListener('click', fecharModalDeslocamento);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) fecharModalDeslocamento();
+    });
+
+    container.addEventListener('change', function(e) {
+        var sel = e.target;
+        if (sel.name && sel.name.indexOf('tipo_despesa_') === 0 && sel.value === 'DESLOCAMENTO') {
+            var linha = sel.closest('.linha-despesa');
+            if (linha) abrirModalDeslocamento(linha);
+        }
+    });
+
+    function novaLinha() {
+        var div = document.createElement('div');
+        div.className = 'linha-despesa';
+        div.setAttribute('data-index', count);
+        var opts = tiposDespesa.map(function(t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('');
+        div.innerHTML =
+            '<div class="form-group"><label>Tipo de Despesa</label><select name="tipo_despesa_' + count + '"><option value="">Selecione...</option>' + opts + '</select></div>' +
+            '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item"></div>' +
+            '<div class="form-group"><label>Valor Solicitado (R$)</label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00"></div>' +
+            '<div class="form-group"><label>Anexo</label><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png"></div>' +
+            '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
+        div.querySelector('.btn-remover').addEventListener('click', function() {
+            if (container.querySelectorAll('.linha-despesa').length > 1) div.remove();
+            setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
+        });
+        container.appendChild(div);
+        count++;
+    }
+
+    btnAdd.addEventListener('click', novaLinha);
+
+    document.querySelectorAll('.btn-remover').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var linhas = container.querySelectorAll('.linha-despesa');
+            if (linhas.length > 1) btn.closest('.linha-despesa').remove();
+            setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
+        });
+    });
+
+    function atualizarTotal() {
+        var total = 0;
+        container.querySelectorAll('input[name^="valor_"]').forEach(function(input) {
+            var v = parseFloat(String(input.value).replace(',', '.'), 10);
+            if (!isNaN(v) && v >= 0) total += v;
+        });
+        var el = document.getElementById('valor-total');
+        if (el) el.textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+    }
+
+    var form = document.getElementById('form-reembolso');
+    form.addEventListener('input', function(e) {
+        if (e.target.name && e.target.name.indexOf('valor_') === 0) atualizarTotal();
+    });
+    form.addEventListener('change', function(e) {
+        if (e.target.name && e.target.name.indexOf('valor_') === 0) atualizarTotal();
+    });
+    atualizarTotal();
+})();
+</script>
+{% endblock %}

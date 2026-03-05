@@ -2,18 +2,285 @@
 {% block title %}Reembolso - Intranet Parceiros{% endblock %}
 {% block extra_css %}
 <style>
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-overlay.aberto { display: flex; }
-    .modal-box { background: #fff; border-radius: 12px; padding: 1.5rem 2rem; min-width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-    .modal-box h3 { margin: 0 0 1rem; font-size: 1.15rem; }
-    .modal-box .form-group { margin-bottom: 1rem; }
-    .modal-box .form-group input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-    .modal-botoes { display: flex; gap: 0.75rem; margin-top: 1.25rem; justify-content: flex-end; }
-    .valor-total-container { margin: 1.25rem 0 0; padding: 0.75rem 1rem; background: #edf2f7; border-radius: 8px; font-size: 1.1rem; color: #2d3748; }
-    .valor-total-container span { color: #16213e; }
-    .success-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); opacity: 1; transition: opacity 0.35s ease-out; }
-    .success-overlay.fechando { opacity: 0; pointer-events: none; }
-    .success-overlay .success-msg { background: #fff; padding: 2rem 3rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); font-size: 1.25rem; font-weight: 600; color: #16213e; text-align: center; }
+    .card-header {
+        margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+        padding: 1.5rem 2rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .card-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+    }
+    .card .form-group label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.75rem;
+    }
+    .card .form-group select,
+    .card .form-group input[type="text"],
+    .card .form-group input[type="number"],
+    .card .form-group input[type="file"] {
+        font-size: 0.95rem;
+        padding: 0.875rem 1rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    .card .form-group select:focus,
+    .card .form-group input:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .linha-despesa {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        background: #f8f9fa;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s;
+    }
+    .linha-despesa .form-group:last-child {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e1e8ed;
+    }
+    @media (max-width: 1200px) {
+        .linha-despesa {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .linha-despesa {
+            grid-template-columns: 1fr;
+        }
+    }
+    .linha-despesa:hover {
+        border-color: #34495e;
+        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.1);
+    }
+    .linha-despesa .form-group label {
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        display: block;
+    }
+    .linha-despesa .form-group select,
+    .linha-despesa .form-group input {
+        width: 100%;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        padding: 0.875rem 1rem;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+    .linha-despesa .form-group select:focus,
+    .linha-despesa .form-group input:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .anexo-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .anexo-wrapper input[type="file"] {
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 0.85rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .anexo-wrapper input[type="file"]::-webkit-file-upload-button {
+        padding: 0.5rem 1rem;
+        background: #34495e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        margin-right: 0.75rem;
+    }
+    .anexo-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: #f8f9fa;
+        border: 1px solid #e1e8ed;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #2c3e50;
+    }
+    .anexo-info .nome-arquivo {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .anexo-info .btn-remover-arquivo {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 0.375rem 0.75rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .anexo-info .btn-remover-arquivo:hover {
+        background: #c0392b;
+    }
+    .anexo-info.hidden {
+        display: none;
+    }
+    .btn-remover {
+        background: #e74c3c;
+        color: #ffffff;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-remover:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+    }
+    .add-linha {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        padding: 0.875rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 0.5rem;
+    }
+    .add-linha:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .add-linha:disabled {
+        background: #95a5a6;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    .linha-despesa input:disabled,
+    .linha-despesa select:disabled {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    .valor-total-container {
+        margin: 0;
+        padding: 1.1rem 3rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        border-radius: 8px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #ffffff;
+        text-align: center;
+        display: inline-block;
+        width: auto;
+    }
+    .valor-total-container span {
+        color: #ffffff;
+        font-size: 1.25rem;
+    }
+    .card-submit {
+        padding: 0;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+    }
+    .card-submit .btn-primary {
+        width: 100%;
+        padding: 1.75rem 2rem;
+        font-size: 1.15rem;
+        font-weight: 700;
+        display: block;
+        border-radius: 0;
+        margin: 0;
+        letter-spacing: 0.5px;
+    }
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .modal-overlay.aberto {
+        display: flex;
+    }
+    .modal-box {
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        min-width: 400px;
+        max-width: 90%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .modal-box h3 {
+        margin: 0 0 1.5rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #34495e;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .modal-box .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .modal-box .form-group label {
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.5rem;
+    }
+    .modal-box .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+    .modal-box .form-group input:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .modal-botoes {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        justify-content: flex-end;
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -23,33 +290,32 @@
     {% csrf_token %}
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.1rem;">Dados gerais</h2>
-        <div class="form-group">
-            <label for="centro_custo">Centro de Custo</label>
-            <select name="centro_custo" id="centro_custo" required>
-                <option value="">Selecione...</option>
-                {% for valor, label in centros_custo %}
-                <option value="{{ valor }}">{{ valor }} - {{ label }}</option>
-                {% endfor %}
-            </select>
+        <div class="card-header">
+            <h2>Dados Gerais</h2>
         </div>
         <div class="form-group">
-            <label for="cod_despesa">Código de Despesa</label>
-            <select name="cod_despesa" id="cod_despesa" required>
+            <label for="centro_custo">Centro de Custo <span style="color: #e74c3c;">*</span></label>
+            <select name="centro_custo" id="centro_custo" required>
                 <option value="">Selecione...</option>
-                {% for valor, label in codigos_despesa %}
-                <option value="{{ valor }}">{{ valor }} - {{ label }}</option>
+                {% for programa in programas %}
+                <option value="{{ programa }}">{{ programa }}</option>
                 {% endfor %}
             </select>
         </div>
     </div>
 
     <div class="card">
-        <h2 style="margin-top:0; font-size:1.1rem;">Itens de despesa</h2>
+        <div class="card-header">
+            <h2>Itens de Despesa</h2>
+        </div>
         <div id="linhas-container">
             <div class="linha-despesa" data-index="0">
                 <div class="form-group">
-                    <label>Tipo de Despesa</label>
+                    <label>Data da Despesa <span style="color: #e74c3c;">*</span></label>
+                    <input type="date" name="data_despesa_0" required>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label>
                     <select name="tipo_despesa_0" required>
                         <option value="">Selecione...</option>
                         {% for valor, label in tipos_despesa %}
@@ -58,16 +324,31 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Descrição</label>
-                    <input type="text" name="descricao_0" placeholder="Descrição do item" required>
+                    <label>Código de Despesa <span style="color: #e74c3c;">*</span></label>
+                    <select name="cod_despesa_0" required>
+                        <option value="">Selecione...</option>
+                        {% for c in codigos %}
+                        <option value="{{ c.CODIGO }}">{{ c.CODIGO }} - {{ c.DESCRICAO }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>Valor Solicitado (R$)</label>
+                    <label>Descrição</label>
+                    <input type="text" name="descricao_0" placeholder="Descrição do item">
+                </div>
+                <div class="form-group">
+                    <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
                     <input type="number" name="valor_0" step="0.01" min="0" placeholder="0,00" required>
                 </div>
                 <div class="form-group">
-                    <label>Anexo</label>
-                    <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png">
+                    <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
+                    <div class="anexo-wrapper">
+                        <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo">
+                        <div class="anexo-info hidden" id="anexo-info-0">
+                            <span class="nome-arquivo"></span>
+                            <button type="button" class="btn-remover-arquivo">Remover</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>&nbsp;</label>
@@ -76,32 +357,18 @@
             </div>
         </div>
         <button type="button" class="btn btn-secondary add-linha" id="btn-add-linha">+ Adicionar linha</button>
-        <p id="valor-total-container" class="valor-total-container">
-            <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
-        </p>
+        <div style="text-align: center; margin: 1.5rem 0 0;">
+            <p id="valor-total-container" class="valor-total-container">
+                <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
+            </p>
+        </div>
     </div>
 
-    <div class="card">
-        <button type="submit" class="btn btn-primary">Enviar solicitação</button>
+    <div class="card card-submit">
+        <button type="submit" class="btn btn-primary" style="margin: 0;">Enviar Solicitação</button>
     </div>
 </form>
 
-{% if success %}
-<div class="success-overlay" id="success-overlay">
-    <p class="success-msg">Solicitação de Reembolso enviada com Sucesso</p>
-</div>
-<script>
-(function() {
-    var el = document.getElementById('success-overlay');
-    if (el) {
-        setTimeout(function() {
-            el.classList.add('fechando');
-            setTimeout(function() { el.remove(); }, 350);
-        }, 2000);
-    }
-})();
-</script>
-{% endif %}
 
 <!-- Popup KM para Deslocamento -->
 <div id="modal-deslocamento" class="modal-overlay" aria-hidden="true">
@@ -123,8 +390,36 @@
 (function() {
     var container = document.getElementById('linhas-container');
     var btnAdd = document.getElementById('btn-add-linha');
+    var centroCusto = document.getElementById('centro_custo');
     var tiposDespesa = {{ tipos_despesa_json|safe }};
+    var codigosDespesa = {{ codigos_despesa_json|safe }};
     var count = 1;
+
+    // Função para habilitar/desabilitar campos de despesa
+    function toggleCamposDespesa(habilitar) {
+        var linhas = container.querySelectorAll('.linha-despesa');
+        linhas.forEach(function(linha) {
+            var campos = linha.querySelectorAll('input, select');
+            campos.forEach(function(campo) {
+                campo.disabled = !habilitar;
+            });
+        });
+        if (btnAdd) btnAdd.disabled = !habilitar;
+    }
+
+    // Inicialmente desabilitar campos
+    toggleCamposDespesa(false);
+
+    // Listener para Centro de Custo
+    if (centroCusto) {
+        centroCusto.addEventListener('change', function() {
+            if (this.value) {
+                toggleCamposDespesa(true);
+            } else {
+                toggleCamposDespesa(false);
+            }
+        });
+    }
 
     var modal = document.getElementById('modal-deslocamento');
     var inputKm = document.getElementById('modal-km');
@@ -163,11 +458,58 @@
         if (e.target === modal) fecharModalDeslocamento();
     });
 
+    // Função para gerenciar exibição do anexo
+    function setupAnexo(inputAnexo) {
+        var anexoInfo = inputAnexo.closest('.anexo-wrapper').querySelector('.anexo-info');
+        var nomeArquivo = anexoInfo ? anexoInfo.querySelector('.nome-arquivo') : null;
+        var btnRemover = anexoInfo ? anexoInfo.querySelector('.btn-remover-arquivo') : null;
+        
+        function atualizarExibicaoAnexo() {
+            if (inputAnexo.files && inputAnexo.files.length > 0) {
+                var nome = inputAnexo.files[0].name;
+                if (nomeArquivo) nomeArquivo.textContent = nome;
+                if (anexoInfo) anexoInfo.classList.remove('hidden');
+                inputAnexo.style.display = 'none';
+            } else {
+                if (anexoInfo) anexoInfo.classList.add('hidden');
+                inputAnexo.style.display = 'block';
+            }
+        }
+        
+        inputAnexo.addEventListener('change', atualizarExibicaoAnexo);
+        
+        if (btnRemover) {
+            btnRemover.addEventListener('click', function() {
+                inputAnexo.value = '';
+                if (anexoInfo) anexoInfo.classList.add('hidden');
+                inputAnexo.style.display = 'block';
+            });
+        }
+        
+        atualizarExibicaoAnexo();
+    }
+
     container.addEventListener('change', function(e) {
         var sel = e.target;
-        if (sel.name && sel.name.indexOf('tipo_despesa_') === 0 && sel.value === 'DESLOCAMENTO') {
+        if (sel.name && sel.name.indexOf('tipo_despesa_') === 0) {
             var linha = sel.closest('.linha-despesa');
-            if (linha) abrirModalDeslocamento(linha);
+            if (linha) {
+                if (sel.value === 'DESLOCAMENTO') {
+                    abrirModalDeslocamento(linha);
+                }
+                // Tornar anexo opcional quando for Passagens de Ônibus
+                var inputAnexo = linha.querySelector('input[name^="anexo_"]');
+                var asteriscoAnexo = linha.querySelector('.anexo-required');
+                if (inputAnexo) {
+                    if (sel.value === 'PASSAGENS') {
+                        inputAnexo.removeAttribute('required');
+                        if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
+                    } else {
+                        inputAnexo.setAttribute('required', 'required');
+                        if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
+                    }
+                }
+            }
         }
     });
 
@@ -175,13 +517,32 @@
         var div = document.createElement('div');
         div.className = 'linha-despesa';
         div.setAttribute('data-index', count);
-        var opts = tiposDespesa.map(function(t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('');
+        var optsTipo = tiposDespesa.map(function(t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('');
+        var optsCod = codigosDespesa.map(function(c) { return '<option value="' + c.codigo + '">' + c.codigo + ' - ' + c.descricao + '</option>'; }).join('');
         div.innerHTML =
-            '<div class="form-group"><label>Tipo de Despesa</label><select name="tipo_despesa_' + count + '"><option value="">Selecione...</option>' + opts + '</select></div>' +
+            '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required></div>' +
+            '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
+            '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required><option value="">Selecione...</option>' + optsCod + '</select></div>' +
             '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item"></div>' +
-            '<div class="form-group"><label>Valor Solicitado (R$)</label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00"></div>' +
-            '<div class="form-group"><label>Anexo</label><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png"></div>' +
+            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required></div>' +
+            '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
             '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
+        // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
+        var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
+        var inputAnexo = div.querySelector('input[name^="anexo_"]');
+        var asteriscoAnexo = div.querySelector('.anexo-required');
+        if (selectTipo && inputAnexo) {
+            selectTipo.addEventListener('change', function() {
+                if (this.value === 'PASSAGENS') {
+                    inputAnexo.removeAttribute('required');
+                    if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
+                } else {
+                    inputAnexo.setAttribute('required', 'required');
+                    if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
+                }
+            });
+            setupAnexo(inputAnexo);
+        }
         div.querySelector('.btn-remover').addEventListener('click', function() {
             if (container.querySelectorAll('.linha-despesa').length > 1) div.remove();
             setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
@@ -191,6 +552,26 @@
     }
 
     btnAdd.addEventListener('click', novaLinha);
+
+    // Adicionar listener para anexo opcional quando for Passagens de Ônibus na linha inicial
+    var linhaInicial = container.querySelector('.linha-despesa');
+    if (linhaInicial) {
+        var selectTipoInicial = linhaInicial.querySelector('select[name^="tipo_despesa_"]');
+        var inputAnexoInicial = linhaInicial.querySelector('input[name^="anexo_"]');
+        var asteriscoAnexoInicial = linhaInicial.querySelector('.anexo-required');
+        if (selectTipoInicial && inputAnexoInicial) {
+            selectTipoInicial.addEventListener('change', function() {
+                if (this.value === 'PASSAGENS') {
+                    inputAnexoInicial.removeAttribute('required');
+                    if (asteriscoAnexoInicial) asteriscoAnexoInicial.style.display = 'none';
+                } else {
+                    inputAnexoInicial.setAttribute('required', 'required');
+                    if (asteriscoAnexoInicial) asteriscoAnexoInicial.style.display = 'inline';
+                }
+            });
+            setupAnexo(inputAnexoInicial);
+        }
+    }
 
     document.querySelectorAll('.btn-remover').forEach(function(btn) {
         btn.addEventListener('click', function() {

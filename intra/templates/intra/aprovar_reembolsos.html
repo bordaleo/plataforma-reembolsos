@@ -1,126 +1,1033 @@
 {% extends "intra/base.html" %}
 {% block title %}Aprovar Reembolsos - Intranet Parceiros{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro {
+        margin: 0 0 2rem;
+        color: #7f8c8d;
+        font-size: 0.95rem;
+    }
+    .tabela-reembolsos {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #ffffff;
+    }
+    .tabela-reembolsos th {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        font-weight: 700;
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-size: 0.95rem;
+        letter-spacing: 0.3px;
+        border: none;
+    }
+    .tabela-reembolsos th.valor {
+        color: #ffffff !important;
+    }
+    .tabela-reembolsos th:first-child {
+        border-top-left-radius: 8px;
+    }
+    .tabela-reembolsos th:last-child {
+        border-top-right-radius: 8px;
+    }
+    .tabela-reembolsos td {
+        padding: 1rem 1.25rem;
+        border-bottom: 2px solid #e1e8ed;
+        font-size: 0.9rem;
+        color: #2c3e50;
+        vertical-align: middle;
+    }
+    .tabela-reembolsos tbody tr {
+        transition: background-color 0.2s;
+    }
+    .tabela-reembolsos tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    .tabela-reembolsos tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .tabela-reembolsos .valor {
+        text-align: left;
+        white-space: nowrap;
+        font-weight: 500;
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+    .tabela-reembolsos th.valor {
+        color: #ffffff;
+        font-weight: 700;
+    }
+    .tabela-reembolsos .acoes {
+        white-space: nowrap;
+    }
+    .email-clicavel:hover {
+        color: #2c3e50 !important;
+        text-decoration: underline !important;
+    }
+    .card-empty {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+    .card-empty p {
+        font-size: 0.95rem;
+        color: #7f8c8d;
+        margin-bottom: 1.5rem;
+    }
+    .btn-pdf {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+        margin-right: 0.5rem;
+    }
+    .btn-pdf:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        text-decoration: none;
+        color: #ffffff;
+    }
+    .btn-aprovar {
+        background: #38a169;
+        color: #fff;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-right: 0.5rem;
+    }
+    .btn-aprovar:hover {
+        background: #2f855a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(56, 161, 105, 0.3);
+    }
+    .btn-rejeitar {
+        background: #e53e3e;
+        color: #fff;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .btn-rejeitar:hover {
+        background: #c53030;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+    }
+    .btn-rejeitar-modal {
+        background: #e53e3e;
+        color: #fff;
+        border: none;
+        padding: 0.875rem 2rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .btn-rejeitar-modal:hover {
+        background: #c53030;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+    }
+    .btn-ver-solicitacao {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #fff;
+        border: none;
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .btn-ver-solicitacao:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .detalhe-solicitacao {
+        display: grid;
+        gap: 1.5rem;
+    }
+    .detalhe-solicitacao-item {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #34495e;
+    }
+    .detalhe-solicitacao-item strong {
+        display: block;
+        color: #34495e;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .detalhe-solicitacao-item span {
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+    .detalhe-itens-lista {
+        margin-top: 1rem;
+    }
+    .detalhe-item {
+        padding: 1rem;
+        background: #ffffff;
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+    .detalhe-item-header {
+        font-weight: 700;
+        color: #34495e;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .detalhe-item-campo {
+        margin-bottom: 0.5rem;
+    }
+    .detalhe-item-campo strong {
+        color: #34495e;
+        font-weight: 600;
+    }
+    .anexos-lista {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    .anexo-item {
+        padding: 0.75rem;
+        background: #e8f4f8;
+        border-radius: 4px;
+        border-left: 3px solid #3498db;
+    }
+    .anexo-item a {
+        color: #2980b9;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .anexo-item a:hover {
+        text-decoration: underline;
+    }
+    .status-pendente {
+        color: #d69e2e;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #fef3c7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aprovado {
+        color: #38a169;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #c6f6d5;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-rejeitado {
+        color: #e53e3e;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #fed7d7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .messages {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1.5rem;
+    }
+    .messages li {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+    .messages .error {
+        background: #fed7d7;
+        color: #c53030;
+    }
+    .messages .success {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+    .messages .warning {
+        background: #feebc8;
+        color: #744210;
+    }
+    .search-form {
+        margin: 0;
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+    .btn-search, .btn-clear {
+        padding: 0.625rem 1.5rem;
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        text-align: center;
+        box-sizing: border-box;
+        height: 38px;
+        line-height: 1;
+    }
+    .btn-search {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+    }
+    .btn-search:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .btn-clear {
+        background: #95a5a6;
+    }
+    .btn-clear:hover {
+        background: #7f8c8d;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
+    }
+    .search-buttons {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+    }
+    .pagination-wrapper {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .pagination-info {
+        color: #34495e;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .pagination-btn {
+        padding: 0.625rem 1rem;
+        background: #ecf0f1;
+        color: #34495e;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
+        min-width: 100px;
+        box-sizing: border-box;
+    }
+    .pagination-btn:hover:not(.disabled) {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        border-color: transparent;
+    }
+    .pagination-btn.disabled {
+        background: #f8f9fa;
+        color: #bdc3c7;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    .pagination-current {
+        padding: 0.625rem 1.25rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
+    }
+    @media (max-width: 768px) {
+        .pagination-wrapper {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem !important;
+        }
+        .pagination-info {
+            text-align: center;
+            width: 100%;
+        }
+        .pagination-controls {
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .pagination-btn {
+            min-width: 90px;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .pagination-current {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+        .search-form > div {
+            flex-direction: column !important;
+        }
+        .search-form > div > div {
+            width: 100%;
+        }
+    }
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .modal-overlay.aberto {
+        display: flex;
+    }
+    .modal-box {
+        background: #fff;
+        border-radius: 12px;
+        max-width: 400px;
+        width: 100%;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #34495e;
+    }
+    .modal-body {
+        padding: 0;
+    }
+    .modal-fechar {
+        background: none;
+        border: none;
+        font-size: 1.75rem;
+        cursor: pointer;
+        color: #666;
+        line-height: 1;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-fechar:hover {
+        color: #34495e;
+    }
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 1.05rem;
+    }
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-family: inherit;
+        resize: vertical;
+    }
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #fff;
+        padding: 0.875rem 2rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+</style>
+{% endblock %}
 {% block content %}
 <h1 class="page-title">Aprovar Reembolsos</h1>
-<p style="margin: 0 0 1.5rem; color: #666;">Solicitações de reembolso para análise. Aprove ou rejeite cada solicitação.</p>
+<p class="page-intro">Solicitações de reembolso para análise. Aprove ou rejeite cada solicitação.</p>
 
 {% if messages %}
-<ul class="messages" style="list-style:none; padding:0; margin:0 0 1rem;">
+<ul class="messages">
     {% for message in messages %}
-    <li style="padding:0.5rem; border-radius:6px; margin-bottom:0.5rem; font-size:0.95rem; {% if message.tags == 'success' %}background:#c6f6d5; color:#22543d;{% elif message.tags == 'warning' %}background:#feebc8; color:#744210;{% endif %}">{{ message }}</li>
+    <li class="{{ message.tags }}">{{ message }}</li>
     {% endfor %}
 </ul>
 {% endif %}
+
+<!-- Campo de Busca -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <form method="get" action="{% url 'intra:aprovar_reembolsos' %}" class="search-form" onsubmit="showLoading('Buscando solicitações...'); return true;">
+        <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+            <div style="flex: 1;">
+                <label for="busca" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #34495e; font-size: 0.9rem;">Buscar</label>
+                <input 
+                    type="text" 
+                    id="busca" 
+                    name="busca" 
+                    value="{{ busca }}" 
+                    placeholder="Buscar por email, nome, centro de custo ou status..." 
+                    class="search-input"
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #e1e8ed; border-radius: 6px; font-size: 0.9rem; color: #2c3e50;"
+                >
+            </div>
+            <div class="search-buttons">
+                <button type="submit" class="btn-search">
+                    Buscar
+                </button>
+                {% if busca %}
+                <a href="{% url 'intra:aprovar_reembolsos' %}" class="btn-clear" onclick="showLoading('Limpando busca...');">
+                    Limpar
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
 
 {% if solicitacoes %}
 <div class="card">
     <table class="tabela-reembolsos">
         <thead>
             <tr>
-                <th>Data</th>
+                <th>Data de Envio</th>
                 <th>Solicitante</th>
                 <th>Centro de custo</th>
-                <th>Código de despesa</th>
-                <th class="valor">Valor total</th>
+                <th>Ver Solicitação</th>
                 <th>Status</th>
-                <th>Ações</th>
             </tr>
         </thead>
         <tbody>
             {% for s in solicitacoes %}
             <tr>
-                <td>{{ s.criado_em|date:"d/m/Y H:i" }}</td>
-                <td>{{ s.user.email }}</td>
-                <td>{{ s.centro_custo }}</td>
-                <td>{{ s.cod_despesa }}</td>
-                <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
+                <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
+                <td>
+                    <a href="#" class="email-clicavel" data-pk="{{ s.pk }}" style="color: #34495e; text-decoration: none; cursor: pointer; font-weight: 500; transition: color 0.2s;">{{ s.user.email }}</a>
+                </td>
+                <td>{{ s.centro_custo|default:"—" }}</td>
+                <td class="acoes">
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                </td>
                 <td>
                     {% if s.status == 'PENDENTE' %}<span class="status-pendente">Pendente</span>{% endif %}
                     {% if s.status == 'APROVADO' %}<span class="status-aprovado">Aprovado</span>{% endif %}
                     {% if s.status == 'REJEITADO' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
                 </td>
-                <td class="acoes">
-                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-link" target="_blank" rel="noopener">PDF</a>
-                    {% if s.status == 'PENDENTE' %}
-                    <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display:inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="acao" value="aprovar">
-                        <button type="submit" class="btn-aprovar">Aprovar</button>
-                    </form>
-                    <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
-                    {% endif %}
-                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    
+    <!-- Paginação -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            Mostrando {{ page_obj.start_index }} a {{ page_obj.end_index }} de {{ page_obj.paginator.count }} solicitação{{ page_obj.paginator.count|pluralize }}
+        </div>
+        <div class="pagination-controls">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if busca %}&busca={{ busca }}{% endif %}" class="pagination-btn">
+                    « Primeira
+                </a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}" class="pagination-btn">
+                    ‹ Anterior
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    « Primeira
+                </span>
+                <span class="pagination-btn disabled">
+                    ‹ Anterior
+                </span>
+            {% endif %}
+            
+            <span class="pagination-current">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}" class="pagination-btn">
+                    Próxima ›
+                </a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if busca %}&busca={{ busca }}{% endif %}" class="pagination-btn">
+                    Última »
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    Próxima ›
+                </span>
+                <span class="pagination-btn disabled">
+                    Última »
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% else %}
-<div class="card" style="text-align:center; padding:2rem;">
-    <p>Nenhuma solicitação de reembolso encontrada.</p>
+<div class="card card-empty">
+    <p>{% if busca %}Nenhuma solicitação encontrada para "{{ busca }}".{% else %}Nenhuma solicitação de reembolso encontrada.{% endif %}</p>
+    {% if busca %}
+    <a href="{% url 'intra:aprovar_reembolsos' %}" style="color: #3498db; text-decoration: none; font-weight: 600;" onclick="showLoading('Limpando busca...');">Limpar busca e ver todas</a>
+    {% endif %}
 </div>
 {% endif %}
+
+<!-- Modal Ver Solicitação -->
+<div id="modal-ver-solicitacao" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Detalhes da Solicitação</h2>
+            <button type="button" class="modal-fechar" id="modal-ver-solicitacao-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body" id="solicitacao-content">
+            <p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dados do Solicitante -->
+<div id="modal-dados-solicitante" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Dados do Solicitante</h2>
+            <button type="button" class="modal-fechar" id="modal-dados-solicitante-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body" id="dados-solicitante-content">
+            <p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>
+        </div>
+    </div>
+</div>
 
 <!-- Modal rejeitar -->
 <div id="modal-rejeitar" class="modal-overlay" aria-hidden="true">
     <div class="modal-box">
         <div class="modal-header">
-            <h2 style="margin:0; font-size:1.1rem;">Rejeitar solicitação</h2>
+            <h2>Rejeitar solicitação</h2>
             <button type="button" class="modal-fechar" id="modal-rejeitar-fechar" aria-label="Fechar">&times;</button>
         </div>
-        <form method="post" id="form-rejeitar">
+        <form method="post" id="form-rejeitar" onsubmit="showLoading('Rejeitando solicitação...'); return true;">
             {% csrf_token %}
             <input type="hidden" name="acao" value="rejeitar">
             <input type="hidden" name="pk" id="rejeitar-pk">
             <div class="form-group">
-                <label for="motivo_rejeicao">Motivo da rejeição (opcional)</label>
-                <textarea name="motivo_rejeicao" id="motivo_rejeicao" rows="3" style="width:100%; padding:0.5rem; border:1px solid #ccc; border-radius:8px;"></textarea>
+                <label for="motivo_rejeicao">Observação para rejeição <span style="color: #c53030;">*</span></label>
+                <textarea name="motivo_rejeicao" id="motivo_rejeicao" rows="8" required placeholder="Informe o motivo da rejeição..."></textarea>
             </div>
-            <button type="submit" class="btn btn-primary">Confirmar rejeição</button>
+            <button type="submit" class="btn-primary">Confirmar rejeição</button>
         </form>
     </div>
 </div>
 {% endblock %}
-{% block extra_css %}
-<style>
-    .tabela-reembolsos { width: 100%; border-collapse: collapse; }
-    .tabela-reembolsos th, .tabela-reembolsos td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #eee; }
-    .tabela-reembolsos th { font-weight: 600; color: #555; background: #f8f9fa; }
-    .tabela-reembolsos .valor { text-align: right; white-space: nowrap; }
-    .tabela-reembolsos .acoes { white-space: nowrap; }
-    .btn-link { margin-right: 0.5rem; color: #16213e; }
-    .btn-aprovar { background: #38a169; color: #fff; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-    .btn-aprovar:hover { background: #2f855a; }
-    .btn-rejeitar { background: #e53e3e; color: #fff; border: none; padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-    .btn-rejeitar:hover { background: #c53030; }
-    .status-pendente { color: #d69e2e; font-weight: 500; }
-    .status-aprovado { color: #38a169; font-weight: 500; }
-    .status-rejeitado { color: #e53e3e; font-weight: 500; }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-overlay.aberto { display: flex; }
-    .modal-box { background: #fff; border-radius: 12px; max-width: 400px; width: 100%; padding: 1.25rem; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .modal-fechar { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
-</style>
-{% endblock %}
 {% block extra_js %}
 <script>
 (function() {
-    var modal = document.getElementById('modal-rejeitar');
-    var form = document.getElementById('form-rejeitar');
-    document.querySelectorAll('.btn-rejeitar').forEach(function(btn) {
+    // Obter CSRF token
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    var csrfToken = getCookie('csrftoken') || '{{ csrf_token }}';
+    
+    function formatarValor(v) {
+        return typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v;
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        var map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    // Modal Ver Solicitação
+    var modalVerSolicitacao = document.getElementById('modal-ver-solicitacao');
+    var solicitacaoContent = document.getElementById('solicitacao-content');
+    document.querySelectorAll('.btn-ver-solicitacao').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var pk = this.getAttribute('data-pk');
-            form.action = '/reembolso/' + pk + '/decidir/';
-            document.getElementById('motivo_rejeicao').value = '';
-            modal.classList.add('aberto');
+            solicitacaoContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+            modalVerSolicitacao.classList.add('aberto');
+            modalVerSolicitacao.setAttribute('aria-hidden', 'false');
+            
+            // Buscar dados completos via AJAX
+            showLoading('Carregando detalhes da solicitação...');
+            fetch('/reembolso/' + pk + '/detalhe-gestor/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    hideLoading();
+                    if (data.error) {
+                        solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                        return;
+                    }
+                    var html = '<div style="text-align: right; margin-bottom: 1.5rem;">';
+                    html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Gerar PDF</a>';
+                    html += '</div>';
+                    
+                    html += '<div class="detalhe-solicitacao">';
+                    html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
+                    
+                    // Código de despesa
+                    html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
+                    if (data.cod_despesa && data.cod_despesa.length > 0) {
+                        html += '<span>' + data.cod_despesa.join(', ') + '</span>';
+                    } else {
+                        html += '<span>—</span>';
+                    }
+                    html += '</div>';
+                    
+                    html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
+                    
+                    // Descrição (apenas a descrição dos itens) - ANTES de anexos
+                    html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
+                    html += '<div class="detalhe-itens-lista">';
+                    if (data.itens && data.itens.length > 0) {
+                        var temDescricao = false;
+                        data.itens.forEach(function(item) {
+                            if (item.descricao && item.descricao.trim()) {
+                                temDescricao = true;
+                                html += '<div class="detalhe-item">';
+                                html += '<p style="margin: 0; color: #2c3e50; font-size: 1rem; line-height: 1.6;">' + item.descricao + '</p>';
+                                html += '</div>';
+                            }
+                        });
+                        if (!temDescricao) {
+                            html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
+                        }
+                    } else {
+                        html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
+                    }
+                    html += '</div></div>';
+                    
+                    // Anexos
+                    html += '<div class="detalhe-solicitacao-item"><strong>Anexos</strong>';
+                    html += '<div class="anexos-lista">';
+                    if (data.anexos && data.anexos.length > 0) {
+                        var temAnexo = false;
+                        data.anexos.forEach(function(anexo) {
+                            if (anexo.url) {
+                                temAnexo = true;
+                                html += '<div class="anexo-item">';
+                                html += '<a href="' + anexo.url + '" target="_blank">📎 ' + (anexo.nome || 'Ver anexo') + '</a>';
+                                if (anexo.tipo_despesa) {
+                                    html += '<span style="display: block; color: #7f8c8d; font-size: 0.9rem; margin-top: 0.25rem;">Item: ' + anexo.tipo_despesa + '</span>';
+                                }
+                                html += '</div>';
+                            }
+                        });
+                        if (!temAnexo) {
+                            html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
+                        }
+                    } else {
+                        html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
+                    }
+                    html += '</div></div>';
+                    
+                    // Informações de aprovação/rejeição
+                    if (data.aprovacao && Object.keys(data.aprovacao).length > 0) {
+                        html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed;">';
+                        if (data.status === 'APROVADO') {
+                            html += '<div style="background: #c6f6d5; border-left: 4px solid #38a169; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
+                            html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
+                            html += '<span style="font-size: 1.5rem;">✓</span>';
+                            html += '<strong style="color: #22543d; font-size: 1.1rem;">Solicitação Aprovada</strong>';
+                            html += '</div>';
+                            if (data.aprovacao.aprovado_por_nome || data.aprovacao.aprovado_por_email) {
+                                html += '<p style="margin: 0.5rem 0 0; color: #2f855a; font-size: 0.95rem;">';
+                                html += '<strong>Aprovado por:</strong> ';
+                                if (data.aprovacao.aprovado_por_nome) {
+                                    html += escapeHtml(data.aprovacao.aprovado_por_nome);
+                                    if (data.aprovacao.aprovado_por_email) {
+                                        html += ' (' + escapeHtml(data.aprovacao.aprovado_por_email) + ')';
+                                    }
+                                } else {
+                                    html += escapeHtml(data.aprovacao.aprovado_por_email);
+                                }
+                                html += '</p>';
+                            }
+                            if (data.aprovacao.aprovado_em) {
+                                html += '<p style="margin: 0.5rem 0 0; color: #2f855a; font-size: 0.95rem;">';
+                                html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao.aprovado_em);
+                                html += '</p>';
+                            }
+                            html += '</div>';
+                        } else if (data.status === 'REJEITADO') {
+                            html += '<div style="background: #fed7d7; border-left: 4px solid #e53e3e; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
+                            html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
+                            html += '<span style="font-size: 1.5rem;">✗</span>';
+                            html += '<strong style="color: #742a2a; font-size: 1.1rem;">Solicitação Rejeitada</strong>';
+                            html += '</div>';
+                            if (data.aprovacao.aprovado_por_nome || data.aprovacao.aprovado_por_email) {
+                                html += '<p style="margin: 0.5rem 0 0; color: #c53030; font-size: 0.95rem;">';
+                                html += '<strong>Rejeitado por:</strong> ';
+                                if (data.aprovacao.aprovado_por_nome) {
+                                    html += escapeHtml(data.aprovacao.aprovado_por_nome);
+                                    if (data.aprovacao.aprovado_por_email) {
+                                        html += ' (' + escapeHtml(data.aprovacao.aprovado_por_email) + ')';
+                                    }
+                                } else {
+                                    html += escapeHtml(data.aprovacao.aprovado_por_email);
+                                }
+                                html += '</p>';
+                            }
+                            if (data.aprovacao.aprovado_em) {
+                                html += '<p style="margin: 0.5rem 0 0; color: #c53030; font-size: 0.95rem;">';
+                                html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao.aprovado_em);
+                                html += '</p>';
+                            }
+                            if (data.aprovacao.motivo_rejeicao) {
+                                html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #fc8181;">';
+                                html += '<p style="margin: 0 0 0.5rem; color: #742a2a; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
+                                html += '<p style="margin: 0; color: #742a2a; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.aprovacao.motivo_rejeicao) + '</p>';
+                                html += '</div>';
+                            }
+                            html += '</div>';
+                        }
+                        html += '</div>';
+                    }
+                    
+                    // Botões Aprovar e Rejeitar em destaque no final
+                    html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed; display: flex; gap: 1rem; justify-content: center;">';
+                    if (data.status === 'PENDENTE') {
+                        html += '<form method="post" action="/reembolso/' + pk + '/decidir/" style="display: inline-block;" onsubmit="showLoading(\'Aprovando solicitação...\'); return true;">';
+                        html += '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrfToken + '">';
+                        html += '<input type="hidden" name="acao" value="aprovar">';
+                        html += '<button type="submit" class="btn-aprovar" style="padding: 1rem 2.5rem; font-size: 1.15rem;">Aprovar</button>';
+                        html += '</form>';
+                        html += '<button type="button" class="btn-rejeitar-modal" data-pk="' + pk + '" style="padding: 1rem 2.5rem; font-size: 1.15rem;">Rejeitar</button>';
+                    } else {
+                        html += '<p style="color: #7f8c8d; margin: 0;">Esta solicitação já foi processada.</p>';
+                    }
+                    html += '</div>';
+                    
+                    html += '</div>';
+                    solicitacaoContent.innerHTML = html;
+                    
+                    // Reativar listeners dos botões de rejeitar dentro do modal
+                    solicitacaoContent.querySelectorAll('.btn-rejeitar-modal').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var pk = this.getAttribute('data-pk');
+                            formRejeitar.action = '/reembolso/' + pk + '/decidir/';
+                            document.getElementById('rejeitar-pk').value = pk;
+                            document.getElementById('motivo_rejeicao').value = '';
+                            modalRejeitar.classList.add('aberto');
+                            modalRejeitar.setAttribute('aria-hidden', 'false');
+                        });
+                    });
+                    
+                })
+                .catch(function() {
+                    hideLoading();
+                    solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+                });
         });
     });
-    document.getElementById('modal-rejeitar-fechar').addEventListener('click', function() {
-        modal.classList.remove('aberto');
+    var btnFecharVerSolicitacao = document.getElementById('modal-ver-solicitacao-fechar');
+    if (btnFecharVerSolicitacao) {
+        btnFecharVerSolicitacao.addEventListener('click', function() {
+            modalVerSolicitacao.classList.remove('aberto');
+            modalVerSolicitacao.setAttribute('aria-hidden', 'true');
+        });
+    }
+    modalVerSolicitacao.addEventListener('click', function(e) {
+        if (e.target === modalVerSolicitacao) {
+            modalVerSolicitacao.classList.remove('aberto');
+            modalVerSolicitacao.setAttribute('aria-hidden', 'true');
+        }
     });
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) modal.classList.remove('aberto');
+
+    // Função para mostrar dados do solicitante
+    function mostrarDadosSolicitante(pk) {
+        var modalDadosSolicitante = document.getElementById('modal-dados-solicitante');
+        var dadosSolicitanteContent = document.getElementById('dados-solicitante-content');
+        
+        dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+        modalDadosSolicitante.classList.add('aberto');
+        modalDadosSolicitante.setAttribute('aria-hidden', 'false');
+        
+        // Buscar dados via AJAX
+        showLoading('Carregando dados do solicitante...');
+        fetch('/reembolso/' + pk + '/detalhe-gestor/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                hideLoading();
+                if (data.error) {
+                    dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                    return;
+                }
+                
+                var solicitante = data.solicitante || {};
+                var html = '<div class="detalhe-solicitacao">';
+                html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + (solicitante.nome || solicitante.email || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + (solicitante.email || '—') + '</span></div>';
+                
+                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados do Gestor</h4>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Nome do gestor</strong><span>' + (solicitante.nome_gestor || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>E-mail do gestor</strong><span>' + (solicitante.email_gestor || '—') + '</span></div>';
+                html += '</div>';
+                
+                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários</h4>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + (solicitante.banco || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + (solicitante.agencia || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Tipo de conta</strong><span>' + (solicitante.conta_tipo || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Conta Corrente ou Poupança</strong><span>' + (solicitante.conta_numero || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + (solicitante.chave_pix || '—') + '</span></div>';
+                html += '</div>';
+                html += '</div>';
+                
+                dadosSolicitanteContent.innerHTML = html;
+            })
+            .catch(function() {
+                hideLoading();
+                dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+            });
+    }
+    
+    // Modal Dados do Solicitante
+    var modalDadosSolicitante = document.getElementById('modal-dados-solicitante');
+    var btnFecharDadosSolicitante = document.getElementById('modal-dados-solicitante-fechar');
+    if (btnFecharDadosSolicitante) {
+        btnFecharDadosSolicitante.addEventListener('click', function() {
+            modalDadosSolicitante.classList.remove('aberto');
+            modalDadosSolicitante.setAttribute('aria-hidden', 'true');
+        });
+    }
+    modalDadosSolicitante.addEventListener('click', function(e) {
+        if (e.target === modalDadosSolicitante) {
+            modalDadosSolicitante.classList.remove('aberto');
+            modalDadosSolicitante.setAttribute('aria-hidden', 'true');
+        }
+    });
+    
+    // Listener para e-mails clicáveis na tabela
+    document.querySelectorAll('.email-clicavel').forEach(function(email) {
+        email.addEventListener('click', function(e) {
+            e.preventDefault();
+            var pk = this.getAttribute('data-pk');
+            if (pk) mostrarDadosSolicitante(pk);
+        });
+        email.addEventListener('mouseenter', function() {
+            this.style.color = '#2c3e50';
+            this.style.textDecoration = 'underline';
+        });
+        email.addEventListener('mouseleave', function() {
+            this.style.color = '#34495e';
+            this.style.textDecoration = 'none';
+        });
+    });
+
+    // Modal de rejeitar
+    var modalRejeitar = document.getElementById('modal-rejeitar');
+    var formRejeitar = document.getElementById('form-rejeitar');
+    // Função para adicionar listeners aos botões de rejeitar
+    function adicionarListenersRejeitar() {
+        document.querySelectorAll('.btn-rejeitar').forEach(function(btn) {
+            // Remove listeners anteriores se existirem
+            var novoBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(novoBtn, btn);
+            novoBtn.addEventListener('click', function() {
+                var pk = this.getAttribute('data-pk');
+                formRejeitar.action = '/reembolso/' + pk + '/decidir/';
+                document.getElementById('rejeitar-pk').value = pk;
+                document.getElementById('motivo_rejeicao').value = '';
+                modalRejeitar.classList.add('aberto');
+                modalRejeitar.setAttribute('aria-hidden', 'false');
+            });
+        });
+    }
+    adicionarListenersRejeitar();
+    
+    var btnFechar = document.getElementById('modal-rejeitar-fechar');
+    if (btnFechar) {
+        btnFechar.addEventListener('click', function() {
+            modalRejeitar.classList.remove('aberto');
+            modalRejeitar.setAttribute('aria-hidden', 'true');
+        });
+    }
+    modalRejeitar.addEventListener('click', function(e) {
+        if (e.target === modalRejeitar) {
+            modalRejeitar.classList.remove('aberto');
+            modalRejeitar.setAttribute('aria-hidden', 'true');
+        }
     });
 })();
 </script>

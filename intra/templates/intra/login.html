@@ -1,58 +1,261 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Intranet Parceiros</title>
+    <title>Login - Intranet Parceiros da Educação</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-        .login-box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 2rem; width: 100%; max-width: 380px; }
-        .login-box h1 { margin: 0 0 1.5rem; font-size: 1.5rem; font-weight: 600; color: #16213e; text-align: center; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
-        .form-group input { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-        .form-group input:focus { outline: none; border-color: #16213e; }
-        .btn { width: 100%; padding: 0.65rem 1rem; border-radius: 8px; font-size: 1rem; cursor: pointer; border: none; font-weight: 500; margin-top: 0.5rem; }
-        .btn-primary { background: #16213e; color: #fff; }
-        .btn-primary:hover { background: #1a1a2e; }
-        .login-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; text-align: center; }
-        .login-footer a { color: #16213e; text-decoration: none; font-size: 0.95rem; }
-        .login-footer a:hover { text-decoration: underline; }
-        .errorlist { list-style: none; padding: 0; margin: 0 0 1rem; color: #c53030; font-size: 0.9rem; }
-        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
-        .messages li { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        .messages .error { background: #fed7d7; color: #c53030; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            color: #2c3e50;
+            min-height: 100vh;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            width: 100%;
+            overflow-x: hidden;
+        }
+        .login-wrapper {
+            width: 100%;
+            max-width: 450px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 1rem;
+        }
+        .page-footer {
+            width: 100%;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            padding: 1rem 2rem;
+            margin-top: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .page-footer img {
+            max-width: 100%;
+            height: auto;
+            max-height: 50px;
+        }
+        html {
+            height: 100%;
+        }
+        .login-box {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 0;
+            border: none !important;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            outline: none;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            padding: 2rem 2rem;
+            text-align: center;
+        }
+        .logo-top {
+            margin-bottom: 1.5rem;
+        }
+        .login-header .logo-top img {
+            max-width: 180px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            max-height: 140px;
+        }
+        .login-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.5px;
+        }
+        .login-subtitle {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            margin: 0;
+        }
+        .login-box-content {
+            padding: 2.5rem 2rem;
+        }
+        .form-section {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 1rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #2c3e50;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #2c3e50;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+        .btn-primary {
+            background: #2c3e50;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(44, 62, 80, 0.2);
+        }
+        .btn-primary:hover {
+            background: #34495e;
+            box-shadow: 0 4px 12px rgba(44, 62, 80, 0.3);
+        }
+        .btn-primary:active {
+            background: #1a252f;
+        }
+        form {
+            position: relative;
+            z-index: 1;
+        }
+        .login-footer {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e8ed;
+            text-align: center;
+        }
+        .login-footer a {
+            color: #2c3e50;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .login-footer a:hover {
+            color: #34495e;
+            text-decoration: underline;
+        }
+        .errorlist {
+            list-style: none;
+            padding: 0.75rem 1rem;
+            margin: 0 0 1rem;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 6px;
+            color: #c33;
+            font-size: 0.875rem;
+        }
+        .messages {
+            list-style: none;
+            margin: 0 0 1.5rem;
+            padding: 0;
+        }
+        .messages li {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .messages .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+        }
+        .messages .success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+        }
+        .messages .info {
+            background: #eef;
+            border: 1px solid #ccf;
+            color: #33c;
+        }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <h1>Intranet Parceiros</h1>
-        {% if messages %}
-        <ul class="messages">
-            {% for message in messages %}
-            <li class="{{ message.tags }}">{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        <form method="post" action="{% url 'intra:login' %}">
-            {% csrf_token %}
-            {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
-            <div class="form-group">
-                <label for="id_email">E-mail</label>
-                {{ form.email }}
-                {% if form.email.errors %}<ul class="errorlist">{{ form.email.errors }}</ul>{% endif %}
+    <div class="login-wrapper">
+        <div class="login-box">
+            <div class="login-header">
+                <div class="logo-top">
+                    <img src="{% static 'admin/img/logos/PE_Logo_branca.png' %}" alt="Parceiros da Educação">
+                </div>
+                <h2 class="login-title">Intranet</h2>
+                <p class="login-subtitle">Sistema de Gestão Interna</p>
             </div>
-            <div class="form-group">
-                <label for="id_password">Senha</label>
-                {{ form.password }}
-                {% if form.password.errors %}<ul class="errorlist">{{ form.password.errors }}</ul>{% endif %}
+            <div class="login-box-content">
+                {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                <div class="form-section">
+                    <form method="post" action="{% url 'intra:login' %}">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <ul class="errorlist">{{ form.non_field_errors }}</ul>
+                        {% endif %}
+                        <div class="form-group">
+                            <label for="id_email">E-mail</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                            <ul class="errorlist">{{ form.email.errors }}</ul>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_password">Senha</label>
+                            {{ form.password }}
+                            {% if form.password.errors %}
+                            <ul class="errorlist">{{ form.password.errors }}</ul>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">Entrar</button>
+                    </form>
+                </div>
+                <div class="login-footer">
+                    <a href="{% url 'intra:esqueceu_acesso' %}">Não sabe ou esqueceu seu acesso?</a>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Entrar</button>
-        </form>
-        <div class="login-footer">
-            <a href="{% url 'intra:esqueceu_acesso' %}">Não sabe ou Esqueceu seu acesso?</a>
         </div>
+    </div>
+    <div class="page-footer">
+        <img src="{% static 'admin/img/logos/PE_Logo_Original_horizontal.png' %}" alt="Parceiros da Educação" onerror="console.error('Erro ao carregar logo:', this.src); this.style.display='none';">
     </div>
 </body>
 </html>

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,23 +6,273 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Completar cadastro - Intranet Parceiros</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-        .box { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 2rem; width: 100%; max-width: 440px; }
-        .box h1 { margin: 0 0 0.5rem; font-size: 1.35rem; font-weight: 600; color: #16213e; }
-        .box .subtitle { margin: 0 0 1.5rem; font-size: 0.95rem; color: #555; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
-        .form-group input, .form-group select { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #16213e; }
-        .btn { width: 100%; padding: 0.65rem 1rem; border-radius: 8px; font-size: 1rem; cursor: pointer; border: none; font-weight: 500; margin-top: 0.25rem; background: #16213e; color: #fff; }
-        .btn:hover { background: #1a1a2e; }
-        .errorlist { list-style: none; padding: 0; margin: 0.25rem 0 0; color: #c53030; font-size: 0.85rem; }
-        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
-        .messages li { padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.9rem; }
-        .messages .error { background: #fed7d7; color: #c53030; }
-        .messages .success { background: #c6f6d5; color: #22543d; }
-        .section-title { font-size: 0.95rem; font-weight: 600; color: #333; margin: 1.25rem 0 0.5rem; padding-bottom: 0.25rem; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { height: 100%; }
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            background-attachment: fixed;
+            background-size: 100% 100%;
+            color: #1a1a2e; 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 1rem; 
+        }
+        .box { 
+            background: #fff; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 24px rgba(0,0,0,0.15); 
+            padding: 1.5rem; 
+            width: 100%; 
+            max-width: 500px; 
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        .box h1 { 
+            margin: 0 0 0.5rem; 
+            font-size: 1.3rem; 
+            font-weight: 600; 
+            color: #16213e; 
+        }
+        .box .subtitle { 
+            margin: 0 0 1.25rem; 
+            font-size: 0.9rem; 
+            color: #555; 
+        }
+        .form-section {
+            margin-bottom: 1.25rem;
+        }
+        .section-title { 
+            font-size: 0.95rem; 
+            font-weight: 700; 
+            color: #34495e; 
+            margin: 0 0 0.75rem; 
+            padding-bottom: 0.5rem; 
+            border-bottom: 2px solid #e1e8ed;
+        }
+        .form-group { 
+            margin-bottom: 1rem; 
+        }
+        .form-group label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            font-weight: 600; 
+            color: #34495e; 
+            font-size: 0.9rem;
+        }
+        .form-group label .required {
+            color: #c53030;
+            margin-left: 3px;
+        }
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 0.625rem 0.875rem; 
+            border: 2px solid #d1d9e0; 
+            border-radius: 8px; 
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        .form-group input:focus, .form-group select:focus { 
+            outline: none; 
+            border-color: #34495e; 
+            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        }
+        .btn { 
+            width: 100%; 
+            padding: 0.75rem 1.25rem; 
+            border-radius: 8px; 
+            font-size: 0.95rem; 
+            cursor: pointer; 
+            border: none; 
+            font-weight: 600; 
+            margin-top: 0.75rem; 
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); 
+            color: #fff; 
+            transition: all 0.2s;
+        }
+        .btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        }
+        .errorlist { 
+            list-style: none; 
+            padding: 0.5rem 0.75rem; 
+            margin: 0.375rem 0 0; 
+            color: #c53030; 
+            font-size: 0.85rem; 
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 6px;
+        }
+        .messages { 
+            list-style: none; 
+            padding: 0; 
+            margin: 0 0 1rem; 
+        }
+        .messages li { 
+            padding: 0.625rem 0.875rem; 
+            border-radius: 6px; 
+            margin-bottom: 0.5rem; 
+            font-size: 0.9rem; 
+        }
+        .messages .error { 
+            background: #fed7d7; 
+            color: #c53030; 
+        }
+        .messages .success { 
+            background: #c6f6d5; 
+            color: #22543d; 
+        }
+        .section-description {
+            margin: 0 0 0.75rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 2px solid #d1d9e0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: -2px;
+        }
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #e1e8ed;
+            transition: background 0.2s;
+            margin: 0;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: #f0f4f8;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item-nome {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 0.1rem;
+            font-size: 0.9rem;
+            line-height: 1.2;
+        }
+        .autocomplete-item-email {
+            font-size: 0.8rem;
+            color: #666;
+            line-height: 1.2;
+        }
+        .gestor-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .gestor-toggle-btn {
+            position: absolute;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #34495e;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+        .gestor-toggle-btn:hover {
+            color: #2c3e50;
+        }
+        .gestor-toggle-btn.active {
+            transform: rotate(180deg);
+        }
+        .gestor-toggle-btn svg {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+        #id_gestor_busca {
+            padding-right: 2.5rem;
+        }
+        .banco-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .banco-toggle-btn {
+            position: absolute;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #34495e;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+        .banco-toggle-btn:hover {
+            color: #2c3e50;
+        }
+        .banco-toggle-btn.active {
+            transform: rotate(180deg);
+        }
+        .banco-toggle-btn svg {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+        #id_banco {
+            padding-right: 2.5rem;
+        }
+        #banco-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 2px solid #d1d9e0;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: -2px;
+        }
+        #banco-autocomplete.show {
+            display: block;
+        }
+        .banco-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #e1e8ed;
+            transition: background 0.2s;
+            margin: 0;
+        }
+        .banco-item:hover,
+        .banco-item.selected {
+            background: #f0f4f8;
+        }
+        .banco-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -37,42 +288,589 @@
         {% endif %}
         <form method="post" action="{% url 'intra:completar_cadastro' %}">
             {% csrf_token %}
-            <div class="section-title">Nome do solicitante</div>
-            <div class="form-group">
-                <label for="id_nome_solicitante">{{ form.nome_solicitante.label }}</label>
-                {{ form.nome_solicitante }}
-                {% if form.nome_solicitante.errors %}<ul class="errorlist">{{ form.nome_solicitante.errors }}</ul>{% endif %}
+            
+            <div class="form-section">
+                <div class="section-title">Dados do Solicitante</div>
+                <div class="form-group">
+                    <label for="id_nome_solicitante">
+                        {{ form.nome_solicitante.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.nome_solicitante }}
+                    {% if form.nome_solicitante.errors %}<ul class="errorlist">{{ form.nome_solicitante.errors }}</ul>{% endif %}
+                </div>
             </div>
-            <div class="section-title">Dados de pagamento</div>
-            <p style="margin:0 0 0.5rem; font-size:0.9rem; color:#666;">Banco, Agência, Conta Corrente ou Poupança e Chave PIX</p>
-            <div class="form-group">
-                <label for="id_banco">{{ form.banco.label }}</label>
-                {{ form.banco }}
-                {% if form.banco.errors %}<ul class="errorlist">{{ form.banco.errors }}</ul>{% endif %}
+
+            <div class="form-section">
+                <div class="section-title">Dados do Gestor</div>
+                <div class="form-group" style="position: relative;">
+                    <label for="id_gestor_busca">
+                        {{ form.gestor_busca.label }}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="gestor-input-wrapper">
+                        {{ form.gestor_busca }}
+                        <button type="button" class="gestor-toggle-btn" id="gestor-toggle-btn" title="Mostrar lista de gestores">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="gestor-autocomplete" class="autocomplete-dropdown"></div>
+                    {% if form.gestor_busca.errors or form.nome_gestor.errors or form.email_gestor.errors %}
+                        <ul class="errorlist">
+                            {% if form.gestor_busca.errors %}{{ form.gestor_busca.errors }}{% endif %}
+                            {% if form.nome_gestor.errors %}{{ form.nome_gestor.errors }}{% endif %}
+                            {% if form.email_gestor.errors %}{{ form.email_gestor.errors }}{% endif %}
+                        </ul>
+                    {% endif %}
+                    {{ form.nome_gestor }}
+                    {{ form.email_gestor }}
+                </div>
             </div>
-            <div class="form-group">
-                <label for="id_agencia">{{ form.agencia.label }}</label>
-                {{ form.agencia }}
-                {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+
+            <div class="form-section">
+                <div class="section-title">Dados de Pagamento</div>
+                <p class="section-description">Banco, Agência, Conta Corrente ou Poupança e Chave PIX</p>
+                <div class="form-group" style="position: relative;">
+                    <label for="id_banco">
+                        {{ form.banco.label }}
+                        <span class="required">*</span>
+                    </label>
+                    <div class="banco-input-wrapper">
+                        {{ form.banco }}
+                        <button type="button" class="banco-toggle-btn" id="banco-toggle-btn" title="Mostrar lista de bancos">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="banco-autocomplete" class="autocomplete-dropdown"></div>
+                    {% if form.banco.errors %}<ul class="errorlist">{{ form.banco.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_agencia">
+                        {{ form.agencia.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.agencia }}
+                    {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_conta_tipo">
+                        {{ form.conta_tipo.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.conta_tipo }}
+                    {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_conta_numero">
+                        {{ form.conta_numero.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.conta_numero }}
+                    {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_chave_pix">
+                        {{ form.chave_pix.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.chave_pix }}
+                    {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+                </div>
             </div>
-            <div class="form-group">
-                <label for="id_conta_tipo">{{ form.conta_tipo.label }}</label>
-                {{ form.conta_tipo }}
-                {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
-            </div>
-            <div class="form-group">
-                <label for="id_conta_numero">{{ form.conta_numero.label }}</label>
-                {{ form.conta_numero }}
-                {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
-            </div>
-            <div class="form-group">
-                <label for="id_chave_pix">{{ form.chave_pix.label }}</label>
-                {{ form.chave_pix }}
-                {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
-            </div>
+
             <input type="hidden" name="next" value="{{ request.GET.next }}">
             <button type="submit" class="btn">Salvar e continuar</button>
         </form>
     </div>
+    <script>
+        (function() {
+            const gestorBusca = document.getElementById('id_gestor_busca');
+            const nomeGestor = document.getElementById('id_nome_gestor');
+            const emailGestor = document.getElementById('id_email_gestor');
+            const autocomplete = document.getElementById('gestor-autocomplete');
+            const toggleBtn = document.getElementById('gestor-toggle-btn');
+            let timeoutId = null;
+            let selectedIndex = -1;
+            let gestores = [];
+
+            function buscarGestores(query) {
+                const queryParam = query || '';
+                fetch('{% url "intra:buscar_gestores" %}?q=' + encodeURIComponent(queryParam))
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Erro na requisição: ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        gestores = data.gestores || [];
+                        mostrarAutocomplete();
+                    })
+                    .catch(error => {
+                        console.error('Erro ao buscar gestores:', error);
+                        autocomplete.classList.remove('show');
+                        toggleBtn.classList.remove('active');
+                    });
+            }
+
+            function mostrarAutocomplete() {
+                if (gestores.length === 0) {
+                    autocomplete.classList.remove('show');
+                    toggleBtn.classList.remove('active');
+                    return;
+                }
+
+                autocomplete.innerHTML = '';
+                gestores.forEach((gestor, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.dataset.index = index;
+                    
+                    // Nome - garantir que não seja vazio
+                    const nomeDiv = document.createElement('div');
+                    nomeDiv.className = 'autocomplete-item-nome';
+                    const nomeTexto = gestor.nome && gestor.nome.trim() ? gestor.nome : gestor.email;
+                    nomeDiv.textContent = nomeTexto;
+                    
+                    // Email
+                    const emailDiv = document.createElement('div');
+                    emailDiv.className = 'autocomplete-item-email';
+                    emailDiv.textContent = gestor.email;
+                    
+                    item.appendChild(nomeDiv);
+                    item.appendChild(emailDiv);
+                    item.addEventListener('click', () => selecionarGestor(gestor));
+                    autocomplete.appendChild(item);
+                });
+                autocomplete.classList.add('show');
+                toggleBtn.classList.add('active');
+                selectedIndex = -1;
+            }
+
+            function selecionarGestor(gestor) {
+                gestorBusca.value = gestor.display;
+                nomeGestor.value = gestor.nome;
+                emailGestor.value = gestor.email;
+                autocomplete.classList.remove('show');
+                toggleBtn.classList.remove('active');
+            }
+            
+            // Botão toggle para abrir/fechar lista
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (autocomplete.classList.contains('show')) {
+                    autocomplete.classList.remove('show');
+                    toggleBtn.classList.remove('active');
+                } else {
+                    const query = gestorBusca.value.trim();
+                    buscarGestores(query);
+                }
+            });
+
+            // Mostra lista ao focar ou clicar no campo
+            gestorBusca.addEventListener('focus', function() {
+                const query = gestorBusca.value.trim();
+                buscarGestores(query);
+            });
+            
+            gestorBusca.addEventListener('click', function() {
+                // Se a lista não estiver visível, busca e mostra
+                if (!autocomplete.classList.contains('show')) {
+                    const query = gestorBusca.value.trim();
+                    buscarGestores(query);
+                }
+            });
+
+            gestorBusca.addEventListener('input', function(e) {
+                clearTimeout(timeoutId);
+                const query = e.target.value.trim();
+                
+                // Limpa campos ocultos se o campo de busca for limpo
+                if (query.length === 0) {
+                    nomeGestor.value = '';
+                    emailGestor.value = '';
+                }
+
+                timeoutId = setTimeout(() => {
+                    buscarGestores(query);
+                }, 100);
+            });
+
+            gestorBusca.addEventListener('keydown', function(e) {
+                if (!autocomplete.classList.contains('show') || gestores.length === 0) {
+                    return;
+                }
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, gestores.length - 1);
+                    atualizarSelecao();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    atualizarSelecao();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && selectedIndex < gestores.length) {
+                        selecionarGestor(gestores[selectedIndex]);
+                    }
+                } else if (e.key === 'Escape') {
+                    autocomplete.classList.remove('show');
+                }
+            });
+
+            function atualizarSelecao() {
+                const items = autocomplete.querySelectorAll('.autocomplete-item');
+                items.forEach((item, index) => {
+                    if (index === selectedIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            // Fechar autocomplete ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!gestorBusca.contains(e.target) && !autocomplete.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    autocomplete.classList.remove('show');
+                    toggleBtn.classList.remove('active');
+                }
+            });
+        })();
+
+        // Variável global para atualizar placeholders
+        let atualizarPlaceholdersGlobal = null;
+
+        // Autocomplete de Bancos
+        (function() {
+            const bancosPrincipais = [
+                'Banco do Brasil',
+                'Bradesco',
+                'Itaú',
+                'Santander',
+                'Caixa Econômica Federal',
+                'Banco Inter',
+                'Nubank',
+                'Banco Original',
+                'Banrisul',
+                'Banco Safra',
+                'BTG Pactual',
+                'Banco Pan',
+                'Banco Votorantim',
+                'Banco C6',
+                'Banco Next',
+                'Banco Neon',
+                'Banco Digio',
+                'Banco Will',
+                'Banco Sofisa',
+                'Banco Rendimento'
+            ];
+
+            const bancoInput = document.getElementById('id_banco');
+            const bancoAutocomplete = document.getElementById('banco-autocomplete');
+            const bancoToggleBtn = document.getElementById('banco-toggle-btn');
+            let bancoTimeoutId = null;
+            let bancoSelectedIndex = -1;
+            let bancosFiltrados = [];
+
+            function filtrarBancos(query) {
+                const queryLower = query.toLowerCase().trim();
+                if (!queryLower) {
+                    return bancosPrincipais;
+                }
+                return bancosPrincipais.filter(banco => 
+                    banco.toLowerCase().includes(queryLower)
+                );
+            }
+
+            function mostrarBancos() {
+                if (bancosFiltrados.length === 0) {
+                    bancoAutocomplete.classList.remove('show');
+                    bancoToggleBtn.classList.remove('active');
+                    return;
+                }
+
+                bancoAutocomplete.innerHTML = '';
+                bancosFiltrados.forEach((banco, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'banco-item';
+                    item.dataset.index = index;
+                    item.textContent = banco;
+                    item.addEventListener('click', () => selecionarBanco(banco));
+                    bancoAutocomplete.appendChild(item);
+                });
+                bancoAutocomplete.classList.add('show');
+                bancoToggleBtn.classList.add('active');
+                bancoSelectedIndex = -1;
+            }
+
+            function selecionarBanco(banco) {
+                bancoInput.value = banco;
+                bancoAutocomplete.classList.remove('show');
+                bancoToggleBtn.classList.remove('active');
+                // Atualizar placeholders quando banco é selecionado
+                setTimeout(() => {
+                    if (atualizarPlaceholdersGlobal) {
+                        atualizarPlaceholdersGlobal();
+                    }
+                }, 50);
+            }
+
+            bancoInput.addEventListener('focus', function() {
+                const query = bancoInput.value.trim();
+                bancosFiltrados = filtrarBancos(query);
+                mostrarBancos();
+            });
+
+            bancoInput.addEventListener('click', function() {
+                if (!bancoAutocomplete.classList.contains('show')) {
+                    const query = bancoInput.value.trim();
+                    bancosFiltrados = filtrarBancos(query);
+                    mostrarBancos();
+                }
+            });
+
+            bancoInput.addEventListener('input', function(e) {
+                clearTimeout(bancoTimeoutId);
+                const query = e.target.value.trim();
+                
+                bancoTimeoutId = setTimeout(() => {
+                    bancosFiltrados = filtrarBancos(query);
+                    mostrarBancos();
+                }, 100);
+            });
+
+            bancoInput.addEventListener('keydown', function(e) {
+                if (!bancoAutocomplete.classList.contains('show') || bancosFiltrados.length === 0) {
+                    return;
+                }
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    bancoSelectedIndex = Math.min(bancoSelectedIndex + 1, bancosFiltrados.length - 1);
+                    atualizarSelecaoBanco();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    bancoSelectedIndex = Math.max(bancoSelectedIndex - 1, -1);
+                    atualizarSelecaoBanco();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (bancoSelectedIndex >= 0 && bancoSelectedIndex < bancosFiltrados.length) {
+                        selecionarBanco(bancosFiltrados[bancoSelectedIndex]);
+                    } else if (bancosFiltrados.length === 1) {
+                        // Se houver apenas um banco na lista, selecionar automaticamente
+                        selecionarBanco(bancosFiltrados[0]);
+                    }
+                } else if (e.key === 'Escape') {
+                    bancoAutocomplete.classList.remove('show');
+                    bancoToggleBtn.classList.remove('active');
+                }
+            });
+
+            function atualizarSelecaoBanco() {
+                const items = bancoAutocomplete.querySelectorAll('.banco-item');
+                items.forEach((item, index) => {
+                    if (index === bancoSelectedIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+
+            bancoToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (bancoAutocomplete.classList.contains('show')) {
+                    bancoAutocomplete.classList.remove('show');
+                    bancoToggleBtn.classList.remove('active');
+                } else {
+                    const query = bancoInput.value.trim();
+                    bancosFiltrados = filtrarBancos(query);
+                    mostrarBancos();
+                }
+            });
+
+            // Fechar autocomplete ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!bancoInput.contains(e.target) && !bancoAutocomplete.contains(e.target) && !bancoToggleBtn.contains(e.target)) {
+                    bancoAutocomplete.classList.remove('show');
+                    bancoToggleBtn.classList.remove('active');
+                }
+            });
+        })();
+
+        // Máscaras dinâmicas para Agência e Conta baseadas no banco
+        (function() {
+            const bancoInput = document.getElementById('id_banco');
+            const agenciaInput = document.getElementById('id_agencia');
+            const contaInput = document.getElementById('id_conta_numero');
+
+            // Configurações de máscara por banco
+            const mascarasBancos = {
+                'Banco do Brasil': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 10, formato: '000000000-0', permiteX: true, min: 8 } // 8-10 dígitos + 1 dígito verificador (pode ser X)
+                },
+                'Caixa Econômica Federal': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 8, formato: '00000000-0', permiteX: false, min: 8 } // 8 dígitos + 1 dígito verificador
+                },
+                'Itaú': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 6, formato: '00000-0', permiteX: false, min: 5 } // 5-6 dígitos + 1 dígito verificador
+                },
+                'Bradesco': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 10, formato: '0000000-0', permiteX: false, min: 7 } // 7-10 dígitos + 1 dígito verificador
+                },
+                'Santander': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 11, formato: '00000000000-0', permiteX: false, min: 8 } // 8-11 dígitos + 1 dígito verificador
+                },
+                'Banco Inter': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
+                },
+                'Nubank': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
+                },
+                'Banco C6': {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
+                }
+            };
+
+            function getMascaraBanco() {
+                const bancoSelecionado = bancoInput.value.trim();
+                for (const [nomeBanco, mascara] of Object.entries(mascarasBancos)) {
+                    if (bancoSelecionado.toLowerCase().includes(nomeBanco.toLowerCase())) {
+                        return mascara;
+                    }
+                }
+                // Padrão para outros bancos
+                return {
+                    agencia: { max: 4, formato: '0000' },
+                    conta: { max: 10, formato: '000000000-0', permiteX: false }
+                };
+            }
+
+            function atualizarPlaceholders() {
+                const mascara = getMascaraBanco();
+                
+                // Atualizar placeholder da agência
+                if (agenciaInput) {
+                    agenciaInput.placeholder = mascara.agencia.formato;
+                }
+                
+                // Atualizar placeholder da conta
+                if (contaInput) {
+                    contaInput.placeholder = mascara.conta.formato;
+                }
+            }
+
+            function aplicarMascaraAgencia(value) {
+                const mascara = getMascaraBanco();
+                let numeros = value.replace(/\D/g, '');
+                if (numeros.length > mascara.agencia.max) {
+                    numeros = numeros.substring(0, mascara.agencia.max);
+                }
+                return numeros;
+            }
+
+            function aplicarMascaraConta(value) {
+                const mascara = getMascaraBanco();
+                let numeros = value.replace(/[^0-9Xx]/g, '');
+                
+                // Para Banco do Brasil, permite X no final (dígito verificador)
+                if (!mascara.conta.permiteX) {
+                    numeros = numeros.replace(/[Xx]/g, '');
+                }
+                
+                // Limitar tamanho máximo (incluindo dígito verificador)
+                const maxTotal = mascara.conta.max + 1;
+                if (numeros.length > maxTotal) {
+                    numeros = numeros.substring(0, maxTotal);
+                }
+
+                // Aplicar formato com hífen antes do último caractere (dígito verificador ou X)
+                if (numeros.length > mascara.conta.max) {
+                    const partePrincipal = numeros.substring(0, mascara.conta.max);
+                    const digitoVerificador = numeros.substring(mascara.conta.max);
+                    return partePrincipal + '-' + digitoVerificador.toUpperCase();
+                }
+                return numeros;
+            }
+
+            // Máscara para Agência
+            if (agenciaInput) {
+                agenciaInput.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraAgencia(e.target.value);
+                });
+
+                agenciaInput.addEventListener('keypress', function(e) {
+                    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            // Máscara para Conta
+            if (contaInput) {
+                contaInput.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraConta(e.target.value);
+                });
+
+                contaInput.addEventListener('keypress', function(e) {
+                    const mascara = getMascaraBanco();
+                    const permitido = /[0-9]/.test(e.key) || 
+                        (mascara.conta.permiteX && /[Xx]/.test(e.key)) ||
+                        ['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+                    
+                    if (!permitido) {
+                        e.preventDefault();
+                    }
+                });
+
+                // Atualizar máscara e placeholders quando o banco mudar
+                bancoInput.addEventListener('change', function() {
+                    contaInput.value = aplicarMascaraConta(contaInput.value);
+                    atualizarPlaceholders();
+                });
+
+                bancoInput.addEventListener('input', function() {
+                    // Se o banco foi selecionado da lista, atualizar máscara e placeholders
+                    setTimeout(() => {
+                        contaInput.value = aplicarMascaraConta(contaInput.value);
+                        atualizarPlaceholders();
+                    }, 100);
+                });
+
+                // Atualizar placeholders quando o banco é selecionado da lista
+                bancoInput.addEventListener('blur', function() {
+                    atualizarPlaceholders();
+                });
+            }
+
+            // Inicializar placeholders ao carregar a página
+            if (bancoInput && agenciaInput && contaInput) {
+                atualizarPlaceholders();
+            }
+
+            // Tornar função acessível globalmente
+            atualizarPlaceholdersGlobal = atualizarPlaceholders;
+        })();
+    </script>
 </body>
 </html>

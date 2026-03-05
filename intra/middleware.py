@@ -16,6 +16,7 @@ _PATH_PODE_NAO_TER_CADASTRO = (
     "/redefinir-senha",
     "/admin",
     "/aprovar-reembolsos",
+    "/buscar-gestores",
 )
 
 

@@ -26,6 +26,8 @@ class PerfilSolicitante(models.Model):
     )
     conta_numero = models.CharField("Conta Corrente ou Poupança", max_length=30, blank=True)
     chave_pix = models.CharField("Chave PIX", max_length=100, blank=True)
+    nome_gestor = models.CharField("Nome do gestor", max_length=200, blank=True)
+    email_gestor = models.EmailField("E-mail do gestor", max_length=200, blank=True)
 
     class Meta:
         verbose_name = "Perfil do solicitante"
@@ -41,6 +43,8 @@ class PerfilSolicitante(models.Model):
             and self.conta_tipo
             and self.conta_numero.strip()
             and self.chave_pix.strip()
+            and self.nome_gestor.strip()
+            and self.email_gestor.strip()
         )
 
     def __str__(self):
@@ -140,10 +144,21 @@ class ItemReembolso(models.Model):
         related_name="itens",
     )
     tipo_despesa = models.CharField("Tipo de despesa", max_length=30)
+    cod_despesa = models.CharField("Código de despesa", max_length=50, blank=True)
+    data_despesa = models.DateField("Data da despesa", null=True, blank=True)
     descricao = models.CharField("Descrição", max_length=300, blank=True)
     valor = models.DecimalField("Valor", max_digits=12, decimal_places=2, default=0)
     km = models.DecimalField("KM (deslocamento)", max_digits=10, decimal_places=2, null=True, blank=True)
+    anexo = models.FileField("Anexo", upload_to="reembolsos/anexos/", blank=True, null=True)
 
     class Meta:
         verbose_name = "Item de reembolso"
         verbose_name_plural = "Itens de reembolso"
+
+class CentroCusto(models.Model):
+    PROGRAMA = models.CharField(max_length=150000, null=True, blank=True)
+    CODIGO = models.CharField(max_length=150000, null=True, blank=True)
+    DESCRICAO = models.CharField(max_length=150000, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.CODIGO} - {self.DESCRICAO}"

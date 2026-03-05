@@ -1,0 +1,533 @@
+{% extends "intra/base.html" %}
+{% block title %}Dashboard - Intranet Parceiros{% endblock %}
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #34495e;
+    }
+    .stat-card.aprovado {
+        border-left-color: #38a169;
+    }
+    .stat-card.rejeitado {
+        border-left-color: #e53e3e;
+    }
+    .stat-card.pendente {
+        border-left-color: #d69e2e;
+    }
+    .stat-card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .stat-card .valor {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+    .stat-card .count {
+        font-size: 1.1rem;
+        color: #7f8c8d;
+        margin-top: 0.5rem;
+    }
+    .chart-card {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    .chart-card h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #34495e;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .chart-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .chart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e1e8ed;
+    }
+    .chart-item:last-child {
+        border-bottom: none;
+    }
+    .chart-item-label {
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    .chart-item-value {
+        font-weight: 700;
+        color: #34495e;
+    }
+    .table-chart {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table-chart th {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .table-chart td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e1e8ed;
+        color: #2c3e50;
+    }
+    .table-chart tr:hover {
+        background: #f8f9fa;
+    }
+    .filters-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        border: 1px solid #e1e8ed;
+    }
+    .filters-title {
+        margin: 0 0 1.75rem;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #34495e;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e1e8ed;
+        letter-spacing: 0.3px;
+    }
+    .filters-form {
+        margin-top: 0;
+    }
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 1.75rem;
+    }
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+    .filter-group label {
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.625rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+    }
+    .form-control {
+        padding: 0.75rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #2c3e50;
+        background: #ffffff;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        background: #ffffff;
+    }
+    .form-control:hover {
+        border-color: #bdc3c7;
+    }
+    .filters-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        font-family: inherit;
+        min-width: 120px;
+        height: 42px;
+        box-sizing: border-box;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .btn-secondary {
+        background: #95a5a6;
+        color: #ffffff;
+    }
+    .btn-secondary:hover {
+        background: #7f8c8d;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
+    }
+    .active-filters {
+        margin-top: 1.75rem;
+        padding-top: 1.75rem;
+        border-top: 2px solid #e1e8ed;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    .active-filters strong {
+        color: #34495e;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .filter-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #ecf0f1 0%, #d5dbdb 100%);
+        color: #2c3e50;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border: 1px solid #bdc3c7;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .badge-remove {
+        color: #e74c3c;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 1.2rem;
+        line-height: 1;
+        margin-left: 0.375rem;
+        padding: 0 0.375rem;
+        border-radius: 50%;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+    }
+    .badge-remove:hover {
+        background: #e74c3c;
+        color: #ffffff;
+        transform: scale(1.1);
+    }
+    .pagination-wrapper {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .pagination-info {
+        color: #34495e;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .pagination-btn {
+        padding: 0.625rem 1rem;
+        background: #ecf0f1;
+        color: #34495e;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
+        min-width: 100px;
+        box-sizing: border-box;
+    }
+    .pagination-btn:hover:not(.disabled) {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        border-color: transparent;
+    }
+    .pagination-btn.disabled {
+        background: #f8f9fa;
+        color: #bdc3c7;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    .pagination-current {
+        padding: 0.625rem 1.25rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
+    }
+    @media (max-width: 768px) {
+        .pagination-wrapper {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem !important;
+        }
+        .pagination-info {
+            text-align: center;
+            width: 100%;
+        }
+        .pagination-controls {
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .pagination-btn {
+            min-width: 90px;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .pagination-current {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<!-- Formulário de Filtros -->
+<div class="filters-card">
+    <h2 class="filters-title">Filtros</h2>
+    <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label for="data_inicio">Data Início</label>
+                <input type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
+            </div>
+            
+            <div class="filter-group">
+                <label for="data_fim">Data Fim</label>
+                <input type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
+            </div>
+            
+            <div class="filter-group">
+                <label for="status">Status</label>
+                <select id="status" name="status" class="form-control">
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="centro_custo">Centro de Custo</label>
+                <select id="centro_custo" name="centro_custo" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in centros_custo %}
+                        <option value="{{ value }}" {% if filtros.centro_custo == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="tipo_despesa">Tipo de Despesa</label>
+                <select id="tipo_despesa" name="tipo_despesa" class="form-control">
+                    <option value="">Todos</option>
+                    {% for value, label in tipos_despesa %}
+                        <option value="{{ value }}" {% if filtros.tipo_despesa == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="filters-actions">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...');">Limpar</a>
+        </div>
+    </form>
+    
+    <!-- Badges de Filtros Ativos -->
+    {% if active_filter_badges %}
+    <div class="active-filters">
+        <strong>Filtros ativos:</strong>
+        {% for badge in active_filter_badges %}
+            <span class="filter-badge">
+                {{ badge.label }}
+                <a href="{% url 'intra:dashboard_gestor' %}{{ badge.remove_url }}" class="badge-remove">×</a>
+            </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="dashboard-grid">
+    <div class="stat-card aprovado">
+        <h3>Total Aprovado</h3>
+        <p class="valor">R$ {{ total_aprovado|floatformat:2 }}</p>
+        <p class="count">{{ count_aprovado }} reembolso{{ count_aprovado|pluralize }}</p>
+    </div>
+    
+    <div class="stat-card rejeitado">
+        <h3>Total Rejeitado</h3>
+        <p class="valor">R$ {{ total_rejeitado|floatformat:2 }}</p>
+        <p class="count">{{ count_rejeitado }} reembolso{{ count_rejeitado|pluralize }}</p>
+    </div>
+    
+    <div class="stat-card pendente">
+        <h3>Total Pendente</h3>
+        <p class="valor">R$ {{ total_pendente|floatformat:2 }}</p>
+        <p class="count">{{ count_pendente }} reembolso{{ count_pendente|pluralize }}</p>
+    </div>
+</div>
+
+<div class="chart-card">
+    <h2>Gastos por Tipo de Despesa</h2>
+    {% if gastos_por_tipo %}
+    <ul class="chart-list">
+        {% for item in gastos_por_tipo %}
+        <li class="chart-item">
+            <span class="chart-item-label">{{ item.tipo }}</span>
+            <span class="chart-item-value">R$ {{ item.valor|floatformat:2 }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
+    {% endif %}
+</div>
+
+<div class="chart-card">
+    <h2>Gastos por Centro de Custo</h2>
+    {% if gastos_por_centro %}
+    <ul class="chart-list">
+        {% for item in gastos_por_centro %}
+        <li class="chart-item">
+            <span class="chart-item-label">{{ item.centro }}</span>
+            <span class="chart-item-value">R$ {{ item.valor|floatformat:2 }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
+    {% endif %}
+</div>
+
+<div class="chart-card">
+    <h2>Reembolsos por Mês (Últimos 12 meses)</h2>
+    {% if page_obj_mes %}
+    <table class="table-chart">
+        <thead>
+            <tr>
+                <th>Mês</th>
+                <th>Quantidade</th>
+                <th>Valor Aprovado</th>
+                <th>Valor Rejeitado</th>
+                <th>Valor Pendente</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in page_obj_mes %}
+            <tr>
+                <td>{{ item.mes }}</td>
+                <td>{{ item.total }}</td>
+                <td>R$ {{ item.valor_aprovado|floatformat:2 }}</td>
+                <td>R$ {{ item.valor_rejeitado|floatformat:2 }}</td>
+                <td>R$ {{ item.valor_pendente|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Paginação Reembolsos por Mês -->
+    {% if page_obj_mes.has_other_pages %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            Mostrando {{ page_obj_mes.start_index }} a {{ page_obj_mes.end_index }} de {{ page_obj_mes.paginator.count }} mês{{ page_obj_mes.paginator.count|pluralize:"es" }}
+        </div>
+        <div class="pagination-controls">
+            {% if page_obj_mes.has_previous %}
+                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.first }}" class="pagination-btn">
+                    « Primeira
+                </a>
+                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.prev }}" class="pagination-btn">
+                    ‹ Anterior
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    « Primeira
+                </span>
+                <span class="pagination-btn disabled">
+                    ‹ Anterior
+                </span>
+            {% endif %}
+            
+            <span class="pagination-current">
+                Página {{ page_obj_mes.number }} de {{ page_obj_mes.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj_mes.has_next %}
+                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.next }}" class="pagination-btn">
+                    Próxima ›
+                </a>
+                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.last }}" class="pagination-btn">
+                    Última »
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    Próxima ›
+                </span>
+                <span class="pagination-btn disabled">
+                    Última »
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
+    {% endif %}
+</div>
+{% endblock %}

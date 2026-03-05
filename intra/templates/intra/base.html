@@ -1,78 +1,330 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Intranet Parceiros{% endblock %}</title>
+    <title>{% block title %}Intranet Parceiros da Educação{% endblock %}</title>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; }
-        .layout { display: flex; min-height: 100vh; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
         .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-            color: #e8e8e8;
-            padding: 1.5rem 0;
+            width: 320px;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            color: #ecf0f1;
             flex-shrink: 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
         }
         .sidebar-brand {
-            padding: 0 1.25rem 1.5rem;
-            font-size: 1.25rem;
-            font-weight: 700;
+            padding: 2rem 1.5rem;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         }
-        .sidebar-nav { list-style: none; padding: 0; margin: 0; }
+        .sidebar-brand img {
+            max-width: 100%;
+            height: auto;
+            max-height: 80px;
+            display: block;
+            margin: 0 auto;
+        }
+        .sidebar-brand-text {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ecf0f1;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .sidebar-nav {
+            list-style: none;
+            padding: 0.75rem 0;
+        }
         .sidebar-nav a {
             display: block;
-            padding: 0.75rem 1.25rem;
-            color: rgba(255,255,255,0.85);
+            padding: 1rem 1.5rem;
+            color: #bdc3c7;
             text-decoration: none;
-            transition: background 0.2s, color 0.2s;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
         }
-        .sidebar-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
-        .sidebar-nav a.active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; }
-        .main { flex: 1; padding: 2rem; overflow-auto; }
-        .page-title { margin: 0 0 1.5rem; font-size: 1.5rem; font-weight: 600; color: #1a1a2e; }
+        .sidebar-nav a:hover {
+            background: rgba(255,255,255,0.08);
+            color: #ecf0f1;
+            border-left-color: #34495e;
+        }
+        .sidebar-nav a.active {
+            background: rgba(255,255,255,0.12);
+            color: #ffffff;
+            font-weight: 600;
+            border-left-color: #34495e;
+        }
+        .main {
+            flex: 1;
+            padding: 2rem;
+            overflow: auto;
+            background: #f5f7fa;
+        }
+        .page-title {
+            margin: 0 0 1.5rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #34495e;
+        }
         .card {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            padding: 1.5rem 2rem;
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
             margin-bottom: 1.5rem;
+            border: 1px solid #e1e8ed;
         }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.35rem; font-weight: 500; color: #333; }
-        .form-group select, .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="file"] {
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 0.9rem;
+        }
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="file"] {
             width: 100%;
             max-width: 400px;
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            font-size: 1rem;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            color: #2c3e50;
         }
-        .btn { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.95rem; cursor: pointer; border: none; font-weight: 500; }
-        .btn-primary { background: #16213e; color: #fff; }
-        .btn-primary:hover { background: #1a1a2e; }
-        .btn-secondary { background: #e8e8e8; color: #333; }
-        .btn-secondary:hover { background: #ddd; }
-        .linha-despesa { display: grid; grid-template-columns: 1fr 2fr 120px 1fr auto; gap: 1rem; align-items: end; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; }
-        .linha-despesa .form-group { margin-bottom: 0; }
-        .linha-despesa .form-group select, .linha-despesa .form-group input { max-width: none; }
-        @media (max-width: 900px) { .linha-despesa { grid-template-columns: 1fr 1fr; } }
-        #linhas-container { margin-top: 1rem; }
-        .add-linha { margin-top: 0.5rem; }
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #34495e;
+            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        }
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a252f 50%, #0f1419 100%);
+        }
+        .btn-secondary {
+            background: #95a5a6;
+            color: #ffffff;
+        }
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        .linha-despesa {
+            display: grid;
+            grid-template-columns: 1fr 2fr 120px 1fr auto;
+            gap: 1rem;
+            align-items: end;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e1e8ed;
+        }
+        .linha-despesa .form-group {
+            margin-bottom: 0;
+        }
+        .linha-despesa .form-group select,
+        .linha-despesa .form-group input {
+            max-width: none;
+        }
+        @media (max-width: 900px) {
+            .linha-despesa {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        #linhas-container {
+            margin-top: 1rem;
+        }
+        .add-linha {
+            margin-top: 0.5rem;
+        }
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2rem 2.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 280px;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e1e8ed;
+            border-top: 4px solid #34495e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #34495e;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        /* Success Popup */
+        .success-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .success-overlay.active {
+            display: flex;
+        }
+        .success-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2.5rem 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 320px;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .success-icon::before {
+            content: '✓';
+            color: #ffffff;
+            font-size: 3rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .success-text {
+            color: #34495e;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 1rem;
+        }
+        .success-message {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .success-close {
+            margin-top: 1.5rem;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .success-close:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-box">
+            <div class="loading-spinner"></div>
+            <p class="loading-text" id="loading-text">Carregando...</p>
+        </div>
+    </div>
+
+    <!-- Success Popup -->
+    <div id="success-overlay" class="success-overlay">
+        <div class="success-box">
+            <div class="success-icon"></div>
+            <p class="success-text">Sucesso!</p>
+            <p class="success-message" id="success-message">Operação realizada com sucesso.</p>
+            <button type="button" class="success-close" id="success-close-btn">OK</button>
+        </div>
+    </div>
+
     <div class="layout">
         <aside class="sidebar">
-            <div class="sidebar-brand">Intranet Parceiros</div>
+            <div class="sidebar-brand">
+                <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação" style="filter: brightness(0) invert(1);">
+                <div class="sidebar-brand-text">Intranet</div>
+            </div>
             <ul class="sidebar-nav">
                 <li><a href="{% url 'intra:home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Início</a></li>
                 {% if is_gestor %}
                 <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
+                <li><a href="{% url 'intra:dashboard_gestor' %}" {% if request.resolver_match.url_name == 'dashboard_gestor' %}class="active"{% endif %}>Dashboard</a></li>
                 {% else %}
                 <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
                 <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>
@@ -85,6 +337,205 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    
+    <!-- Sistema de Loading Global -->
+    <script>
+        // Função para mostrar loading
+        function showLoading(message = 'Carregando...') {
+            const overlay = document.getElementById('loading-overlay');
+            const text = document.getElementById('loading-text');
+            if (overlay && text) {
+                text.textContent = message;
+                overlay.classList.add('active');
+            }
+        }
+        
+        // Função para ocultar loading
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+        }
+        
+        // Função para mostrar popup de sucesso
+        function showSuccess(message = 'Operação realizada com sucesso.') {
+            const overlay = document.getElementById('success-overlay');
+            const messageEl = document.getElementById('success-message');
+            if (overlay && messageEl) {
+                messageEl.textContent = message;
+                overlay.style.display = 'flex';
+                overlay.classList.add('active');
+                // Fechar automaticamente após 5 segundos
+                setTimeout(function() {
+                    hideSuccess();
+                }, 5000);
+            }
+        }
+        
+        // Função para ocultar popup de sucesso (global)
+        function hideSuccess() {
+            const overlay = document.getElementById('success-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                // Ocultar completamente após animação
+                setTimeout(function() {
+                    overlay.style.display = 'none';
+                }, 350);
+            }
+        }
+        
+        // Tornar função acessível globalmente
+        window.hideSuccess = hideSuccess;
+        
+        // Interceptar todos os formulários
+        document.addEventListener('DOMContentLoaded', function() {
+            // Formulários de submissão
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                // Verificar se já tem onsubmit definido (inline ou via atributo)
+                const existingOnsubmit = form.getAttribute('onsubmit');
+                if (existingOnsubmit && existingOnsubmit.includes('showLoading')) {
+                    // Já tem loading definido, não adicionar outro
+                    return;
+                }
+                
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitBtn && !form.dataset.noLoading) {
+                        let message = 'Processando...';
+                        
+                        // Detectar tipo de formulário por classe ou ID
+                        if (form.id === 'form-reembolso') {
+                            message = 'Enviando solicitação de reembolso...';
+                        } else if (form.id === 'form-rejeitar') {
+                            message = 'Rejeitando solicitação...';
+                        } else if (form.classList.contains('search-form')) {
+                            message = 'Buscando solicitações...';
+                        } else if (form.classList.contains('filters-form')) {
+                            message = 'Aplicando filtros...';
+                        } else if (form.action && form.action.includes('reembolso') && form.action.includes('decidir')) {
+                            const acao = form.querySelector('input[name="acao"]');
+                            if (acao && acao.value === 'aprovar') {
+                                message = 'Aprovando solicitação...';
+                            } else if (acao && acao.value === 'rejeitar') {
+                                message = 'Rejeitando solicitação...';
+                            }
+                        } else if (form.action && form.action.includes('perfil')) {
+                            message = 'Salvando perfil...';
+                        } else if (form.action && form.action.includes('login')) {
+                            message = 'Entrando...';
+                        } else if (form.action && form.action.includes('completar-cadastro')) {
+                            message = 'Completando cadastro...';
+                        }
+                        showLoading(message);
+                    }
+                });
+            });
+            
+            // Links de navegação (exceto logout, links externos e links com onclick)
+            const navLinks = document.querySelectorAll('a[href]:not([href^="#"]):not([href^="http"]):not([href*="logout"])');
+            navLinks.forEach(link => {
+                // Não interceptar se já tem onclick com loading
+                const existingOnclick = link.getAttribute('onclick');
+                if (existingOnclick && existingOnclick.includes('showLoading')) {
+                    return;
+                }
+                
+                link.addEventListener('click', function(e) {
+                    if (!this.dataset.noLoading && !this.target && !this.classList.contains('pagination-btn')) {
+                        showLoading('Carregando página...');
+                    }
+                });
+            });
+        });
+        
+        // Ocultar loading quando a página carregar completamente
+        window.addEventListener('load', function() {
+            hideLoading();
+        });
+        
+        // Verificar mensagens de sucesso do Django apenas após POST
+        (function() {
+            // Só mostrar popup se a página foi carregada após um POST (ação realizada)
+            // Verifica se o referrer indica que veio de uma ação (redirect após POST)
+            var currentPath = window.location.pathname;
+            var referrerPath = '';
+            var referrerHost = '';
+            var hasValidReferrer = false;
+            
+            try {
+                if (document.referrer && document.referrer !== '') {
+                    var referrerUrl = new URL(document.referrer);
+                    referrerPath = referrerUrl.pathname;
+                    referrerHost = referrerUrl.host;
+                    var currentHost = window.location.host;
+                    // Só considerar válido se veio do mesmo site E tem path
+                    hasValidReferrer = referrerHost === currentHost && referrerPath !== '';
+                }
+            } catch(e) {
+                hasValidReferrer = false;
+            }
+            
+            var successMessages = [];
+            {% if messages %}
+                {% for message in messages %}
+                    {% if message.tags == 'success' %}
+                        successMessages.push('{{ message|escapejs }}');
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            
+            // Só mostrar popup se:
+            // 1. Há mensagem de sucesso
+            // 2. Veio de uma ação (tem referrer válido do mesmo site)
+            // 3. Foi um redirect após POST (mesma página indica redirect após ação)
+            // NÃO mostrar se for acesso direto (sem referrer) ou navegação normal
+            // IMPORTANTE: Se não houver referrer, NÃO mostrar (acesso direto à URL)
+            if (successMessages.length > 0) {
+                if (hasValidReferrer && referrerPath === currentPath) {
+                    // Só mostrar se foi redirect após POST na mesma página
+                    window.addEventListener('load', function() {
+                        setTimeout(function() {
+                            showSuccess(successMessages[0]);
+                        }, 300);
+                    });
+                } else {
+                    // Se há mensagem mas não há referrer válido ou não é redirect após POST,
+                    // não mostrar popup (acesso direto ou navegação normal)
+                    // As mensagens do Django serão consumidas automaticamente ao serem lidas
+                }
+            }
+        })();
+        
+        // Ocultar loading em caso de erro
+        window.addEventListener('error', function() {
+            hideLoading();
+        });
+        
+        // Fechar popup de sucesso ao clicar no botão OK
+        document.addEventListener('DOMContentLoaded', function() {
+            const successCloseBtn = document.getElementById('success-close-btn');
+            if (successCloseBtn) {
+                successCloseBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideSuccess();
+                });
+            }
+            
+            // Fechar popup de sucesso ao clicar fora
+            const successOverlay = document.getElementById('success-overlay');
+            if (successOverlay) {
+                successOverlay.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        hideSuccess();
+                    }
+                });
+            }
+        });
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>

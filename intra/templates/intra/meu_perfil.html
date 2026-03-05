@@ -1,27 +1,90 @@
 {% extends "intra/base.html" %}
 {% block title %}Meu Perfil - Intranet Parceiros{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro {
+        margin: 0 0 1.5rem;
+        color: #7f8c8d;
+        font-size: 1rem;
+    }
+    .card {
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        margin: -1.5rem -1.5rem 1.25rem -1.5rem;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .card-header h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+    }
+    .perfil-lista {
+        margin: 0;
+        display: grid;
+        gap: 0.75rem 2rem;
+        grid-template-columns: auto 1fr;
+        max-width: 600px;
+    }
+    .perfil-lista dt {
+        font-weight: 700;
+        color: #34495e;
+        font-size: 0.95rem;
+        padding: 0.75rem 0;
+        border-right: 3px solid #34495e;
+        padding-right: 1.5rem;
+        min-width: 200px;
+    }
+    .perfil-lista dd {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 0.95rem;
+        font-weight: 500;
+        padding: 0.75rem 0;
+        border-bottom: 2px solid #e1e8ed;
+        padding-left: 1rem;
+    }
+    .perfil-lista dd:last-of-type {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <h1 class="page-title">Meu Perfil</h1>
-<p style="margin: 0 0 1rem; color: #666;">Suas informações cadastrais (somente consulta).</p>
+<p class="page-intro">Suas informações cadastrais (somente consulta).</p>
 
 <div class="card">
-    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Dados de acesso</h2>
+    <div class="card-header">
+        <h2>Dados de Acesso</h2>
+    </div>
     <dl class="perfil-lista">
         <dt>E-mail</dt>
         <dd>{{ request.user.email|default:"—" }}</dd>
-    </dl>
-</div>
-
-<div class="card">
-    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Nome do solicitante</h2>
-    <dl class="perfil-lista">
         <dt>Nome</dt>
         <dd>{{ perfil.nome_solicitante|default:"—" }}</dd>
     </dl>
 </div>
 
 <div class="card">
-    <h2 style="margin: 0 0 1rem; font-size: 1.1rem;">Dados de pagamento</h2>
+    <div class="card-header">
+        <h2>Dados do Gestor</h2>
+    </div>
+    <dl class="perfil-lista">
+        <dt>Nome do gestor</dt>
+        <dd>{{ perfil.nome_gestor|default:"—" }}</dd>
+        <dt>E-mail do gestor</dt>
+        <dd>{{ perfil.email_gestor|default:"—" }}</dd>
+    </dl>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Dados de Pagamento</h2>
+    </div>
     <dl class="perfil-lista">
         <dt>Banco</dt>
         <dd>{{ perfil.banco|default:"—" }}</dd>
@@ -35,11 +98,4 @@
         <dd>{{ perfil.chave_pix|default:"—" }}</dd>
     </dl>
 </div>
-{% endblock %}
-{% block extra_css %}
-<style>
-    .perfil-lista { margin: 0; display: grid; gap: 0.5rem 1.5rem; grid-template-columns: auto 1fr; max-width: 520px; }
-    .perfil-lista dt { font-weight: 600; color: #555; }
-    .perfil-lista dd { margin: 0; color: #1a1a2e; }
-</style>
 {% endblock %}

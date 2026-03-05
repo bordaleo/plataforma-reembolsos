@@ -1,9 +1,172 @@
 {% extends "intra/base.html" %}
-{% block title %}Início - Intranet Parceiros{% endblock %}
+{% load static %}
+{% block title %}Início - Intranet Parceiros da Educação{% endblock %}
+{% block extra_css %}
+<style>
+    .welcome-section {
+        margin-bottom: 2rem;
+    }
+    .welcome-card {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        padding: 2rem;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+    }
+    .welcome-logo {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    .welcome-logo img {
+        max-width: 180px;
+        height: auto;
+    }
+    .welcome-card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.75rem;
+        font-weight: 600;
+    }
+    .welcome-card p {
+        margin: 0;
+        font-size: 1rem;
+        opacity: 0.95;
+    }
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.75rem;
+        margin-bottom: 2rem;
+    }
+    .action-card {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 2.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border: 3px solid #34495e;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .action-card:hover {
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.25);
+        border-color: #2c3e50;
+        text-decoration: none;
+        color: inherit;
+        transform: translateY(-2px);
+    }
+    .action-card h3 {
+        margin: 0 0 1rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #34495e;
+        letter-spacing: 0.3px;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .action-card p {
+        margin: 0;
+        padding-top: 1rem;
+        color: #7f8c8d;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .info-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+    }
+    .info-card {
+        background: #ffffff;
+        border-radius: 6px;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #e1e8ed;
+        border-left: 4px solid;
+    }
+    .info-card.primary {
+        border-left-color: #34495e;
+    }
+    .info-card.success {
+        border-left-color: #27ae60;
+    }
+    .info-card.warning {
+        border-left-color: #f39c12;
+    }
+    .info-card h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    .info-card p {
+        margin: 0;
+        color: #7f8c8d;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+    @media (max-width: 768px) {
+        .welcome-card {
+            padding: 1.5rem;
+        }
+        .welcome-card h2 {
+            font-size: 1.5rem;
+        }
+        .quick-actions {
+            grid-template-columns: 1fr;
+        }
+        .info-section {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
 {% block content %}
-<h1 class="page-title">Início</h1>
-<div class="card">
-    <p>Bem-vindo à Intranet Parceiros. Use o menu ao lado para acessar as funcionalidades.</p>
-    <p><a href="{% url 'intra:reembolso' %}">Solicitar Reembolso</a></p>
+<div class="welcome-section">
+    <div class="welcome-logo">
+        <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
+    </div>
+    <div class="welcome-card">
+        <h2>Bem-vindo à Intranet</h2>
+        <p>Parceiros da Educação - Sistema de Gestão Interna</p>
+    </div>
+</div>
+
+<div class="quick-actions">
+    {% if is_gestor %}
+    <a href="/aprovar-reembolsos/" class="action-card">
+        <h3>Aprovar Reembolsos</h3>
+        <p>Visualize e gerencie todas as solicitações de reembolso pendentes de aprovação.</p>
+    </a>
+    {% else %}
+    <a href="{% url 'intra:reembolso' %}" class="action-card">
+        <h3>Solicitar Reembolso</h3>
+        <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
+    </a>
+    <a href="/meus-reembolsos/" class="action-card">
+        <h3>Meus Reembolsos</h3>
+        <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
+    </a>
+    <a href="/meu-perfil/" class="action-card">
+        <h3>Meu Perfil</h3>
+        <p>Visualize e gerencie suas informações pessoais e dados bancários.</p>
+    </a>
+    {% endif %}
+</div>
+
+<div class="info-section">
+    <div class="info-card primary">
+        <h4>Informações Importantes</h4>
+        <p>Mantenha seus dados bancários atualizados para garantir o recebimento dos reembolsos aprovados.</p>
+    </div>
+    <div class="info-card success">
+        <h4>Processo Simplificado</h4>
+        <p>Nossa plataforma facilita o processo de solicitação e aprovação de reembolsos.</p>
+    </div>
+    <div class="info-card warning">
+        <h4>Atenção</h4>
+        <p>Certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso.</p>
+    </div>
 </div>
 {% endblock %}

@@ -528,7 +528,7 @@
                     id="busca" 
                     name="busca" 
                     value="{{ busca }}" 
-                    placeholder="Buscar por email, nome, centro de custo ou status..." 
+                    placeholder="Buscar por ID, email, nome, centro de custo ou status..." 
                     class="search-input"
                     style="width: 100%; padding: 0.75rem; border: 1px solid #e1e8ed; border-radius: 6px; font-size: 0.9rem; color: #2c3e50;"
                 >
@@ -552,6 +552,7 @@
     <table class="tabela-reembolsos">
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Data de Envio</th>
                 <th>Solicitante</th>
                 <th>Centro de custo</th>
@@ -562,9 +563,16 @@
         <tbody>
             {% for s in solicitacoes %}
             <tr>
+                <td><strong>#{{ s.pk }}</strong></td>
                 <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                 <td>
-                    <a href="#" class="email-clicavel" data-pk="{{ s.pk }}" style="color: #34495e; text-decoration: none; cursor: pointer; font-weight: 500; transition: color 0.2s;">{{ s.user.email }}</a>
+                    {% if s.nome_solicitante %}
+                        <a href="#" class="email-clicavel" data-pk="{{ s.pk }}" style="color: #34495e; text-decoration: none; cursor: pointer; font-weight: 500; transition: color 0.2s;" title="{{ s.email_solicitante }}">{{ s.nome_solicitante }}</a>
+                    {% elif s.user.get_full_name %}
+                        <a href="#" class="email-clicavel" data-pk="{{ s.pk }}" style="color: #34495e; text-decoration: none; cursor: pointer; font-weight: 500; transition: color 0.2s;" title="{{ s.email_solicitante }}">{{ s.user.get_full_name }}</a>
+                    {% else %}
+                        <a href="#" class="email-clicavel" data-pk="{{ s.pk }}" style="color: #34495e; text-decoration: none; cursor: pointer; font-weight: 500; transition: color 0.2s;">{{ s.email_solicitante }}</a>
+                    {% endif %}
                 </td>
                 <td>{{ s.centro_custo|default:"—" }}</td>
                 <td class="acoes">
@@ -742,11 +750,14 @@
                     html += '</div>';
                     
                     html += '<div class="detalhe-solicitacao">';
+                    html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
                     
                     // Código de despesa
                     html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
-                    if (data.cod_despesa && data.cod_despesa.length > 0) {
+                    if (data.cod_despesa_com_descricao && data.cod_despesa_com_descricao.length > 0) {
+                        html += '<span>' + data.cod_despesa_com_descricao.join(', ') + '</span>';
+                    } else if (data.cod_despesa && data.cod_despesa.length > 0) {
                         html += '<span>' + data.cod_despesa.join(', ') + '</span>';
                     } else {
                         html += '<span>—</span>';

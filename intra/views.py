@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import PasswordResetConfirmView
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 from django.urls import reverse
 from django.contrib import messages
@@ -16,6 +16,7 @@ from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 import json
+import html
 
 from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto
@@ -30,6 +31,321 @@ def _is_gestor(user):
         user.is_authenticated
         and user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists()
     )
+
+
+def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
+    """Envia e-mail ao solicitante quando a solicitação é aprovada ou rejeitada."""
+    try:
+        solicitante_email = solicitacao.user.email
+        if not solicitante_email:
+            return
+        
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        # Formatar data
+        data_aprovacao = localtime(solicitacao.aprovado_em).strftime("%d/%m/%Y %H:%M") if solicitacao.aprovado_em else ""
+        
+        # Formatar valor
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        if aprovado:
+            subject = "Solicitação de Reembolso Aprovada - Intranet Parceiros"
+            # Versão texto plano
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da aprovação: {data_aprovacao}\n"
+                f"{'-'*60}\n\n"
+                f"O reembolso será processado conforme os procedimentos internos.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            # Escapar caracteres especiais para HTML
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            # Versão HTML com cores do site e verde para aprovação
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #27ae60; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #27ae60; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px;"><strong>Data da aprovação:</strong></td><td style="padding: 8px;">{data_aprovacao}</td></tr>
+                    </table>
+                </div>
+                <p>O reembolso será processado conforme os procedimentos internos.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        else:
+            subject = "Solicitação de Reembolso Rejeitada - Intranet Parceiros"
+            motivo = solicitacao.motivo_rejeicao or "Não informado"
+            # Versão texto plano
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da rejeição: {data_aprovacao}\n"
+                f"Motivo da rejeição: {motivo}\n"
+                f"{'-'*60}\n\n"
+                f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            # Escapar caracteres especiais para HTML
+            motivo_escaped = html.escape(motivo)
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            # Versão HTML com cores do site e vermelho para rejeição
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #e74c3c; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #e74c3c; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da rejeição:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{data_aprovacao}</td></tr>
+                        <tr><td style="padding: 8px; vertical-align: top;"><strong>Motivo da rejeição:</strong></td><td style="padding: 8px; white-space: pre-wrap; word-wrap: break-word;">{motivo_escaped}</td></tr>
+                    </table>
+                </div>
+                <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        
+        # Enviar e-mail com versão HTML e texto plano
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[solicitante_email],
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        # Log do erro sem interromper o fluxo
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erro ao enviar e-mail de aprovação/rejeição: {e}")
+
+
+def _enviar_email_nova_solicitacao(solicitacao, request=None):
+    """Envia e-mail aos gestores administrativos quando uma nova solicitação é criada."""
+    try:
+        # Buscar todos os gestores administrativos
+        gestores = User.objects.filter(
+            regras_usuario__role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO
+        ).distinct()
+        
+        if not gestores.exists():
+            return
+        
+        # Coletar e-mails dos gestores
+        emails_gestores = []
+        for gestor in gestores:
+            if gestor.email:
+                emails_gestores.append(gestor.email)
+        
+        if not emails_gestores:
+            return
+        
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        # Escapar caracteres especiais para HTML
+        nome_solicitante_escaped = html.escape(nome_solicitante)
+        email_solicitante_escaped = html.escape(solicitacao.user.email)
+        centro_custo_escaped = html.escape(solicitacao.centro_custo)
+        
+        # Formatar valor
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        # URL para aprovação
+        if request:
+            aprovar_url = request.build_absolute_uri(reverse("intra:aprovar_reembolsos"))
+        else:
+            aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
+        
+        subject = "Nova Solicitação de Reembolso Aguardando Aprovação - Intranet Parceiros"
+        
+        # Versão texto plano
+        message = (
+            f"Olá,\n\n"
+            f"{'='*60}\n"
+            f"NOVA SOLICITAÇÃO DE REEMBOLSO AGUARDANDO APROVAÇÃO\n"
+            f"{'='*60}\n\n"
+            f"DETALHES DA SOLICITAÇÃO:\n"
+            f"{'-'*60}\n"
+            f"ID: {solicitacao.pk}\n"
+            f"Solicitante: {nome_solicitante} ({solicitacao.user.email})\n"
+            f"Valor total: {valor_formatado}\n"
+            f"Centro de custo: {solicitacao.centro_custo}\n"
+            f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+            f"Status: Pendente\n"
+            f"{'-'*60}\n\n"
+            f"Para visualizar e processar a solicitação, acesse:\n"
+            f"{aprovar_url}\n\n"
+            f"Atenciosamente,\n"
+            f"Equipe Intranet Parceiros"
+        )
+        
+        # Versão HTML com destaque profissional
+        html_message = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
+                <!-- Header com destaque -->
+                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                    <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                        Nova Solicitação de Reembolso
+                    </h1>
+                    <p style="color: #bdc3c7; margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">
+                        Aguardando sua aprovação
+                    </p>
+                </div>
+                
+                <!-- Badge de urgência -->
+                <div style="background-color: #fff3cd; border-left: 5px solid #34495e; padding: 15px 20px; margin: 20px;">
+                    <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">
+                        Ação necessária: Esta solicitação requer sua atenção
+                    </p>
+                </div>
+                
+                <!-- Detalhes da solicitação -->
+                <div style="padding: 0 20px 20px 20px;">
+                    <h2 style="color: #34495e; border-bottom: 3px solid #34495e; padding-bottom: 10px; margin: 20px 0 15px 0; font-size: 18px; font-weight: 600;">
+                        Detalhes da Solicitação
+                    </h2>
+                    <table style="width: 100%; border-collapse: collapse; background-color: #f5f7fa; border-radius: 4px; overflow: hidden; border: 1px solid #e1e8ed;">
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; width: 35%; border-bottom: 1px solid #e1e8ed;">ID da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 16px;">#{solicitacao.pk}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Solicitante:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{nome_solicitante_escaped}<br><span style="color: #7f8c8d; font-size: 13px;">{email_solicitante_escaped}</span></td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Valor Total:</td>
+                            <td style="padding: 12px 15px; color: #27ae60; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 18px;">{valor_formatado}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Centro de Custo:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Data da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y às %H:%M')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e;">Status:</td>
+                            <td style="padding: 12px 15px;">
+                                <span style="background-color: #f39c12; color: #ffffff; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; text-transform: uppercase;">
+                                    Pendente
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Botão de ação -->
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
+                            Visualizar e Processar Solicitação
+                        </a>
+                    </div>
+                    
+                    <p style="color: #7f8c8d; font-size: 13px; text-align: center; margin-top: 20px;">
+                        Ou copie e cole este link no seu navegador:<br>
+                        <a href="{aprovar_url}" style="color: #34495e; word-break: break-all; text-decoration: underline;">{aprovar_url}</a>
+                    </p>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
+                        Este é um e-mail automático. Por favor, não responda.<br>
+                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Enviar e-mail com versão HTML e texto plano
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=emails_gestores,
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        # Log do erro sem interromper o fluxo
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erro ao enviar e-mail de nova solicitação: {e}")
 
 # Dados mockados para o formulário de reembolso
 CENTROS_CUSTO = [
@@ -279,11 +595,21 @@ def reembolso_detalhe_gestor_json(request, pk):
     tipos_labels = dict(TIPOS_DESPESA)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     
-    # Coletar códigos de despesa dos itens
+    # Coletar códigos de despesa dos itens com descrições
     codigos_despesa = []
+    codigos_despesa_com_descricao = []
     for item in sol.itens.all():
-        if item.cod_despesa:
+        if item.cod_despesa and item.cod_despesa not in codigos_despesa:
             codigos_despesa.append(item.cod_despesa)
+            # Buscar descrição do código
+            try:
+                centro_custo = CentroCusto.objects.filter(CODIGO=item.cod_despesa).first()
+                if centro_custo and centro_custo.DESCRICAO:
+                    codigos_despesa_com_descricao.append(f"{item.cod_despesa} - {centro_custo.DESCRICAO}")
+                else:
+                    codigos_despesa_com_descricao.append(item.cod_despesa)
+            except:
+                codigos_despesa_com_descricao.append(item.cod_despesa)
     
     itens = []
     for item in sol.itens.all():
@@ -372,6 +698,7 @@ def reembolso_detalhe_gestor_json(request, pk):
         "pk": sol.pk,
         "centro_custo": sol.centro_custo or "",
         "cod_despesa": list(set(codigos_despesa)) if codigos_despesa else [],  # Lista única de códigos
+        "cod_despesa_com_descricao": codigos_despesa_com_descricao,  # Códigos com descrição
         "valor_total": float(sol.valor_total),
         "criado_em": criado_em_brasilia.strftime("%d/%m/%Y %H:%M") if criado_em_brasilia else "",
         "status": sol.status,
@@ -416,16 +743,26 @@ def reembolso_detalhe_json(request, pk):
         }
         for item in sol.itens.all()
     ]
-    # Coletar códigos de despesa únicos dos itens
+    # Coletar códigos de despesa únicos dos itens com descrições
     codigos_despesa = []
+    codigos_despesa_com_descricao = []
     for item in sol.itens.all():
         if item.cod_despesa and item.cod_despesa not in codigos_despesa:
             codigos_despesa.append(item.cod_despesa)
+            # Buscar descrição do código
+            try:
+                centro_custo = CentroCusto.objects.filter(CODIGO=item.cod_despesa).first()
+                if centro_custo and centro_custo.DESCRICAO:
+                    codigos_despesa_com_descricao.append(f"{item.cod_despesa} - {centro_custo.DESCRICAO}")
+                else:
+                    codigos_despesa_com_descricao.append(item.cod_despesa)
+            except:
+                codigos_despesa_com_descricao.append(item.cod_despesa)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     return JsonResponse({
         "pk": sol.pk,
         "centro_custo": sol.centro_custo,
-        "cod_despesa": ', '.join(codigos_despesa) if codigos_despesa else '—',
+        "cod_despesa": ', '.join(codigos_despesa_com_descricao) if codigos_despesa_com_descricao else '—',
         "valor_total": float(sol.valor_total),
         "criado_em": criado_em_brasilia.strftime("%d/%m/%Y %H:%M") if criado_em_brasilia else "",
         "status": sol.status,
@@ -448,13 +785,19 @@ def aprovar_reembolsos(request):
     
     # Aplicar filtro de busca se fornecido
     if busca:
-        solicitacoes = solicitacoes.filter(
-            Q(user__email__icontains=busca) |
-            Q(centro_custo__icontains=busca) |
-            Q(cod_despesa__icontains=busca) |
-            Q(user__first_name__icontains=busca) |
-            Q(user__last_name__icontains=busca)
-        )
+        # Tentar buscar por ID se for um número
+        try:
+            id_busca = int(busca)
+            solicitacoes = solicitacoes.filter(pk=id_busca)
+        except ValueError:
+            # Se não for número, buscar por outros campos
+            solicitacoes = solicitacoes.filter(
+                Q(user__email__icontains=busca) |
+                Q(centro_custo__icontains=busca) |
+                Q(cod_despesa__icontains=busca) |
+                Q(user__first_name__icontains=busca) |
+                Q(user__last_name__icontains=busca)
+            )
     
     # Ordenar por data de criação (mais recentes primeiro)
     solicitacoes = solicitacoes.order_by('-criado_em')
@@ -464,10 +807,18 @@ def aprovar_reembolsos(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
-    # Converter datas para timezone de Brasília
+    # Converter datas para timezone de Brasília e adicionar informações do solicitante
     solicitacoes_com_data = []
     for sol in page_obj:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        # Buscar perfil do solicitante para garantir que o nome seja exibido
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        # Garantir que sempre tenha um email ou username como fallback
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
         solicitacoes_com_data.append(sol)
     
     return render(
@@ -498,6 +849,8 @@ def reembolso_decidir(request, pk):
             sol.aprovado_em = timezone.now()
             sol.motivo_rejeicao = ""
             sol.save()
+            # Enviar e-mail ao solicitante
+            _enviar_email_aprovacao_rejeicao(sol, aprovado=True)
             messages.success(request, "Solicitação aprovada.")
         elif acao == "rejeitar":
             motivo = (request.POST.get("motivo_rejeicao") or "").strip()
@@ -509,6 +862,8 @@ def reembolso_decidir(request, pk):
             sol.aprovado_em = timezone.now()
             sol.motivo_rejeicao = motivo[:500]
             sol.save()
+            # Enviar e-mail ao solicitante
+            _enviar_email_aprovacao_rejeicao(sol, aprovado=False)
             messages.success(request, "Solicitação rejeitada.")
         return redirect("intra:aprovar_reembolsos")
     return redirect("intra:aprovar_reembolsos")
@@ -526,9 +881,18 @@ def dashboard_gestor(request):
     status_filtro = request.GET.get('status', '')
     centro_custo_filtro = request.GET.get('centro_custo', '')
     tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
+    id_filtro = request.GET.get('id', '').strip()
     
     # Construir filtros base
     filtros_solicitacao = Q()
+    
+    # Filtro de ID
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_solicitacao &= Q(pk=id_valor)
+        except ValueError:
+            pass
     
     # Filtro de data início
     if data_inicio:
@@ -588,6 +952,16 @@ def dashboard_gestor(request):
             filtros_itens_aprovado &= Q(solicitacao__centro_custo=centro_custo_filtro)
             filtros_itens_rejeitado &= Q(solicitacao__centro_custo=centro_custo_filtro)
             filtros_itens_pendente &= Q(solicitacao__centro_custo=centro_custo_filtro)
+        
+        # Aplicar filtro de ID
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens_aprovado &= Q(solicitacao__pk=id_valor)
+                filtros_itens_rejeitado &= Q(solicitacao__pk=id_valor)
+                filtros_itens_pendente &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
         
         # Calcular totais baseados nos itens
         total_aprovado = ItemReembolso.objects.filter(filtros_itens_aprovado).aggregate(
@@ -659,6 +1033,14 @@ def dashboard_gestor(request):
     if tipo_despesa_filtro:
         filtros_itens_tipo &= Q(tipo_despesa=tipo_despesa_filtro)
     
+    # Filtro de ID
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_itens_tipo &= Q(solicitacao__pk=id_valor)
+        except ValueError:
+            pass
+    
     gastos_por_tipo = ItemReembolso.objects.filter(
         filtros_itens_tipo
     ).values('tipo_despesa').annotate(
@@ -706,6 +1088,14 @@ def dashboard_gestor(request):
         
         # Filtro de tipo de despesa (obrigatório neste caso)
         filtros_itens_centro &= Q(tipo_despesa=tipo_despesa_filtro)
+        
+        # Filtro de ID
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens_centro &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
         
         # Agrupar por centro de custo e somar valores dos itens
         gastos_por_centro = ItemReembolso.objects.filter(
@@ -787,6 +1177,8 @@ def dashboard_gestor(request):
             params['centro_custo'] = centro_custo_filtro
         if tipo_despesa_filtro and exclude_param != 'tipo_despesa':
             params['tipo_despesa'] = tipo_despesa_filtro
+        if id_filtro and exclude_param != 'id':
+            params['id'] = id_filtro
         
         from django.http import QueryDict
         query_string = QueryDict('', mutable=True)
@@ -816,6 +1208,8 @@ def dashboard_gestor(request):
             params['centro_custo'] = centro_custo_filtro
         if tipo_despesa_filtro:
             params['tipo_despesa'] = tipo_despesa_filtro
+        if id_filtro:
+            params['id'] = id_filtro
         if page_mes:
             params['page_mes'] = page_mes
         
@@ -859,6 +1253,11 @@ def dashboard_gestor(request):
             'label': f'Tipo de Despesa: {tipo_labels.get(tipo_despesa_filtro, tipo_despesa_filtro)}',
             'remove_url': get_url_without_filter('tipo_despesa')
         })
+    if id_filtro:
+        active_filter_badges.append({
+            'label': f'ID: #{id_filtro}',
+            'remove_url': get_url_without_filter('id')
+        })
     
     context = {
         'total_aprovado': float(total_aprovado),
@@ -878,6 +1277,7 @@ def dashboard_gestor(request):
             'status': status_filtro,
             'centro_custo': centro_custo_filtro,
             'tipo_despesa': tipo_despesa_filtro,
+            'id': id_filtro,
         },
         # Labels para exibição
         'status_label': status_labels.get(status_filtro, ''),
@@ -910,8 +1310,20 @@ def reembolso(request):
     # Buscar todos os registros de CentroCusto para Código de Despesa
     codigos = CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact='').exclude(DESCRICAO__isnull=True).exclude(DESCRICAO__exact='').order_by("CODIGO")
     
-    # Preparar dados para JSON (para JavaScript dinâmico)
-    codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO} for c in codigos]
+    # Preparar dados para JSON organizados por PROGRAMA (para filtro dinâmico)
+    # Estrutura: { "PROGRAMA1": [{"codigo": "...", "descricao": "..."}, ...], ... }
+    codigos_por_programa = {}
+    for c in codigos:
+        programa = c.PROGRAMA or ""
+        if programa not in codigos_por_programa:
+            codigos_por_programa[programa] = []
+        codigos_por_programa[programa].append({
+            "codigo": c.CODIGO,
+            "descricao": c.DESCRICAO
+        })
+    
+    # Também manter a lista completa para compatibilidade
+    codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""} for c in codigos]
     
     context = {
         "programas": programas,
@@ -919,6 +1331,7 @@ def reembolso(request):
         "tipos_despesa": TIPOS_DESPESA,
         "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
         "codigos_despesa_json": json.dumps(codigos_json),
+        "codigos_por_programa_json": json.dumps(codigos_por_programa),
     }
     if request.method == "POST":
         centro_custo = request.POST.get("centro_custo", "").strip()
@@ -974,6 +1387,8 @@ def reembolso(request):
                         valor=item["valor"],
                         anexo=anexo,
                     )
-        messages.success(request, "Solicitação de reembolso enviada com sucesso!")
+            # Enviar e-mail aos gestores administrativos
+            _enviar_email_nova_solicitacao(sol, request)
+            messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
         return redirect("intra:reembolso")
     return render(request, "intra/reembolso.html", context)

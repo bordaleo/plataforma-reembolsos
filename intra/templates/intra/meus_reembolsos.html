@@ -271,6 +271,7 @@
     <table class="tabela-reembolsos">
         <thead>
             <tr>
+                <th>ID</th>
                 <th>Data de Envio</th>
                 <th>Centro de custo</th>
                 <th>Código de despesa</th>
@@ -283,6 +284,7 @@
         <tbody>
             {% for s in solicitacoes %}
             <tr>
+                <td><strong>#{{ s.pk }}</strong></td>
                 <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i" }}</td>
                 <td>{{ s.centro_custo }}</td>
                 <td>{{ s.codigos_despesa }}</td>
@@ -319,6 +321,7 @@
         </div>
         <div class="modal-body">
             <div class="detalhe-campos">
+                <p><strong>ID da Solicitação:</strong> <span id="detalhe-id"></span></p>
                 <p><strong>Data:</strong> <span id="detalhe-data"></span></p>
                 <p><strong>Centro de custo:</strong> <span id="detalhe-centro"></span></p>
                 <p><strong>Código de despesa:</strong> <span id="detalhe-cod"></span></p>
@@ -355,6 +358,7 @@
     var modal = document.getElementById('modal-ver-reembolso');
     var btnFechar = document.getElementById('modal-reembolso-fechar');
     var titulo = document.getElementById('modal-reembolso-titulo');
+    var detalheId = document.getElementById('detalhe-id');
     var detalheData = document.getElementById('detalhe-data');
     var detalheCentro = document.getElementById('detalhe-centro');
     var detalheCod = document.getElementById('detalhe-cod');
@@ -375,7 +379,8 @@
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data.error) return;
-                    titulo.textContent = 'Solicitação de Reembolso - ' + data.criado_em;
+                    titulo.textContent = 'Solicitação de Reembolso #' + pk + ' - ' + data.criado_em;
+                    detalheId.textContent = '#' + pk;
                     detalheData.textContent = data.criado_em;
                     detalheCentro.textContent = data.centro_custo;
                     detalheCod.textContent = data.cod_despesa;

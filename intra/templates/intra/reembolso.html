@@ -16,26 +16,38 @@
         letter-spacing: 0.3px;
     }
     .card .form-group label {
-        font-size: 0.95rem;
         font-weight: 600;
         color: #34495e;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.625rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
     }
     .card .form-group select,
     .card .form-group input[type="text"],
     .card .form-group input[type="number"],
+    .card .form-group input[type="date"],
     .card .form-group input[type="file"] {
-        font-size: 0.95rem;
-        padding: 0.875rem 1rem;
-        border: 2px solid #d1d9e0;
-        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #2c3e50;
+        background: #ffffff;
         transition: all 0.2s;
+        font-family: inherit;
+        width: 100%;
+        box-sizing: border-box;
     }
     .card .form-group select:focus,
     .card .form-group input:focus {
         outline: none;
         border-color: #34495e;
         box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        background: #ffffff;
+    }
+    .card .form-group select:hover,
+    .card .form-group input:hover {
+        border-color: #bdc3c7;
     }
     .linha-despesa {
         display: grid;
@@ -73,25 +85,34 @@
     .linha-despesa .form-group label {
         font-weight: 600;
         color: #34495e;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.625rem;
         font-size: 0.9rem;
+        letter-spacing: 0.3px;
         display: block;
     }
     .linha-despesa .form-group select,
     .linha-despesa .form-group input {
         width: 100%;
-        border: 2px solid #d1d9e0;
-        border-radius: 6px;
-        padding: 0.875rem 1rem;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
         font-size: 0.9rem;
+        color: #2c3e50;
+        background: #ffffff;
         transition: all 0.2s;
         box-sizing: border-box;
+        font-family: inherit;
     }
     .linha-despesa .form-group select:focus,
     .linha-despesa .form-group input:focus {
         outline: none;
         border-color: #34495e;
         box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        background: #ffffff;
+    }
+    .linha-despesa .form-group select:hover,
+    .linha-despesa .form-group input:hover {
+        border-color: #bdc3c7;
     }
     .anexo-wrapper {
         display: flex;
@@ -100,11 +121,25 @@
     }
     .anexo-wrapper input[type="file"] {
         width: 100%;
-        padding: 0.5rem;
-        font-size: 0.85rem;
-        border: 2px solid #d1d9e0;
-        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
         cursor: pointer;
+        color: #2c3e50;
+        background: #ffffff;
+        transition: all 0.2s;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    .anexo-wrapper input[type="file"]:hover {
+        border-color: #bdc3c7;
+    }
+    .anexo-wrapper input[type="file"]:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        background: #ffffff;
     }
     .anexo-wrapper input[type="file"]::-webkit-file-upload-button {
         padding: 0.5rem 1rem;
@@ -295,7 +330,7 @@
         </div>
         <div class="form-group">
             <label for="centro_custo">Centro de Custo <span style="color: #e74c3c;">*</span></label>
-            <select name="centro_custo" id="centro_custo" required>
+            <select name="centro_custo" id="centro_custo" required class="form-control">
                 <option value="">Selecione...</option>
                 {% for programa in programas %}
                 <option value="{{ programa }}">{{ programa }}</option>
@@ -312,11 +347,11 @@
             <div class="linha-despesa" data-index="0">
                 <div class="form-group">
                     <label>Data da Despesa <span style="color: #e74c3c;">*</span></label>
-                    <input type="date" name="data_despesa_0" required>
+                    <input type="date" name="data_despesa_0" required class="form-control">
                 </div>
                 <div class="form-group">
                     <label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label>
-                    <select name="tipo_despesa_0" required>
+                    <select name="tipo_despesa_0" required class="form-control">
                         <option value="">Selecione...</option>
                         {% for valor, label in tipos_despesa %}
                         <option value="{{ valor }}">{{ label }}</option>
@@ -325,7 +360,7 @@
                 </div>
                 <div class="form-group">
                     <label>Código de Despesa <span style="color: #e74c3c;">*</span></label>
-                    <select name="cod_despesa_0" required>
+                    <select name="cod_despesa_0" required class="form-control">
                         <option value="">Selecione...</option>
                         {% for c in codigos %}
                         <option value="{{ c.CODIGO }}">{{ c.CODIGO }} - {{ c.DESCRICAO }}</option>
@@ -334,11 +369,11 @@
                 </div>
                 <div class="form-group">
                     <label>Descrição</label>
-                    <input type="text" name="descricao_0" placeholder="Descrição do item">
+                    <input type="text" name="descricao_0" placeholder="Descrição do item" class="form-control">
                 </div>
                 <div class="form-group">
                     <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
-                    <input type="number" name="valor_0" step="0.01" min="0" placeholder="0,00" required>
+                    <input type="number" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control">
                 </div>
                 <div class="form-group">
                     <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
@@ -393,6 +428,7 @@
     var centroCusto = document.getElementById('centro_custo');
     var tiposDespesa = {{ tipos_despesa_json|safe }};
     var codigosDespesa = {{ codigos_despesa_json|safe }};
+    var codigosPorPrograma = {{ codigos_por_programa_json|safe }};
     var count = 1;
 
     // Função para habilitar/desabilitar campos de despesa
@@ -410,13 +446,56 @@
     // Inicialmente desabilitar campos
     toggleCamposDespesa(false);
 
+    // Função para atualizar códigos de despesa baseado no centro de custo selecionado
+    function atualizarCodigosDespesa(programaSelecionado) {
+        var codigosFiltrados = [];
+        
+        // Debug: verificar se o programa existe
+        console.log('Programa selecionado:', programaSelecionado);
+        console.log('Códigos por programa disponíveis:', Object.keys(codigosPorPrograma));
+        
+        if (programaSelecionado && codigosPorPrograma && codigosPorPrograma[programaSelecionado]) {
+            codigosFiltrados = codigosPorPrograma[programaSelecionado];
+            console.log('Códigos filtrados encontrados:', codigosFiltrados.length);
+        } else {
+            // Se não houver programa selecionado, mostrar todos
+            codigosFiltrados = codigosDespesa;
+            console.log('Mostrando todos os códigos:', codigosFiltrados.length);
+        }
+        
+        // Atualizar todos os selects de código de despesa em todas as linhas
+        container.querySelectorAll('select[name^="cod_despesa_"]').forEach(function(select) {
+            var valorAtual = select.value;
+            select.innerHTML = '<option value="">Selecione...</option>';
+            
+            codigosFiltrados.forEach(function(cod) {
+                var option = document.createElement('option');
+                option.value = cod.codigo;
+                option.textContent = cod.codigo + ' - ' + cod.descricao;
+                select.appendChild(option);
+            });
+            
+            // Restaurar valor anterior se ainda existir
+            if (valorAtual) {
+                var optionExiste = Array.from(select.options).some(function(opt) {
+                    return opt.value === valorAtual;
+                });
+                if (optionExiste) {
+                    select.value = valorAtual;
+                }
+            }
+        });
+    }
+
     // Listener para Centro de Custo
     if (centroCusto) {
         centroCusto.addEventListener('change', function() {
             if (this.value) {
                 toggleCamposDespesa(true);
+                atualizarCodigosDespesa(this.value);
             } else {
                 toggleCamposDespesa(false);
+                atualizarCodigosDespesa(null);
             }
         });
     }
@@ -518,14 +597,23 @@
         div.className = 'linha-despesa';
         div.setAttribute('data-index', count);
         var optsTipo = tiposDespesa.map(function(t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('');
-        var optsCod = codigosDespesa.map(function(c) { return '<option value="' + c.codigo + '">' + c.codigo + ' - ' + c.descricao + '</option>'; }).join('');
+        
+        // Usar códigos filtrados baseado no centro de custo selecionado
+        var programaSelecionado = centroCusto ? centroCusto.value : null;
+        var codigosParaUsar = [];
+        if (programaSelecionado && codigosPorPrograma[programaSelecionado]) {
+            codigosParaUsar = codigosPorPrograma[programaSelecionado];
+        } else {
+            codigosParaUsar = codigosDespesa;
+        }
+        var optsCod = codigosParaUsar.map(function(c) { return '<option value="' + c.codigo + '">' + c.codigo + ' - ' + c.descricao + '</option>'; }).join('');
         div.innerHTML =
-            '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required></div>' +
-            '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
-            '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item"></div>' +
-            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required></div>' +
-            '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
+            '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control"></div>' +
+            '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
+            '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
+            '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" class="form-control"></div>' +
+            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"></div>' +
+            '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
             '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');

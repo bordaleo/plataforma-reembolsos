@@ -1,10 +1,13 @@
 """
 Gera PDF de reembolso conforme modelo MODELO_REEMBOLSO.pdf
 """
+import os
 from io import BytesIO
+from django.conf import settings
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 
 # Mapeamento tipo_despesa (valor no form) -> rótulo no PDF (como no modelo)
 ROTULOS_TIPO = {
@@ -15,6 +18,22 @@ ROTULOS_TIPO = {
     "DESLOCAMENTO": "DESLOCAMENTO KM",
     "OUTROS_MATERIAIS": "OUTROS",
 }
+
+# Lista de classificações para orientações
+CLASSIFICACOES = [
+    "HOSPEDAGEM",
+    "REFEIÇÃO",
+    "LOCOMOÇÃO",
+    "PASSAGENS",
+    "TELEFONIA FIXA",
+    "TELEFONIA MÓVEL",
+    "MATERIAL ESCRITÓRIO",
+    "TREINAMENTO",
+    "ESTACIONAMENTO",
+    "DESLOCAMENTO KM",
+    "PEDÁGIO",
+    "OUTROS",
+]
 
 
 def _formatar_valor(valor):
@@ -38,157 +57,332 @@ def gerar_pdf(solicitacao):
     width, height = w, h
     margin_left = 20 * mm
     margin_right = width - 20 * mm
-    y = height - 25 * mm
-
-    # --- Cabeçalho (Associação) ---
+    
+    # --- Logo no canto superior direito (mais para cima) ---
+    logo_paths = [
+        os.path.join(settings.BASE_DIR, 'intra', 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
+        os.path.join(settings.BASE_DIR, 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
+        os.path.join('intra', 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
+    ]
+    logo_path = None
+    for path in logo_paths:
+        if os.path.exists(path):
+            logo_path = path
+            break
+    
+    logo_width = 0
+    logo_height = 0
+    if logo_path:
+        try:
+            logo = ImageReader(logo_path)
+            logo_width = 40 * mm
+            logo_height = 50 * mm
+            logo_x = margin_right - logo_width + 10 * mm  # Mais para direita
+            logo_y = height - logo_height + 5 * mm  # Mantém a posição vertical
+            c.drawImage(logo, logo_x, logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True)
+        except Exception:
+            pass
+    
+    # --- Cabeçalho (Associação) no canto esquerdo ---
+    y_header = height - 15 * mm  # Mais para cima também
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(margin_left, y_header, "A ASSOCIAÇÃO PARCEIROS DA EDUCAÇÃO")
+    y_header -= 5 * mm
+    c.setFont("Helvetica", 9)
+    c.drawString(margin_left, y_header, "CNPJ: 06.878.967/0001-57")
+    y_header -= 4 * mm
+    c.drawString(margin_left, y_header, "Av. Paulista, 967 - 3º Andar")
+    y_header -= 4 * mm
+    c.drawString(margin_left, y_header, "Bela Vista, São Paulo - SP")
+    y_header -= 4 * mm
+    c.drawString(margin_left, y_header, "CEP: 01311-100")
+    
+    # --- Título centralizado abaixo do cabeçalho ---
+    y_title = y_header - 8 * mm
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(margin_left, y, "ASSOCIAÇÃO PARCEIROS DA EDUCAÇÃO")
-    y -= 5 * mm
-    c.setFont("Helvetica", 10)
-    c.drawString(margin_left, y, "CNPJ: 06.878.967/0001-57")
-    y -= 4 * mm
-    c.drawString(margin_left, y, "Rua Funchal, 513 - conjunto 71")
-    y -= 4 * mm
-    c.drawString(margin_left, y, "Vila Olímpia, São Paulo – SP")
-    y -= 4 * mm
-    c.drawString(margin_left, y, "CEP: 04551-909")
-    y -= 10 * mm
-
-    # --- Título ---
-    c.setFont("Helvetica-Bold", 14)
+    numero = f"{solicitacao.pk:02d}/{solicitacao.criado_em.year}" if solicitacao.criado_em else f"{solicitacao.pk:02d}/2025"
+    title_text = f"NOTA DE DÉBITO / REEMBOLSO - N° {numero}"
+    title_width = c.stringWidth(title_text, "Helvetica-Bold", 12)
+    title_x = (width - title_width) / 2
+    c.drawString(title_x, y_title, title_text)
+    
+    y = y_title - 15 * mm
+    
+    # --- Seção Reembolso de Despesas ---
+    c.setFont("Helvetica-Bold", 11)
     c.drawString(margin_left, y, "Reembolso de Despesas")
-    y -= 10 * mm
-
+    y -= 8 * mm
+    
     # --- Solicito o reembolso do valor de ---
     c.setFont("Helvetica", 10)
     c.drawString(margin_left, y, "Solicito o reembolso do valor de:")
     valor_str = _formatar_valor(solicitacao.valor_total)
-    c.drawRightString(margin_right, y, f"R$ {valor_str}")
+    c.setFont("Helvetica-Bold", 10)
+    valor_x = margin_left + c.stringWidth("Solicito o reembolso do valor de: ", "Helvetica", 10)
+    c.drawString(valor_x, y, f"R$ {valor_str}")
     y -= 8 * mm
-
-    # --- Referente ao... Descrição ---
+    
+    # --- Referente ao... ---
+    c.setFont("Helvetica", 9)
     c.drawString(margin_left, y, "Referente ao reembolso de despesas relacionadas aos seguintes eventos:")
-    y -= 5 * mm
-    c.drawString(margin_left, y, "Descrição:")
-    descricao = " / ".join(
-        [f"{solicitacao.centro_custo} - {solicitacao.cod_despesa}"]
-        + [f"{i.tipo_despesa}: {i.descricao or '-'}" for i in solicitacao.itens.all()]
-    )
-    if len(descricao) > 100:
-        descricao = descricao[:97] + "..."
-    y -= 5 * mm
-    c.drawString(margin_left, y, descricao[:80] if len(descricao) > 80 else descricao)
-    y -= 10 * mm
-
-    # --- Tabela: Nota de débito / Classificação ---
+    y -= 8 * mm
+    
+    # --- Tabela: Nota de débito para Reembolso de Despesas ---
+    y_table_start = y
     c.setFont("Helvetica-Bold", 10)
     c.drawString(margin_left, y, "Nota de débito para Reembolso de Despesas")
-    y -= 5 * mm
-    c.setFont("Helvetica", 9)
-    c.drawString(margin_left, y, f"Programa: {solicitacao.centro_custo}")
-    y -= 5 * mm
-    c.drawString(margin_left, y, "CLASSIFICAÇÃO")
     y -= 6 * mm
-
-    # Cabeçalho da tabela: CÓD. DESP., DATA, TIPO, DESCRIÇÃO, km, VALOR, HOSPEDAGEM
-    col_cod = margin_left
-    col_data = margin_left + 22 * mm
-    col_tipo = margin_left + 38 * mm
-    col_desc = margin_left + 58 * mm
-    col_km = margin_left + 95 * mm
-    col_valor = margin_left + 105 * mm
-    col_hosp = margin_left + 120 * mm
-    c.setFont("Helvetica-Bold", 8)
+    
+    # Definir colunas da tabela com mais espaçamento entre campos (sem GESTÃO APE)
+    col_programa = margin_left
+    col_cod = margin_left + 45 * mm     # Mais espaço
+    col_data = margin_left + 62 * mm    # Mais espaço
+    col_classif = margin_left + 77 * mm # Mais espaço
+    col_desc = margin_left + 97 * mm   # Mais espaço
+    col_km = margin_left + 132 * mm     # Mais espaço
+    col_valor = margin_left + 145 * mm # Mais espaço
+    
+    # Largura máxima da tabela para não sobrepor orientações
+    table_right = margin_left + 95 * mm
+    
+    # Cabeçalho da tabela
+    c.setFont("Helvetica-Bold", 7)  # Fonte menor para cabeçalhos
+    c.drawString(col_programa, y, "Programa:")
     c.drawString(col_cod, y, "CÓD. DESP.")
     c.drawString(col_data, y, "DATA")
-    c.drawString(col_tipo, y, "TIPO")
+    c.drawString(col_classif, y, "CLASSIF.")
     c.drawString(col_desc, y, "DESCRIÇÃO")
     c.drawString(col_km, y, "km")
     c.drawString(col_valor, y, "VALOR")
-    c.drawString(col_hosp, y, "HOSP.")
     y -= 5 * mm
-
-    data_str = solicitacao.criado_em.strftime("%d/%m/%Y") if solicitacao.criado_em else "-"
-    cod_desp = (solicitacao.cod_despesa[:10] if solicitacao.cod_despesa else "-")[:10]
+    
+    # Linha separadora (até a coluna VALOR)
+    c.line(margin_left, y, col_valor + 20 * mm, y)
+    y -= 3 * mm
+    
+    # Dados da tabela
     itens = list(solicitacao.itens.all())
-
+    data_str = solicitacao.criado_em.strftime("%d/%m/%Y") if solicitacao.criado_em else "-"
+    
+    # Buscar descrições dos códigos de despesa
+    from intra.models import CentroCusto
+    
+    y_table_bottom = y
+    
     if itens:
-        c.setFont("Helvetica", 9)
+        c.setFont("Helvetica", 7)  # Fonte menor para dados
         for i, item in enumerate(itens):
-            tipo_label = ROTULOS_TIPO.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
-            descricao_item = (item.descricao or "-").strip()[:35]
-            val_str = _formatar_valor(item.valor)
-            km_str = _formatar_valor(item.km) if item.km is not None else "-"
+            # Programa (centro de custo) - apenas na primeira linha, mostrar completo
             if i == 0:
-                c.drawString(col_cod, y, cod_desp)
-                c.drawString(col_data, y, data_str)
-            c.drawString(col_tipo, y, tipo_label[:14])
+                programa = solicitacao.centro_custo or "-"
+                # Calcular largura disponível até a próxima coluna
+                largura_disponivel = col_cod - col_programa - 5 * mm
+                # Tentar mostrar completo, se não couber usar "..." no final
+                if c.stringWidth(programa, "Helvetica", 7) > largura_disponivel:
+                    # Reduzir até caber
+                    while len(programa) > 0 and c.stringWidth(programa + "...", "Helvetica", 7) > largura_disponivel:
+                        programa = programa[:-1]
+                    programa = programa + "..."
+                c.drawString(col_programa, y, programa)
+            else:
+                c.drawString(col_programa, y, "-")
+            
+            # Código de despesa (apenas o código, sem descrição na tabela)
+            cod_desp = item.cod_despesa or "-"
+            if len(cod_desp) > 10:
+                cod_desp = cod_desp[:10]
+            c.drawString(col_cod, y, cod_desp)
+            
+            # Data da despesa ou data da solicitação
+            data_item = item.data_despesa.strftime("%d/%m/%Y") if item.data_despesa else data_str
+            c.drawString(col_data, y, data_item)
+            
+            # Classificação (tipo de despesa) - mostrar completo, adaptar ao espaço disponível
+            tipo_label = ROTULOS_TIPO.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
+            largura_classif = col_desc - col_classif - 3 * mm
+            if c.stringWidth(tipo_label, "Helvetica", 7) > largura_classif:
+                # Reduzir até caber
+                tipo_original = tipo_label
+                while len(tipo_label) > 0 and c.stringWidth(tipo_label + "...", "Helvetica", 7) > largura_classif:
+                    tipo_label = tipo_label[:-1]
+                tipo_label = tipo_label + "..."
+            c.drawString(col_classif, y, tipo_label)
+            
+            # Descrição do item - mostrar completo, adaptar ao espaço disponível
+            descricao_item = (item.descricao or "-").strip()
+            largura_desc = col_km - col_desc - 3 * mm
+            if c.stringWidth(descricao_item, "Helvetica", 7) > largura_desc:
+                # Reduzir até caber
+                desc_original = descricao_item
+                while len(descricao_item) > 0 and c.stringWidth(descricao_item + "...", "Helvetica", 7) > largura_desc:
+                    descricao_item = descricao_item[:-1]
+                descricao_item = descricao_item + "..."
             c.drawString(col_desc, y, descricao_item)
+            
+            # KM
+            km_str = _formatar_valor(item.km) if item.km is not None else "-"
             c.drawString(col_km, y, km_str)
+            
+            # Valor - garantir que apareça completo
+            val_str = _formatar_valor(item.valor)
             c.drawString(col_valor, y, val_str)
-            c.drawString(col_hosp, y, "-")
-            y -= 5 * mm
+            
+            y -= 4 * mm
+            y_table_bottom = y
+            
+            # Limitar altura da tabela para não sobrepor orientações
+            if y < 120 * mm:
+                break
     else:
-        c.setFont("Helvetica", 9)
-        c.drawString(col_cod, y, cod_desp)
+        # Se não houver itens, mostrar apenas dados básicos
+        c.setFont("Helvetica", 7)
+        programa = solicitacao.centro_custo or "-"
+        # Calcular largura disponível até a próxima coluna
+        largura_disponivel = col_cod - col_programa - 5 * mm
+        # Tentar mostrar completo, se não couber usar "..." no final
+        if c.stringWidth(programa, "Helvetica", 7) > largura_disponivel:
+            # Reduzir até caber
+            while len(programa) > 0 and c.stringWidth(programa + "...", "Helvetica", 7) > largura_disponivel:
+                programa = programa[:-1]
+            programa = programa + "..."
+        c.drawString(col_programa, y, programa)
+        c.drawString(col_cod, y, "-")
         c.drawString(col_data, y, data_str)
-        c.drawString(col_tipo, y, "-")
-        c.drawString(col_desc, y, "(sem itens)")
+        c.drawString(col_classif, y, "-")
+        c.drawString(col_desc, y, "-")
         c.drawString(col_km, y, "-")
         c.drawString(col_valor, y, _formatar_valor(solicitacao.valor_total))
-        c.drawString(col_hosp, y, "-")
-        y -= 5 * mm
-
-    y -= 3 * mm
-    c.setFont("Helvetica", 8)
-    c.drawString(margin_left, y, "FATOR MULTIPLICADOR PARA REEMBOLSO DE KM: MULTIPLICAR POR R$ 1,10")
-    y -= 12 * mm
-
-    # --- Depósito em conta ---
+        y -= 4 * mm
+        y_table_bottom = y
+    
+    # Preencher linhas restantes com "-" até o limite
+    while y > 120 * mm:
+        c.drawString(col_programa, y, "-")
+        c.drawString(col_cod, y, "-")
+        c.drawString(col_data, y, "-")
+        c.drawString(col_classif, y, "-")
+        c.drawString(col_desc, y, "-")
+        c.drawString(col_km, y, "-")
+        c.drawString(col_valor, y, "-")
+        y -= 4 * mm
+        y_table_bottom = y
+    
+    # --- Depósito em conta (abaixo da tabela) ---
+    y = y_table_bottom - 10 * mm
     c.setFont("Helvetica", 10)
     c.drawString(margin_left, y, "Solicito providenciar depósito em minha conta corrente, conforme dados abaixo:")
     y -= 8 * mm
-
+    
     perfil = getattr(solicitacao.user, "perfil_solicitante", None)
     if perfil:
         c.setFont("Helvetica", 9)
         c.drawString(margin_left, y, f"Nome: {perfil.nome_solicitante or '-'}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"PIX  Email: {solicitacao.user.email or '-'}")
+        c.drawString(margin_left, y, f"PIX: {solicitacao.user.email or '-'}")
         y -= 5 * mm
-        c.drawString(margin_left, y, "CPF/CNPJ: (conforme cadastro)")
+        c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Banco: {perfil.banco or '-'}")
+        c.drawString(margin_left, y, f"Banco: {perfil.banco or 'YYYY'}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Agencia: {perfil.agencia or '-'}")
+        c.drawString(margin_left, y, f"Agencia: {perfil.agencia or 'XXXX-X'}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Conta: {perfil.conta_numero or '-'}")
+        c.drawString(margin_left, y, f"Conta: {perfil.conta_numero or 'XXXXX-X'}")
     else:
-        c.drawString(margin_left, y, "Dados de pagamento não cadastrados.")
-    y -= 12 * mm
-
-    # --- Rodapé ---
-    c.setFont("Helvetica-Bold", 10)
-    numero = f"{solicitacao.pk:02d}/{solicitacao.criado_em.year}" if solicitacao.criado_em else f"{solicitacao.pk:02d}/2025"
-    c.drawString(margin_left, y, f"NOTA DE DÉBITO / REEMBOLSO - N° {numero}")
-    y -= 6 * mm
-    c.setFont("Helvetica", 9)
-    c.drawString(margin_left, y, "Assinatura - Solicitante")
-    c.drawString(margin_left + 70 * mm, y, "Assinatura - Gestor")
-    y -= 5 * mm
+        c.setFont("Helvetica", 9)
+        c.drawString(margin_left, y, "Nome: -")
+        y -= 5 * mm
+        c.drawString(margin_left, y, "PIX: -")
+        y -= 5 * mm
+        c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
+        y -= 5 * mm
+        c.drawString(margin_left, y, "Banco: YYYY")
+        y -= 5 * mm
+        c.drawString(margin_left, y, "Agencia: XXXX-X")
+        y -= 5 * mm
+        c.drawString(margin_left, y, "Conta: XXXXX-X")
+    
+    y -= 10 * mm
+    
+    # --- Rodapé: Data e Assinaturas ---
+    # Garantir que o rodapé apareça acima da margem inferior
+    if y < 60 * mm:
+        y = 60 * mm
+    
     meses = ("janeiro", "fevereiro", "março", "abril", "maio", "junho",
              "julho", "agosto", "setembro", "outubro", "novembro", "dezembro")
     if solicitacao.criado_em:
         data_ext = f"{solicitacao.criado_em.day} de {meses[solicitacao.criado_em.month - 1]} de {solicitacao.criado_em.year}"
     else:
-        data_ext = "_____ de __________ de ______"
+        data_ext = "XX de XXXX de 2025"
+    
+    # --- Seção de Orientações primeiro (horizontal) ---
+    if y < 50 * mm:
+        y = 50 * mm
+    
+    y_orientacoes = y
+    x_orientacoes = margin_left
+    x_fator = margin_left + 110 * mm  # Ao lado direito das orientações
+    
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(x_orientacoes, y_orientacoes, "ORIENTAÇÕES")
+    y_orientacoes -= 5 * mm
+    
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(x_orientacoes, y_orientacoes, "CLASSIFICAÇÃO:")
+    y_orientacoes -= 4 * mm
+    
+    # FATOR MULTIPLICADOR alinhado com CLASSIFICAÇÃO (um pouco mais para baixo)
+    y_fator = y_orientacoes  # Alinhado com CLASSIFICAÇÃO
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(x_fator, y_fator, "FATOR MULTIPLICADOR:")
+    y_fator -= 4 * mm
+    
+    c.setFont("Helvetica", 6)
+    c.drawString(x_fator, y_fator, "PARA REEMBOLSO DE KM:")
+    y_fator -= 3.5 * mm
+    c.drawString(x_fator, y_fator, "MULTIPLICAR POR R$ 1,10")
+    
+    # Lista de classificações em formato horizontal (em colunas)
+    c.setFont("Helvetica", 6)
+    x_start = x_orientacoes
+    y_current = y_orientacoes
+    col_width = 35 * mm  # Largura de cada coluna
+    max_cols = 3  # Máximo de 3 colunas
+    
+    for i, classificacao in enumerate(CLASSIFICACOES):
+        col = i % max_cols
+        row = i // max_cols
+        
+        if row > 0 and col == 0:
+            y_current -= 3 * mm
+        
+        x_pos = x_start + (col * col_width)
+        c.drawString(x_pos, y_current, classificacao)
+    
+    # Encontrar a posição mais baixa entre orientações e fator
+    y_mais_baixo = min(y_current, y_fator)
+    y = y_mais_baixo - 40 * mm  # Mais espaço para baixo (duas vezes mais)
+    
+    # Garantir espaço mínimo para as assinaturas e data (mas permitir ir mais para baixo)
+    if y < 20 * mm:
+        y = 20 * mm
+    
+    # Data e assinaturas na mesma linha (alinhadas) - DEPOIS das orientações
+    c.setFont("Helvetica", 9)
     c.drawRightString(margin_right, y, f"São Paulo, {data_ext}")
-    y -= 5 * mm
-    c.drawRightString(margin_right, y, f"R$ {_formatar_valor(solicitacao.valor_total)}")
-    y -= 5 * mm
-    c.setFont("Helvetica-Bold", 9)
-    c.drawRightString(margin_right, y, "GESTÃO APE")
-
+    
+    # Linhas para assinaturas
+    linha_y = y + 5 * mm  # Linha acima do texto (mais próxima)
+    linha_largura = 50 * mm  # Largura da linha
+    
+    # Linha para Assinatura - Solicitante
+    c.line(margin_left, linha_y, margin_left + linha_largura, linha_y)
+    c.drawString(margin_left, y, "Assinatura - Solicitante")
+    
+    # Linha para Assinatura - Gestor
+    c.line(margin_left + 70 * mm, linha_y, margin_left + 70 * mm + linha_largura, linha_y)
+    c.drawString(margin_left + 70 * mm, y, "Assinatura - Gestor")
+    
     c.showPage()
     c.save()
     buffer.seek(0)

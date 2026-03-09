@@ -37,6 +37,490 @@ def _is_gestor(user):
     )
 
 
+def _is_gestor_simples(user):
+    """Usuário com regra Gestor (não administrativo)."""
+    return (
+        user.is_authenticated
+        and user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR).exists()
+    )
+
+
+def _is_gestor_ou_gestor_admin(user):
+    """Usuário com regra Gestor ou Gestor Administrativo."""
+    return _is_gestor_simples(user) or _is_gestor(user)
+
+
+def _get_status_descritivo(solicitacao):
+    """
+    Retorna o status descritivo da solicitação baseado nos status_gestor e status_gestor_admin.
+    Retorna: 'aguardando_gestor', 'aguardando_gestor_admin', 'aprovado', 'rejeitado'
+    """
+    # Se foi rejeitado pelo gestor, está rejeitado
+    if solicitacao.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO:
+        return 'rejeitado'
+    
+    # Se foi rejeitado pelo gestor administrativo, está rejeitado
+    if solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
+        return 'rejeitado'
+    
+    # Se foi aprovado pelo gestor administrativo, está aprovado
+    if solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
+        return 'aprovado'
+    
+    # Se foi aprovado pelo gestor, está aguardando gestor administrativo
+    if solicitacao.status_gestor == SolicitacaoReembolso.STATUS_APROVADO:
+        return 'aguardando_gestor_admin'
+    
+    # Se ainda não foi processado pelo gestor, está aguardando gestor
+    if solicitacao.status_gestor == SolicitacaoReembolso.STATUS_PENDENTE:
+        return 'aguardando_gestor'
+    
+    # Fallback
+    return 'aguardando_gestor'
+
+
+def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
+    """Envia e-mail ao solicitante quando o gestor aprova ou rejeita."""
+    try:
+        solicitante_email = solicitacao.user.email
+        if not solicitante_email:
+            return
+        
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        # Formatar data
+        data_aprovacao = localtime(solicitacao.aprovado_em_gestor).strftime("%d/%m/%Y %H:%M") if solicitacao.aprovado_em_gestor else ""
+        
+        # Formatar valor
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        if aprovado:
+            subject = "Solicitação de Reembolso Aprovada pelo Gestor - Intranet Parceiros"
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA PELO GESTOR\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da aprovação pelo gestor: {data_aprovacao}\n"
+                f"{'-'*60}\n\n"
+                f"A solicitação agora aguarda aprovação do gestor administrativo.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #27ae60; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #27ae60; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA PELO GESTOR
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px;"><strong>Data da aprovação pelo gestor:</strong></td><td style="padding: 8px;">{data_aprovacao}</td></tr>
+                    </table>
+                </div>
+                <p>A solicitação agora aguarda aprovação do gestor administrativo.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        else:
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor - Intranet Parceiros"
+            motivo = solicitacao.motivo_rejeicao_gestor or "Não informado"
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA PELO GESTOR\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da rejeição: {data_aprovacao}\n"
+                f"Motivo da rejeição: {motivo}\n"
+                f"{'-'*60}\n\n"
+                f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            motivo_escaped = html.escape(motivo)
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #e74c3c; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #e74c3c; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA PELO GESTOR
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da rejeição:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{data_aprovacao}</td></tr>
+                        <tr><td style="padding: 8px; vertical-align: top;"><strong>Motivo da rejeição:</strong></td><td style="padding: 8px; white-space: pre-wrap; word-wrap: break-word;">{motivo_escaped}</td></tr>
+                    </table>
+                </div>
+                <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[solicitante_email],
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de aprovação/rejeição do gestor: {e}")
+
+
+def _enviar_email_nova_solicitacao_gestor_admin(solicitacao, request=None):
+    """Envia e-mail aos gestores administrativos quando uma solicitação é aprovada pelo gestor."""
+    try:
+        # Buscar todos os gestores administrativos
+        gestores = User.objects.filter(
+            regras_usuario__role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO
+        ).distinct()
+        
+        if not gestores.exists():
+            return
+        
+        emails_gestores = []
+        for gestor in gestores:
+            if gestor.email:
+                emails_gestores.append(gestor.email)
+        
+        if not emails_gestores:
+            return
+        
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        nome_solicitante_escaped = html.escape(nome_solicitante)
+        email_solicitante_escaped = html.escape(solicitacao.user.email)
+        centro_custo_escaped = html.escape(solicitacao.centro_custo)
+        
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        if request:
+            aprovar_url = request.build_absolute_uri(reverse("intra:aprovar_reembolsos"))
+        else:
+            aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
+        
+        subject = "Nova Solicitação de Reembolso Aprovada pelo Gestor - Aguardando Aprovação Administrativa"
+        
+        message = (
+            f"Olá,\n\n"
+            f"{'='*60}\n"
+            f"SOLICITAÇÃO DE REEMBOLSO APROVADA PELO GESTOR - AGUARDANDO SUA APROVAÇÃO\n"
+            f"{'='*60}\n\n"
+            f"DETALHES DA SOLICITAÇÃO:\n"
+            f"{'-'*60}\n"
+            f"ID: {solicitacao.pk}\n"
+            f"Solicitante: {nome_solicitante} ({solicitacao.user.email})\n"
+            f"Valor total: {valor_formatado}\n"
+            f"Centro de custo: {solicitacao.centro_custo}\n"
+            f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+            f"Status: Aprovada pelo Gestor - Aguardando Aprovação Administrativa\n"
+            f"{'-'*60}\n\n"
+            f"Para visualizar e processar a solicitação, acesse:\n"
+            f"{aprovar_url}\n\n"
+            f"Atenciosamente,\n"
+            f"Equipe Intranet Parceiros"
+        )
+        
+        html_message = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
+                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                    <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                        Solicitação Aprovada pelo Gestor
+                    </h1>
+                    <p style="color: #bdc3c7; margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">
+                        Aguardando sua aprovação administrativa
+                    </p>
+                </div>
+                
+                <div style="background-color: #fff3cd; border-left: 5px solid #34495e; padding: 15px 20px; margin: 20px;">
+                    <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">
+                        Ação necessária: Esta solicitação foi aprovada pelo gestor e requer sua aprovação administrativa
+                    </p>
+                </div>
+                
+                <div style="padding: 0 20px 20px 20px;">
+                    <h2 style="color: #34495e; border-bottom: 3px solid #34495e; padding-bottom: 10px; margin: 20px 0 15px 0; font-size: 18px; font-weight: 600;">
+                        Detalhes da Solicitação
+                    </h2>
+                    <table style="width: 100%; border-collapse: collapse; background-color: #f5f7fa; border-radius: 4px; overflow: hidden; border: 1px solid #e1e8ed;">
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; width: 35%; border-bottom: 1px solid #e1e8ed;">ID da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 16px;">#{solicitacao.pk}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Solicitante:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{nome_solicitante_escaped}<br><span style="color: #7f8c8d; font-size: 13px;">{email_solicitante_escaped}</span></td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Valor Total:</td>
+                            <td style="padding: 12px 15px; color: #27ae60; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 18px;">{valor_formatado}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Centro de Custo:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Data da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y às %H:%M')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e;">Status:</td>
+                            <td style="padding: 12px 15px;">
+                                <span style="background-color: #f39c12; color: #ffffff; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; text-transform: uppercase;">
+                                    Aprovada pelo Gestor
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
+                            Visualizar e Processar Solicitação
+                        </a>
+                    </div>
+                </div>
+                
+                <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
+                        Este é um e-mail automático. Por favor, não responda.<br>
+                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=emails_gestores,
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de nova solicitação aprovada pelo gestor: {e}")
+
+
+def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
+    """Envia e-mail ao solicitante e ao gestor quando o gestor administrativo aprova ou rejeita."""
+    try:
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        # Formatar data
+        data_aprovacao = localtime(solicitacao.aprovado_em_gestor_admin).strftime("%d/%m/%Y %H:%M") if solicitacao.aprovado_em_gestor_admin else ""
+        
+        # Formatar valor
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        # Lista de destinatários: solicitante e gestor (se houver)
+        destinatarios = []
+        if solicitacao.user.email:
+            destinatarios.append(solicitacao.user.email)
+        
+        # Buscar email do gestor
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            if perfil.email_gestor:
+                # Verificar se o email do gestor existe como usuário
+                try:
+                    gestor_user = User.objects.get(email__iexact=perfil.email_gestor)
+                    if gestor_user.email and gestor_user.email not in destinatarios:
+                        destinatarios.append(gestor_user.email)
+                except User.DoesNotExist:
+                    pass
+        except PerfilSolicitante.DoesNotExist:
+            pass
+        
+        if not destinatarios:
+            return
+        
+        if aprovado:
+            subject = "Solicitação de Reembolso Aprovada - Intranet Parceiros"
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da aprovação final: {data_aprovacao}\n"
+                f"{'-'*60}\n\n"
+                f"O reembolso será processado conforme os procedimentos internos.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #27ae60; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #27ae60; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI APROVADA
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px;"><strong>Data da aprovação final:</strong></td><td style="padding: 8px;">{data_aprovacao}</td></tr>
+                    </table>
+                </div>
+                <p>O reembolso será processado conforme os procedimentos internos.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        else:
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor Administrativo - Intranet Parceiros"
+            motivo = solicitacao.motivo_rejeicao_gestor_admin or "Não informado"
+            message = (
+                f"Olá {nome_solicitante},\n\n"
+                f"{'='*60}\n"
+                f"SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA PELO GESTOR ADMINISTRATIVO\n"
+                f"{'='*60}\n\n"
+                f"DETALHES DA SOLICITAÇÃO:\n"
+                f"{'-'*60}\n"
+                f"ID: {solicitacao.pk}\n"
+                f"Valor total: {valor_formatado}\n"
+                f"Centro de custo: {solicitacao.centro_custo}\n"
+                f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+                f"Data da rejeição: {data_aprovacao}\n"
+                f"Motivo da rejeição: {motivo}\n"
+                f"{'-'*60}\n\n"
+                f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.\n\n"
+                f"Atenciosamente,\n"
+                f"Equipe Intranet Parceiros"
+            )
+            motivo_escaped = html.escape(motivo)
+            nome_solicitante_escaped = html.escape(nome_solicitante)
+            centro_custo_escaped = html.escape(solicitacao.centro_custo)
+            
+            html_message = f"""
+            <html>
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50;">
+                <p>Olá {nome_solicitante_escaped},</p>
+                <div style="border: 2px solid #e74c3c; padding: 15px; margin: 20px 0; background-color: #f5f7fa;">
+                    <h2 style="color: #e74c3c; margin: 0; text-align: center;">
+                        SUA SOLICITAÇÃO DE REEMBOLSO FOI REJEITADA PELO GESTOR ADMINISTRATIVO
+                    </h2>
+                </div>
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #34495e; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px;">
+                        DETALHES DA SOLICITAÇÃO:
+                    </h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{solicitacao.pk}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Valor total:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{valor_formatado}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Centro de custo:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da solicitação:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        <tr><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;"><strong>Data da rejeição:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e1e8ed;">{data_aprovacao}</td></tr>
+                        <tr><td style="padding: 8px; vertical-align: top;"><strong>Motivo da rejeição:</strong></td><td style="padding: 8px; white-space: pre-wrap; word-wrap: break-word;">{motivo_escaped}</td></tr>
+                    </table>
+                </div>
+                <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.</p>
+                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+            </body>
+            </html>
+            """
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=destinatarios,
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de aprovação/rejeição final: {e}")
+
+
 def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
     """Envia e-mail ao solicitante quando a solicitação é aprovada ou rejeitada."""
     try:
@@ -186,8 +670,141 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
         logger.error(f"Erro ao enviar e-mail de aprovação/rejeição: {e}")
 
 
+def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gestor=None):
+    """Envia e-mail ao gestor quando uma nova solicitação é criada pelo seu solicitante."""
+    try:
+        if not email_gestor:
+            return
+        
+        # Buscar nome do solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
+            nome_solicitante = perfil.nome_solicitante or solicitacao.user.get_full_name() or solicitacao.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = solicitacao.user.get_full_name() or solicitacao.user.email
+        
+        nome_solicitante_escaped = html.escape(nome_solicitante)
+        email_solicitante_escaped = html.escape(solicitacao.user.email)
+        centro_custo_escaped = html.escape(solicitacao.centro_custo)
+        
+        valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        if request:
+            aprovar_url = request.build_absolute_uri(reverse("intra:aprovar_reembolsos"))
+        else:
+            aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
+        
+        subject = "Nova Solicitação de Reembolso Aguardando sua Aprovação - Intranet Parceiros"
+        
+        message = (
+            f"Olá,\n\n"
+            f"{'='*60}\n"
+            f"NOVA SOLICITAÇÃO DE REEMBOLSO AGUARDANDO SUA APROVAÇÃO\n"
+            f"{'='*60}\n\n"
+            f"DETALHES DA SOLICITAÇÃO:\n"
+            f"{'-'*60}\n"
+            f"ID: {solicitacao.pk}\n"
+            f"Solicitante: {nome_solicitante} ({solicitacao.user.email})\n"
+            f"Valor total: {valor_formatado}\n"
+            f"Centro de custo: {solicitacao.centro_custo}\n"
+            f"Data da solicitação: {localtime(solicitacao.criado_em).strftime('%d/%m/%Y %H:%M')}\n"
+            f"Status: Pendente - Aguardando sua aprovação\n"
+            f"{'-'*60}\n\n"
+            f"Para visualizar e processar a solicitação, acesse:\n"
+            f"{aprovar_url}\n\n"
+            f"Atenciosamente,\n"
+            f"Equipe Intranet Parceiros"
+        )
+        
+        html_message = f"""
+        <html>
+        <head>
+            <meta charset="UTF-8">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
+                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                    <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                        Nova Solicitação de Reembolso
+                    </h1>
+                    <p style="color: #bdc3c7; margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">
+                        Aguardando sua aprovação
+                    </p>
+                </div>
+                
+                <div style="background-color: #fff3cd; border-left: 5px solid #34495e; padding: 15px 20px; margin: 20px;">
+                    <p style="margin: 0; color: #856404; font-weight: bold; font-size: 14px;">
+                        Ação necessária: Esta solicitação requer sua atenção
+                    </p>
+                </div>
+                
+                <div style="padding: 0 20px 20px 20px;">
+                    <h2 style="color: #34495e; border-bottom: 3px solid #34495e; padding-bottom: 10px; margin: 20px 0 15px 0; font-size: 18px; font-weight: 600;">
+                        Detalhes da Solicitação
+                    </h2>
+                    <table style="width: 100%; border-collapse: collapse; background-color: #f5f7fa; border-radius: 4px; overflow: hidden; border: 1px solid #e1e8ed;">
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; width: 35%; border-bottom: 1px solid #e1e8ed;">ID da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 16px;">#{solicitacao.pk}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Solicitante:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{nome_solicitante_escaped}<br><span style="color: #7f8c8d; font-size: 13px;">{email_solicitante_escaped}</span></td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Valor Total:</td>
+                            <td style="padding: 12px 15px; color: #27ae60; border-bottom: 1px solid #e1e8ed; font-weight: 600; font-size: 18px;">{valor_formatado}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Centro de Custo:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{centro_custo_escaped}</td>
+                        </tr>
+                        <tr style="background-color: #ecf0f1;">
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e; border-bottom: 1px solid #e1e8ed;">Data da Solicitação:</td>
+                            <td style="padding: 12px 15px; color: #2c3e50; border-bottom: 1px solid #e1e8ed;">{localtime(solicitacao.criado_em).strftime('%d/%m/%Y às %H:%M')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px 15px; font-weight: 600; color: #34495e;">Status:</td>
+                            <td style="padding: 12px 15px;">
+                                <span style="background-color: #f39c12; color: #ffffff; padding: 5px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; text-transform: uppercase;">
+                                    Pendente
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
+                            Visualizar e Processar Solicitação
+                        </a>
+                    </div>
+                </div>
+                
+                <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
+                    <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
+                        Este é um e-mail automático. Por favor, não responda.<br>
+                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email_gestor],
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
+    except Exception as e:
+        logger.error(f"Erro ao enviar e-mail de nova solicitação ao gestor: {e}")
+
+
 def _enviar_email_nova_solicitacao(solicitacao, request=None):
-    """Envia e-mail aos gestores administrativos quando uma nova solicitação é criada."""
+    """Envia e-mail aos gestores administrativos quando uma nova solicitação é criada (legado - mantido para compatibilidade)."""
     try:
         # Buscar todos os gestores administrativos
         gestores = User.objects.filter(
@@ -417,10 +1034,10 @@ def esqueceu_acesso_view(request):
         except User.DoesNotExist:
             user = None
 
-        if user and _is_gestor(user):
+        if user and _is_gestor_ou_gestor_admin(user):
             messages.info(
                 request,
-                "Para usuários Gestor Administrativo, a senha é definida exclusivamente no painel administrativo. Entre em contato com o administrador.",
+                "Para usuários Gestor ou Gestor Administrativo, a senha é definida exclusivamente no painel administrativo. Entre em contato com o administrador.",
             )
         elif user is None:
             # Primeiro acesso: cria usuário e envia senha
@@ -569,6 +1186,8 @@ def meus_reembolsos(request):
             if item.cod_despesa and item.cod_despesa not in codigos_despesa:
                 codigos_despesa.append(item.cod_despesa)
         sol.codigos_despesa = ', '.join(codigos_despesa) if codigos_despesa else '—'
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
         solicitacoes_com_data.append(sol)
     return render(
         request,
@@ -579,9 +1198,9 @@ def meus_reembolsos(request):
 
 @login_required
 def reembolso_pdf(request, pk):
-    """Gera PDF da solicitação de reembolso (solicitante ou gestor)."""
+    """Gera PDF da solicitação de reembolso (solicitante, gestor ou gestor administrativo)."""
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
-    if sol.user_id != request.user.id and not _is_gestor(request.user):
+    if sol.user_id != request.user.id and not _is_gestor_ou_gestor_admin(request.user):
         return HttpResponse("Não autorizado.", status=403)
     pdf_bytes = gerar_pdf(sol)
     nome_arquivo = f"reembolso_{sol.pk}_{sol.criado_em.strftime('%Y%m%d')}.pdf"
@@ -594,8 +1213,21 @@ def reembolso_pdf(request, pk):
 def reembolso_detalhe_gestor_json(request, pk):
     """Retorna dados completos da solicitação de reembolso em JSON (para gestor visualizar)."""
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
-    if not _is_gestor(request.user):
-        return JsonResponse({"error": "Acesso restrito a Gestores Administrativos."}, status=403)
+    is_gestor_simples = _is_gestor_simples(request.user)
+    is_gestor_admin = _is_gestor(request.user)
+    
+    if not is_gestor_simples and not is_gestor_admin:
+        return JsonResponse({"error": "Acesso restrito a Gestores ou Gestores Administrativos."}, status=403)
+    
+    # Verificar se o usuário tem permissão para ver esta solicitação
+    if is_gestor_simples:
+        # Gestor só pode ver solicitações dos seus solicitantes
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            if not perfil.email_gestor or perfil.email_gestor.lower() != request.user.email.lower():
+                return JsonResponse({"error": "Você não é o gestor deste solicitante."}, status=403)
+        except PerfilSolicitante.DoesNotExist:
+            return JsonResponse({"error": "Perfil do solicitante não encontrado."}, status=403)
     tipos_labels = dict(TIPOS_DESPESA)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     
@@ -676,27 +1308,57 @@ def reembolso_detalhe_gestor_json(request, pk):
             "email_gestor": "",
         }
     
-    # Informações de aprovação/rejeição
-    aprovacao_info = {}
-    if sol.status != SolicitacaoReembolso.STATUS_PENDENTE:
+    # Informações de aprovação/rejeição do gestor
+    aprovacao_gestor_info = {}
+    if sol.status_gestor != SolicitacaoReembolso.STATUS_PENDENTE:
         aprovado_por_nome = ""
         aprovado_por_email = ""
-        if sol.aprovado_por:
-            aprovado_por_email = sol.aprovado_por.email or ""
+        if sol.aprovado_por_gestor:
+            aprovado_por_email = sol.aprovado_por_gestor.email or ""
             try:
-                perfil_aprovador = PerfilSolicitante.objects.get(user=sol.aprovado_por)
+                perfil_aprovador = PerfilSolicitante.objects.get(user=sol.aprovado_por_gestor)
                 aprovado_por_nome = perfil_aprovador.nome_solicitante or ""
             except PerfilSolicitante.DoesNotExist:
                 pass
         
-        aprovado_em_brasilia = localtime(sol.aprovado_em) if sol.aprovado_em else None
+        aprovado_em_brasilia = localtime(sol.aprovado_em_gestor) if sol.aprovado_em_gestor else None
         
-        aprovacao_info = {
+        aprovacao_gestor_info = {
             "aprovado_por_nome": aprovado_por_nome,
             "aprovado_por_email": aprovado_por_email,
             "aprovado_em": aprovado_em_brasilia.strftime("%d/%m/%Y %H:%M") if aprovado_em_brasilia else "",
-            "motivo_rejeicao": sol.motivo_rejeicao if sol.status == SolicitacaoReembolso.STATUS_REJEITADO else "",
+            "motivo_rejeicao": sol.motivo_rejeicao_gestor if sol.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO else "",
         }
+    
+    # Informações de aprovação/rejeição do gestor administrativo
+    aprovacao_gestor_admin_info = {}
+    if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_PENDENTE:
+        aprovado_por_nome = ""
+        aprovado_por_email = ""
+        if sol.aprovado_por_gestor_admin:
+            aprovado_por_email = sol.aprovado_por_gestor_admin.email or ""
+            try:
+                perfil_aprovador = PerfilSolicitante.objects.get(user=sol.aprovado_por_gestor_admin)
+                aprovado_por_nome = perfil_aprovador.nome_solicitante or ""
+            except PerfilSolicitante.DoesNotExist:
+                pass
+        
+        aprovado_em_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        
+        aprovacao_gestor_admin_info = {
+            "aprovado_por_nome": aprovado_por_nome,
+            "aprovado_por_email": aprovado_por_email,
+            "aprovado_em": aprovado_em_brasilia.strftime("%d/%m/%Y %H:%M") if aprovado_em_brasilia else "",
+            "motivo_rejeicao": sol.motivo_rejeicao_gestor_admin if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO else "",
+        }
+    
+    # Para compatibilidade, manter aprovacao_info com base no status final
+    aprovacao_info = {}
+    if sol.status != SolicitacaoReembolso.STATUS_PENDENTE:
+        if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_PENDENTE:
+            aprovacao_info = aprovacao_gestor_admin_info
+        elif sol.status_gestor != SolicitacaoReembolso.STATUS_PENDENTE:
+            aprovacao_info = aprovacao_gestor_info
     
     return JsonResponse({
         "pk": sol.pk,
@@ -706,10 +1368,14 @@ def reembolso_detalhe_gestor_json(request, pk):
         "valor_total": float(sol.valor_total),
         "criado_em": criado_em_brasilia.strftime("%d/%m/%Y %H:%M") if criado_em_brasilia else "",
         "status": sol.status,
+        "status_gestor": sol.status_gestor,
+        "status_gestor_admin": sol.status_gestor_admin,
         "itens": itens,
         "anexos": anexos,
         "solicitante": dados_solicitante,
         "aprovacao": aprovacao_info,
+        "aprovacao_gestor": aprovacao_gestor_info,
+        "aprovacao_gestor_admin": aprovacao_gestor_admin_info,
     })
 
 
@@ -717,8 +1383,11 @@ def reembolso_detalhe_gestor_json(request, pk):
 def reembolso_anexos_json(request, pk):
     """Retorna anexos da solicitação de reembolso em JSON (para gestor visualizar)."""
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
-    if not _is_gestor(request.user):
-        return JsonResponse({"error": "Acesso restrito a Gestores Administrativos."}, status=403)
+    is_gestor_simples = _is_gestor_simples(request.user)
+    is_gestor_admin = _is_gestor(request.user)
+    
+    if not is_gestor_simples and not is_gestor_admin:
+        return JsonResponse({"error": "Acesso restrito a Gestores ou Gestores Administrativos."}, status=403)
     tipos_labels = dict(TIPOS_DESPESA)
     anexos = []
     for item in sol.itens.all():
@@ -768,6 +1437,17 @@ def reembolso_detalhe_json(request, pk):
             except:
                 codigos_despesa_com_descricao.append(item.cod_despesa)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+    
+    # Calcular status descritivo
+    status_descritivo = _get_status_descritivo(sol)
+    
+    # Determinar motivo de rejeição (se houver)
+    motivo_rejeicao = ""
+    if sol.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO:
+        motivo_rejeicao = sol.motivo_rejeicao_gestor or ""
+    elif sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
+        motivo_rejeicao = sol.motivo_rejeicao_gestor_admin or ""
+    
     return JsonResponse({
         "pk": sol.pk,
         "centro_custo": sol.centro_custo,
@@ -775,22 +1455,42 @@ def reembolso_detalhe_json(request, pk):
         "valor_total": float(sol.valor_total),
         "criado_em": criado_em_brasilia.strftime("%d/%m/%Y %H:%M") if criado_em_brasilia else "",
         "status": sol.status,
-        "motivo_rejeicao": sol.motivo_rejeicao or "",
+        "status_descritivo": status_descritivo,
+        "motivo_rejeicao": motivo_rejeicao,
         "itens": itens,
     })
 
 
 @login_required
 def aprovar_reembolsos(request):
-    """Lista solicitações de reembolso para o gestor aprovar ou rejeitar."""
-    if not _is_gestor(request.user):
-        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    """Lista solicitações de reembolso para o gestor ou gestor administrativo aprovar ou rejeitar."""
+    is_gestor_simples = _is_gestor_simples(request.user)
+    is_gestor_admin = _is_gestor(request.user)
+    
+    if not is_gestor_simples and not is_gestor_admin:
+        return HttpResponse("Acesso restrito a Gestores ou Gestores Administrativos.", status=403)
     
     # Capturar parâmetro de busca
     busca = request.GET.get('busca', '').strip()
     
-    # Query base
-    solicitacoes = SolicitacaoReembolso.objects.select_related("user").all()
+    # Query base - diferente para gestor e gestor administrativo
+    if is_gestor_simples:
+        # Gestor vê apenas solicitações dos seus solicitantes (onde ele é gestor via email_gestor)
+        # E que ainda não foram aprovadas/rejeitadas por ele
+        solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
+            status_gestor=SolicitacaoReembolso.STATUS_PENDENTE
+        )
+        # Filtrar por solicitantes onde o gestor é o gestor (via email_gestor no perfil)
+        perfis_com_gestor = PerfilSolicitante.objects.filter(
+            email_gestor__iexact=request.user.email
+        ).values_list('user_id', flat=True)
+        solicitacoes = solicitacoes.filter(user_id__in=perfis_com_gestor)
+    else:
+        # Gestor Administrativo vê apenas solicitações aprovadas pelo gestor
+        solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
+            status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+            status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE
+        )
     
     # Aplicar filtro de busca se fornecido
     if busca:
@@ -828,6 +1528,12 @@ def aprovar_reembolsos(request):
             sol.nome_solicitante = ""
         # Garantir que sempre tenha um email ou username como fallback
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Determinar qual status mostrar e se pode aprovar/rejeitar
+        sol.status_descritivo = _get_status_descritivo(sol)
+        if is_gestor_simples:
+            sol.pode_decidir = (sol.status_gestor == SolicitacaoReembolso.STATUS_PENDENTE)
+        else:
+            sol.pode_decidir = (sol.status_gestor_admin == SolicitacaoReembolso.STATUS_PENDENTE and sol.status_gestor == SolicitacaoReembolso.STATUS_APROVADO)
         solicitacoes_com_data.append(sol)
     
     return render(
@@ -837,43 +1543,104 @@ def aprovar_reembolsos(request):
             "solicitacoes": solicitacoes_com_data,
             "page_obj": page_obj,
             "busca": busca,
+            "is_gestor_simples": is_gestor_simples,
+            "is_gestor_admin": is_gestor_admin,
         },
     )
 
 
 @login_required
 def reembolso_decidir(request, pk):
-    """Aprova ou rejeita uma solicitação (somente gestor)."""
-    if not _is_gestor(request.user):
-        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    """Aprova ou rejeita uma solicitação (gestor ou gestor administrativo)."""
+    is_gestor_simples = _is_gestor_simples(request.user)
+    is_gestor_admin = _is_gestor(request.user)
+    
+    if not is_gestor_simples and not is_gestor_admin:
+        return HttpResponse("Acesso restrito a Gestores ou Gestores Administrativos.", status=403)
+    
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
-    if sol.status != SolicitacaoReembolso.STATUS_PENDENTE:
-        messages.warning(request, "Esta solicitação já foi processada.")
-        return redirect("intra:aprovar_reembolsos")
+    
+    # Verificar se a solicitação pode ser processada pelo usuário atual
+    if is_gestor_simples:
+        # Gestor só pode processar se ainda estiver pendente para ele
+        if sol.status_gestor != SolicitacaoReembolso.STATUS_PENDENTE:
+            messages.warning(request, "Esta solicitação já foi processada pelo gestor.")
+            return redirect("intra:aprovar_reembolsos")
+        # Verificar se o gestor é realmente o gestor deste solicitante
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            if perfil.email_gestor and perfil.email_gestor.lower() != request.user.email.lower():
+                messages.error(request, "Você não é o gestor deste solicitante.")
+                return redirect("intra:aprovar_reembolsos")
+        except PerfilSolicitante.DoesNotExist:
+            messages.error(request, "Perfil do solicitante não encontrado.")
+            return redirect("intra:aprovar_reembolsos")
+    else:
+        # Gestor Administrativo só pode processar se já foi aprovado pelo gestor
+        if sol.status_gestor != SolicitacaoReembolso.STATUS_APROVADO:
+            messages.warning(request, "Esta solicitação ainda não foi aprovada pelo gestor.")
+            return redirect("intra:aprovar_reembolsos")
+        if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_PENDENTE:
+            messages.warning(request, "Esta solicitação já foi processada pelo gestor administrativo.")
+            return redirect("intra:aprovar_reembolsos")
+    
     if request.method == "POST":
         acao = request.POST.get("acao")
-        if acao == "aprovar":
-            sol.status = SolicitacaoReembolso.STATUS_APROVADO
-            sol.aprovado_por = request.user
-            sol.aprovado_em = timezone.now()
-            sol.motivo_rejeicao = ""
-            sol.save()
-            # Enviar e-mail ao solicitante
-            _enviar_email_aprovacao_rejeicao(sol, aprovado=True)
-            messages.success(request, "Solicitação aprovada.")
-        elif acao == "rejeitar":
-            motivo = (request.POST.get("motivo_rejeicao") or "").strip()
-            if not motivo:
-                messages.error(request, "É obrigatório informar o motivo da rejeição.")
-                return redirect("intra:aprovar_reembolsos")
-            sol.status = SolicitacaoReembolso.STATUS_REJEITADO
-            sol.aprovado_por = request.user
-            sol.aprovado_em = timezone.now()
-            sol.motivo_rejeicao = motivo[:500]
-            sol.save()
-            # Enviar e-mail ao solicitante
-            _enviar_email_aprovacao_rejeicao(sol, aprovado=False)
-            messages.success(request, "Solicitação rejeitada.")
+        
+        if is_gestor_simples:
+            # Aprovação/rejeição do Gestor (primeiro nível)
+            if acao == "aprovar":
+                sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
+                sol.aprovado_por_gestor = request.user
+                sol.aprovado_em_gestor = timezone.now()
+                sol.motivo_rejeicao_gestor = ""
+                sol.save()
+                # Enviar e-mail ao solicitante informando aprovação do gestor
+                _enviar_email_aprovacao_gestor(sol, aprovado=True)
+                # Enviar e-mail ao gestor administrativo informando nova solicitação aprovada
+                _enviar_email_nova_solicitacao_gestor_admin(sol, request)
+                messages.success(request, "Solicitação aprovada pelo gestor. Aguardando aprovação do gestor administrativo.")
+            elif acao == "rejeitar":
+                motivo = (request.POST.get("motivo_rejeicao") or "").strip()
+                if not motivo:
+                    messages.error(request, "É obrigatório informar o motivo da rejeição.")
+                    return redirect("intra:aprovar_reembolsos")
+                sol.status_gestor = SolicitacaoReembolso.STATUS_REJEITADO
+                sol.status = SolicitacaoReembolso.STATUS_REJEITADO  # Status final também
+                sol.aprovado_por_gestor = request.user
+                sol.aprovado_em_gestor = timezone.now()
+                sol.motivo_rejeicao_gestor = motivo[:500]
+                sol.save()
+                # Enviar e-mail ao solicitante informando rejeição do gestor
+                _enviar_email_aprovacao_gestor(sol, aprovado=False)
+                messages.success(request, "Solicitação rejeitada pelo gestor.")
+        else:
+            # Aprovação/rejeição do Gestor Administrativo (segundo nível)
+            if acao == "aprovar":
+                sol.status_gestor_admin = SolicitacaoReembolso.STATUS_APROVADO
+                sol.status = SolicitacaoReembolso.STATUS_APROVADO  # Status final
+                sol.aprovado_por_gestor_admin = request.user
+                sol.aprovado_em_gestor_admin = timezone.now()
+                sol.motivo_rejeicao_gestor_admin = ""
+                sol.save()
+                # Enviar e-mail ao solicitante e ao gestor informando aprovação final
+                _enviar_email_aprovacao_final(sol, aprovado=True)
+                messages.success(request, "Solicitação aprovada pelo gestor administrativo.")
+            elif acao == "rejeitar":
+                motivo = (request.POST.get("motivo_rejeicao") or "").strip()
+                if not motivo:
+                    messages.error(request, "É obrigatório informar o motivo da rejeição.")
+                    return redirect("intra:aprovar_reembolsos")
+                sol.status_gestor_admin = SolicitacaoReembolso.STATUS_REJEITADO
+                sol.status = SolicitacaoReembolso.STATUS_REJEITADO  # Status final
+                sol.aprovado_por_gestor_admin = request.user
+                sol.aprovado_em_gestor_admin = timezone.now()
+                sol.motivo_rejeicao_gestor_admin = motivo[:500]
+                sol.save()
+                # Enviar e-mail ao solicitante e ao gestor informando rejeição
+                _enviar_email_aprovacao_final(sol, aprovado=False)
+                messages.success(request, "Solicitação rejeitada pelo gestor administrativo.")
+        
         return redirect("intra:aprovar_reembolsos")
     return redirect("intra:aprovar_reembolsos")
 
@@ -1268,6 +2035,55 @@ def dashboard_gestor(request):
             'remove_url': get_url_without_filter('id')
         })
     
+    # Últimos reembolsos aprovados (ordenados por data de aprovação do gestor admin)
+    ultimos_aprovados = SolicitacaoReembolso.objects.filter(
+        status=SolicitacaoReembolso.STATUS_APROVADO,
+        aprovado_em_gestor_admin__isnull=False
+    ).select_related('user', 'aprovado_por_gestor_admin').order_by('-aprovado_em_gestor_admin')[:10]
+    
+    # Últimos reembolsos rejeitados (ordenados por data de rejeição do gestor admin)
+    ultimos_rejeitados = SolicitacaoReembolso.objects.filter(
+        status=SolicitacaoReembolso.STATUS_REJEITADO,
+        aprovado_em_gestor_admin__isnull=False
+    ).select_related('user', 'aprovado_por_gestor_admin').order_by('-aprovado_em_gestor_admin')[:10]
+    
+    # Preparar dados dos últimos aprovados
+    ultimos_aprovados_list = []
+    for sol in ultimos_aprovados:
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            nome_solicitante = perfil.nome_solicitante or sol.user.get_full_name() or sol.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = sol.user.get_full_name() or sol.user.email
+        
+        ultimos_aprovados_list.append({
+            'id': sol.pk,
+            'solicitante': nome_solicitante,
+            'valor_total': float(sol.valor_total),
+            'centro_custo': sol.centro_custo,
+            'data_aprovacao': sol.aprovado_em_gestor_admin,
+            'aprovado_por': sol.aprovado_por_gestor_admin.get_full_name() if sol.aprovado_por_gestor_admin else 'N/A',
+        })
+    
+    # Preparar dados dos últimos rejeitados
+    ultimos_rejeitados_list = []
+    for sol in ultimos_rejeitados:
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            nome_solicitante = perfil.nome_solicitante or sol.user.get_full_name() or sol.user.email
+        except PerfilSolicitante.DoesNotExist:
+            nome_solicitante = sol.user.get_full_name() or sol.user.email
+        
+        ultimos_rejeitados_list.append({
+            'id': sol.pk,
+            'solicitante': nome_solicitante,
+            'valor_total': float(sol.valor_total),
+            'centro_custo': sol.centro_custo,
+            'data_rejeicao': sol.aprovado_em_gestor_admin,
+            'rejeitado_por': sol.aprovado_por_gestor_admin.get_full_name() if sol.aprovado_por_gestor_admin else 'N/A',
+            'motivo': sol.motivo_rejeicao_gestor_admin or 'Não informado',
+        })
+    
     context = {
         'total_aprovado': float(total_aprovado),
         'total_rejeitado': float(total_rejeitado),
@@ -1279,6 +2095,8 @@ def dashboard_gestor(request):
         'gastos_por_centro': gastos_por_centro_formatado,
         'reembolsos_por_mes': page_obj_mes,
         'page_obj_mes': page_obj_mes,
+        'ultimos_aprovados': ultimos_aprovados_list,
+        'ultimos_rejeitados': ultimos_rejeitados_list,
         # Filtros atuais
         'filtros': {
             'data_inicio': data_inicio,
@@ -1471,8 +2289,26 @@ def reembolso(request):
                     else:
                         print(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
                         logger.warning(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
-            # Enviar e-mail aos gestores administrativos
-            _enviar_email_nova_solicitacao(sol, request)
+            # Verificar se o solicitante é gestor - se for, pular primeiro nível
+            is_solicitante_gestor = _is_gestor_simples(request.user)
+            
+            if is_solicitante_gestor:
+                # Se o solicitante é gestor, vai direto para gestor administrativo
+                sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
+                sol.aprovado_por_gestor = request.user  # Auto-aprovado
+                sol.aprovado_em_gestor = timezone.now()
+                sol.save()
+                # Enviar e-mail aos gestores administrativos
+                _enviar_email_nova_solicitacao_gestor_admin(sol, request)
+            else:
+                # Se não é gestor, enviar e-mail ao gestor do solicitante
+                try:
+                    perfil = PerfilSolicitante.objects.get(user=request.user)
+                    if perfil.email_gestor:
+                        # Enviar e-mail ao gestor
+                        _enviar_email_nova_solicitacao_gestor(sol, request, perfil.email_gestor)
+                except PerfilSolicitante.DoesNotExist:
+                    pass
             messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
         return redirect("intra:reembolso")
     return render(request, "intra/reembolso.html", context)

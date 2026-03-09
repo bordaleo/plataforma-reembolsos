@@ -428,6 +428,86 @@
     </div>
 </div>
 
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Últimos Reembolsos Aprovados -->
+    <div class="chart-card">
+        <h2>Últimos Reembolsos Aprovados</h2>
+        {% if ultimos_aprovados %}
+        <div style="max-height: 500px; overflow-y: auto;">
+            <table class="table-chart" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">ID</th>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Solicitante</th>
+                        <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Valor</th>
+                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ultimos_aprovados %}
+                    <tr style="border-bottom: 1px solid #e1e8ed;">
+                        <td style="padding: 0.75rem;">
+                            <a href="{% url 'intra:aprovar_reembolsos' %}" style="color: #34495e; font-weight: 600; text-decoration: none;">#{{ item.id }}</a>
+                        </td>
+                        <td style="padding: 0.75rem; color: #2c3e50;">{{ item.solicitante }}</td>
+                        <td style="padding: 0.75rem; text-align: right; color: #38a169; font-weight: 600;">R$ {{ item.valor_total|floatformat:2 }}</td>
+                        <td style="padding: 0.75rem; text-align: center; color: #7f8c8d; font-size: 0.9rem;">
+                            {% if item.data_aprovacao %}
+                                {{ item.data_aprovacao|date:"d/m/Y H:i" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum reembolso aprovado ainda</p>
+        {% endif %}
+    </div>
+    
+    <!-- Últimos Reembolsos Rejeitados -->
+    <div class="chart-card">
+        <h2>Últimos Reembolsos Rejeitados</h2>
+        {% if ultimos_rejeitados %}
+        <div style="max-height: 500px; overflow-y: auto;">
+            <table class="table-chart" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">ID</th>
+                        <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Solicitante</th>
+                        <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Valor</th>
+                        <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid #e1e8ed; font-weight: 600; color: #34495e;">Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ultimos_rejeitados %}
+                    <tr style="border-bottom: 1px solid #e1e8ed;">
+                        <td style="padding: 0.75rem;">
+                            <a href="{% url 'intra:aprovar_reembolsos' %}" style="color: #34495e; font-weight: 600; text-decoration: none;">#{{ item.id }}</a>
+                        </td>
+                        <td style="padding: 0.75rem; color: #2c3e50;">{{ item.solicitante }}</td>
+                        <td style="padding: 0.75rem; text-align: right; color: #e53e3e; font-weight: 600;">R$ {{ item.valor_total|floatformat:2 }}</td>
+                        <td style="padding: 0.75rem; text-align: center; color: #7f8c8d; font-size: 0.9rem;">
+                            {% if item.data_rejeicao %}
+                                {{ item.data_rejeicao|date:"d/m/Y H:i" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum reembolso rejeitado ainda</p>
+        {% endif %}
+    </div>
+</div>
+
 <div class="chart-card">
     <h2>Gastos por Tipo de Despesa</h2>
     {% if gastos_por_tipo %}

@@ -9,6 +9,16 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
+try:
+    from PyPDF2 import PdfReader, PdfWriter
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    try:
+        from pypdf import PdfReader, PdfWriter
+        PYPDF2_AVAILABLE = True
+    except ImportError:
+        PYPDF2_AVAILABLE = False
+
 # Mapeamento tipo_despesa (valor no form) -> rótulo no PDF (como no modelo)
 ROTULOS_TIPO = {
     "REFEICAO": "REFEIÇÃO",
@@ -49,7 +59,97 @@ def _formatar_valor(valor):
 def gerar_pdf(solicitacao):
     """
     Gera o PDF da solicitação de reembolso conforme o modelo.
+    Ordem: Imagens anexadas -> PDFs anexados -> Folha de rosto (última)
     solicitacao: instância de SolicitacaoReembolso com itens e user com perfil_solicitante.
+    """
+    # --- Coletar e separar anexos ---
+    anexos_pdf = []
+    anexos_imagem = []
+    
+    for item in solicitacao.itens.all():
+        if item.anexo:
+            anexo_nome = item.anexo.name.split('/')[-1] if item.anexo.name else "Anexo"
+            extensao = anexo_nome.lower().split('.')[-1] if '.' in anexo_nome else ''
+            
+            if extensao == 'pdf':
+                anexos_pdf.append({
+                    "arquivo": item.anexo,
+                    "nome": anexo_nome,
+                })
+            elif extensao in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+                anexos_imagem.append({
+                    "arquivo": item.anexo,
+                    "nome": anexo_nome,
+                })
+    
+    # --- Merge de PDFs anexados (se houver) ---
+    pdfs_merged = BytesIO()
+    if anexos_pdf and PYPDF2_AVAILABLE:
+        writer = PdfWriter()
+        for anexo in anexos_pdf:
+            try:
+                arquivo = anexo['arquivo'].open('rb')
+                reader = PdfReader(arquivo)
+                for page in reader.pages:
+                    writer.add_page(page)
+                arquivo.close()
+            except Exception as e:
+                # Se houver erro ao ler o PDF, continua com os outros
+                pass
+        if len(writer.pages) > 0:
+            writer.write(pdfs_merged)
+            pdfs_merged.seek(0)
+        else:
+            pdfs_merged = None
+    else:
+        pdfs_merged = None
+    
+    # --- Gerar folha de rosto ---
+    folha_rosto = _gerar_folha_rosto(solicitacao)
+    
+    # --- Merge final: Imagens -> PDFs anexados -> Folha de rosto (última) ---
+    if PYPDF2_AVAILABLE:
+        writer_final = PdfWriter()
+        
+        # 1. Adicionar imagens primeiro (criar PDFs para cada imagem)
+        if anexos_imagem:
+            for anexo in anexos_imagem:
+                try:
+                    img_pdf = _gerar_pdf_imagem(anexo)
+                    if img_pdf:
+                        reader_img = PdfReader(BytesIO(img_pdf))
+                        for page in reader_img.pages:
+                            writer_final.add_page(page)
+                except Exception as e:
+                    # Se houver erro, continua
+                    pass
+        
+        # 2. Adicionar PDFs anexados
+        if pdfs_merged:
+            reader_merged = PdfReader(pdfs_merged)
+            for page in reader_merged.pages:
+                writer_final.add_page(page)
+        
+        # 3. Adicionar folha de rosto por último
+        reader_rosto = PdfReader(BytesIO(folha_rosto))
+        for page in reader_rosto.pages:
+            writer_final.add_page(page)
+        
+        # Gerar PDF final
+        buffer_final = BytesIO()
+        writer_final.write(buffer_final)
+        buffer_final.seek(0)
+        return buffer_final.getvalue()
+    else:
+        # Se PyPDF2 não estiver disponível, retornar apenas a folha de rosto
+        # (e tentar adicionar imagens manualmente)
+        return folha_rosto
+
+
+def _gerar_folha_rosto(solicitacao):
+    """
+    Gera apenas a folha de rosto do reembolso.
+    Retorna bytes do PDF da folha de rosto.
     """
     buffer = BytesIO()
     w, h = A4
@@ -387,3 +487,53 @@ def gerar_pdf(solicitacao):
     c.save()
     buffer.seek(0)
     return buffer.getvalue()
+
+
+def _gerar_pdf_imagem(anexo):
+    """
+    Gera um PDF com uma imagem anexada.
+    Retorna bytes do PDF ou None em caso de erro.
+    """
+    try:
+        buffer = BytesIO()
+        w, h = A4
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = w, h
+        margin_left = 20 * mm
+        
+        # Abrir o arquivo do storage (S3 ou local) e ler em memória
+        arquivo = anexo['arquivo'].open('rb')
+        arquivo_bytes = arquivo.read()
+        arquivo.close()
+        
+        # Criar ImageReader a partir dos bytes
+        img_buffer = BytesIO(arquivo_bytes)
+        img = ImageReader(img_buffer)
+        img_width, img_height = img.getSize()
+        
+        # Calcular dimensões para caber na página
+        max_width = width - 2 * margin_left
+        max_height = height - 60 * mm
+        
+        # Manter proporção
+        ratio = min(max_width / img_width, max_height / img_height, 1.0)
+        display_width = img_width * ratio
+        display_height = img_height * ratio
+        
+        # Centralizar imagem
+        x_img = (width - display_width) / 2
+        y_img = height - 30 * mm - display_height
+        
+        # Título do anexo
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(margin_left, height - 20 * mm, f"Anexo: {anexo['nome']}")
+        
+        # Desenhar imagem
+        c.drawImage(img, x_img, y_img, width=display_width, height=display_height, preserveAspectRatio=True)
+        
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+    except Exception as e:
+        return None

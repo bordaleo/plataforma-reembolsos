@@ -39,6 +39,9 @@
         color: #2c3e50;
         vertical-align: middle;
     }
+    .tabela-reembolsos .acoes {
+        white-space: nowrap;
+    }
     .tabela-reembolsos tbody tr {
         transition: background-color 0.2s;
     }
@@ -99,13 +102,14 @@
         background: #38a169;
         color: #fff;
         border: none;
-        padding: 0.75rem 1.25rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         transition: all 0.2s;
         margin-right: 0.5rem;
+        white-space: nowrap;
     }
     .btn-aprovar:hover {
         background: #2f855a;
@@ -116,12 +120,13 @@
         background: #e53e3e;
         color: #fff;
         border: none;
-        padding: 0.75rem 1.25rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         transition: all 0.2s;
+        white-space: nowrap;
     }
     .btn-rejeitar:hover {
         background: #c53030;
@@ -148,10 +153,12 @@
         background: #e8e8e8;
         color: #34495e;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 0.5rem 0.75rem;
         cursor: pointer;
         font-weight: 600;
         border-radius: 6px;
+        font-size: 0.85rem;
+        white-space: nowrap;
     }
     .btn-ver-solicitacao:hover {
         background: #ddd;
@@ -221,11 +228,19 @@
     .anexo-item a:hover {
         text-decoration: underline;
     }
-    .status-pendente {
+    .status-aguardando-gestor {
         color: #d69e2e;
         font-weight: 600;
         padding: 0.375rem 0.75rem;
         background: #fef3c7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aguardando-gestor-admin {
+        color: #3182ce;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #bee3f8;
         border-radius: 4px;
         display: inline-block;
     }
@@ -551,18 +566,22 @@
     <table class="tabela-reembolsos">
         <thead>
             <tr>
+                <th>Ver Solicitação</th>
                 <th>ID</th>
                 <th>Data de Envio</th>
                 <th>Solicitante</th>
                 <th>Centro de custo</th>
-                <th>Ver Solicitação</th>
-                <th>Status</th>
                 <th>Status do contrato</th>
+                <th>Status</th>
+                <th>Ações</th>
             </tr>
         </thead>
         <tbody>
             {% for s in solicitacoes %}
             <tr>
+                <td class="acoes">
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver</button>
+                </td>
                 <td><strong>#{{ s.pk }}</strong></td>
                 <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                 <td>
@@ -576,15 +595,25 @@
                 </td>
                 <td>{{ s.centro_custo|default:"—" }}</td>
                 <td class="acoes">
-                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver</button>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                 </td>
                 <td>
-                    {% if s.status == 'PENDENTE' %}<span class="status-pendente">Pendente</span>{% endif %}
-                    {% if s.status == 'APROVADO' %}<span class="status-aprovado">Aprovado</span>{% endif %}
-                    {% if s.status == 'REJEITADO' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
+                    {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
+                    {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
+                    {% if s.status_descritivo == 'aprovado' %}<span class="status-aprovado">Aprovado</span>{% endif %}
+                    {% if s.status_descritivo == 'rejeitado' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
                 </td>
                 <td class="acoes">
-                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    {% if s.pode_decidir %}
+                        <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="aprovar">
+                            <button type="submit" class="btn-aprovar" style="margin-right: 0.5rem;">Aprovar</button>
+                        </form>
+                        <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                    {% else %}
+                        <span style="color: #7f8c8d; font-size: 0.9rem;">Processada</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -814,97 +843,83 @@
                     }
                     html += '</div></div>';
                     
-                    // Informações de aprovação/rejeição
-                    if (data.aprovacao && Object.keys(data.aprovacao).length > 0) {
-                        html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed;">';
-                        if (data.status === 'APROVADO') {
-                            html += '<div style="background: #c6f6d5; border-left: 4px solid #38a169; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
-                            html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
-                            html += '<span style="font-size: 1.5rem;">✓</span>';
-                            html += '<strong style="color: #22543d; font-size: 1.1rem;">Solicitação Aprovada</strong>';
-                            html += '</div>';
-                            if (data.aprovacao.aprovado_por_nome || data.aprovacao.aprovado_por_email) {
-                                html += '<p style="margin: 0.5rem 0 0; color: #2f855a; font-size: 0.95rem;">';
-                                html += '<strong>Aprovado por:</strong> ';
-                                if (data.aprovacao.aprovado_por_nome) {
-                                    html += escapeHtml(data.aprovacao.aprovado_por_nome);
-                                    if (data.aprovacao.aprovado_por_email) {
-                                        html += ' (' + escapeHtml(data.aprovacao.aprovado_por_email) + ')';
-                                    }
-                                } else {
-                                    html += escapeHtml(data.aprovacao.aprovado_por_email);
+                    // Status atual da solicitação
+                    html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed;">';
+                    html += '<h3 style="color: #34495e; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Status da Solicitação</h3>';
+                    
+                    var statusLabel = '';
+                    var statusClass = '';
+                    var statusBg = '';
+                    var statusColor = '';
+                    var statusIcon = '';
+                    
+                    if (data.status_descritivo === 'aguardando_gestor') {
+                        statusLabel = 'Aguardando aprovação de gestor';
+                        statusClass = 'status-aguardando-gestor';
+                        statusBg = '#fef3c7';
+                        statusColor = '#d69e2e';
+                        statusIcon = '⏳';
+                    } else if (data.status_descritivo === 'aguardando_gestor_admin') {
+                        statusLabel = 'Aguardando aprovação de gestor administrativo';
+                        statusClass = 'status-aguardando-gestor-admin';
+                        statusBg = '#bee3f8';
+                        statusColor = '#3182ce';
+                        statusIcon = '⏳';
+                    } else if (data.status_descritivo === 'aprovado') {
+                        statusLabel = 'Aprovado';
+                        statusClass = 'status-aprovado';
+                        statusBg = '#c6f6d5';
+                        statusColor = '#38a169';
+                        statusIcon = '✓';
+                    } else if (data.status_descritivo === 'rejeitado') {
+                        statusLabel = 'Rejeitado';
+                        statusClass = 'status-rejeitado';
+                        statusBg = '#fed7d7';
+                        statusColor = '#e53e3e';
+                        statusIcon = '✗';
+                    }
+                    
+                    html += '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
+                    html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
+                    html += '<span style="font-size: 1.5rem;">' + statusIcon + '</span>';
+                    html += '<strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong>';
+                    html += '</div>';
+                    
+                    // Se aprovado, mostrar informações de aprovação
+                    if (data.status_descritivo === 'aprovado' && data.aprovacao_gestor_admin && Object.keys(data.aprovacao_gestor_admin).length > 0) {
+                        if (data.aprovacao_gestor_admin.aprovado_por_nome || data.aprovacao_gestor_admin.aprovado_por_email) {
+                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                            html += '<strong>Aprovado por:</strong> ';
+                            if (data.aprovacao_gestor_admin.aprovado_por_nome) {
+                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_nome);
+                                if (data.aprovacao_gestor_admin.aprovado_por_email) {
+                                    html += ' (' + escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email) + ')';
                                 }
-                                html += '</p>';
+                            } else {
+                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email);
                             }
-                            if (data.aprovacao.aprovado_em) {
-                                html += '<p style="margin: 0.5rem 0 0; color: #2f855a; font-size: 0.95rem;">';
-                                html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao.aprovado_em);
-                                html += '</p>';
-                            }
-                            html += '</div>';
-                        } else if (data.status === 'REJEITADO') {
-                            html += '<div style="background: #fed7d7; border-left: 4px solid #e53e3e; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
-                            html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
-                            html += '<span style="font-size: 1.5rem;">✗</span>';
-                            html += '<strong style="color: #742a2a; font-size: 1.1rem;">Solicitação Rejeitada</strong>';
-                            html += '</div>';
-                            if (data.aprovacao.aprovado_por_nome || data.aprovacao.aprovado_por_email) {
-                                html += '<p style="margin: 0.5rem 0 0; color: #c53030; font-size: 0.95rem;">';
-                                html += '<strong>Rejeitado por:</strong> ';
-                                if (data.aprovacao.aprovado_por_nome) {
-                                    html += escapeHtml(data.aprovacao.aprovado_por_nome);
-                                    if (data.aprovacao.aprovado_por_email) {
-                                        html += ' (' + escapeHtml(data.aprovacao.aprovado_por_email) + ')';
-                                    }
-                                } else {
-                                    html += escapeHtml(data.aprovacao.aprovado_por_email);
-                                }
-                                html += '</p>';
-                            }
-                            if (data.aprovacao.aprovado_em) {
-                                html += '<p style="margin: 0.5rem 0 0; color: #c53030; font-size: 0.95rem;">';
-                                html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao.aprovado_em);
-                                html += '</p>';
-                            }
-                            if (data.aprovacao.motivo_rejeicao) {
-                                html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #fc8181;">';
-                                html += '<p style="margin: 0 0 0.5rem; color: #742a2a; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
-                                html += '<p style="margin: 0; color: #742a2a; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.aprovacao.motivo_rejeicao) + '</p>';
-                                html += '</div>';
-                            }
-                            html += '</div>';
+                            html += '</p>';
                         }
+                        if (data.aprovacao_gestor_admin.aprovado_em) {
+                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                            html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao_gestor_admin.aprovado_em);
+                            html += '</p>';
+                        }
+                    }
+                    
+                    // Se rejeitado, mostrar motivo
+                    if (data.status_descritivo === 'rejeitado' && data.motivo_rejeicao) {
+                        html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid ' + statusColor + ';">';
+                        html += '<p style="margin: 0 0 0.5rem; color: ' + statusColor + '; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
+                        html += '<p style="margin: 0; color: ' + statusColor + '; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.motivo_rejeicao) + '</p>';
                         html += '</div>';
                     }
                     
-                    // Botões Aprovar e Rejeitar em destaque no final
-                    html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed; display: flex; gap: 1rem; justify-content: center;">';
-                    if (data.status === 'PENDENTE') {
-                        html += '<form method="post" action="/reembolso/' + pk + '/decidir/" style="display: inline-block;" onsubmit="showLoading(\'Aprovando solicitação...\'); return true;">';
-                        html += '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrfToken + '">';
-                        html += '<input type="hidden" name="acao" value="aprovar">';
-                        html += '<button type="submit" class="btn-aprovar" style="padding: 1rem 2.5rem; font-size: 1.15rem;">Aprovar</button>';
-                        html += '</form>';
-                        html += '<button type="button" class="btn-rejeitar-modal" data-pk="' + pk + '" style="padding: 1rem 2.5rem; font-size: 1.15rem;">Rejeitar</button>';
-                    } else {
-                        html += '<p style="color: #7f8c8d; margin: 0;">Esta solicitação já foi processada.</p>';
-                    }
+                    html += '</div>';
                     html += '</div>';
                     
                     html += '</div>';
                     solicitacaoContent.innerHTML = html;
-                    
-                    // Reativar listeners dos botões de rejeitar dentro do modal
-                    solicitacaoContent.querySelectorAll('.btn-rejeitar-modal').forEach(function(btn) {
-                        btn.addEventListener('click', function() {
-                            var pk = this.getAttribute('data-pk');
-                            formRejeitar.action = '/reembolso/' + pk + '/decidir/';
-                            document.getElementById('rejeitar-pk').value = pk;
-                            document.getElementById('motivo_rejeicao').value = '';
-                            modalRejeitar.classList.add('aberto');
-                            modalRejeitar.setAttribute('aria-hidden', 'false');
-                        });
-                    });
                     
                 })
                 .catch(function() {

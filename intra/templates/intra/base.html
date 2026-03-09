@@ -322,9 +322,14 @@
             </div>
             <ul class="sidebar-nav">
                 <li><a href="{% url 'intra:home' %}" {% if request.resolver_match.url_name == 'home' %}class="active"{% endif %}>Início</a></li>
-                {% if is_gestor %}
-                <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
+                {% if is_gestor_admin %}
                 <li><a href="{% url 'intra:dashboard_gestor' %}" {% if request.resolver_match.url_name == 'dashboard_gestor' %}class="active"{% endif %}>Dashboard</a></li>
+                <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
+                {% elif is_gestor_simples %}
+                <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
+                <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>
+                <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
+                <li><a href="/meu-perfil/" {% if request.resolver_match.url_name == 'meu_perfil' %}class="active"{% endif %}>Meu Perfil</a></li>
                 {% else %}
                 <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
                 <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>

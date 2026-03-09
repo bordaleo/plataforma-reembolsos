@@ -84,12 +84,54 @@ class SolicitacaoReembolso(models.Model):
         default=0,
     )
     criado_em = models.DateTimeField("Data da solicitação", auto_now_add=True)
+    # Status geral (final) - será APROVADO apenas quando gestor admin aprovar
     status = models.CharField(
         "Status",
         max_length=20,
         choices=STATUS_CHOICES,
         default=STATUS_PENDENTE,
     )
+    # Campos de aprovação do Gestor (primeiro nível)
+    status_gestor = models.CharField(
+        "Status do Gestor",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDENTE,
+    )
+    aprovado_por_gestor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reembolsos_aprovados_gestor",
+    )
+    aprovado_em_gestor = models.DateTimeField("Data da decisão do gestor", null=True, blank=True)
+    motivo_rejeicao_gestor = models.CharField(
+        "Motivo da rejeição pelo gestor",
+        max_length=500,
+        blank=True,
+    )
+    # Campos de aprovação do Gestor Administrativo (segundo nível)
+    status_gestor_admin = models.CharField(
+        "Status do Gestor Administrativo",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDENTE,
+    )
+    aprovado_por_gestor_admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reembolsos_aprovados_gestor_admin",
+    )
+    aprovado_em_gestor_admin = models.DateTimeField("Data da decisão do gestor administrativo", null=True, blank=True)
+    motivo_rejeicao_gestor_admin = models.CharField(
+        "Motivo da rejeição pelo gestor administrativo",
+        max_length=500,
+        blank=True,
+    )
+    # Campos legados (mantidos para compatibilidade, mas não mais usados)
     aprovado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -116,8 +158,10 @@ class SolicitacaoReembolso(models.Model):
 class RegraUsuario(models.Model):
     """Regra de permissionamento do usuário (role). Atribuído no Admin em cada User."""
 
+    ROLE_GESTOR = "gestor"
     ROLE_GESTOR_ADMINISTRATIVO = "gestor_administrativo"
     ROLE_CHOICES = [
+        (ROLE_GESTOR, "Gestor"),
         (ROLE_GESTOR_ADMINISTRATIVO, "Gestor Administrativo"),
     ]
 

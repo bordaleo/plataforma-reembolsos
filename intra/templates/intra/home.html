@@ -134,10 +134,31 @@
 </div>
 
 <div class="quick-actions">
-    {% if is_gestor %}
+    {% if is_gestor_admin %}
     <a href="/aprovar-reembolsos/" class="action-card">
         <h3>Aprovar Reembolsos</h3>
         <p>Visualize e gerencie todas as solicitações de reembolso pendentes de aprovação.</p>
+    </a>
+    <a href="{% url 'intra:dashboard_gestor' %}" class="action-card">
+        <h3>Dashboard</h3>
+        <p>Visualize estatísticas e relatórios de reembolsos.</p>
+    </a>
+    {% elif is_gestor_simples %}
+    <a href="/aprovar-reembolsos/" class="action-card">
+        <h3>Aprovar Reembolsos</h3>
+        <p>Visualize e gerencie as solicitações de reembolso dos seus solicitantes.</p>
+    </a>
+    <a href="{% url 'intra:reembolso' %}" class="action-card">
+        <h3>Solicitar Reembolso</h3>
+        <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
+    </a>
+    <a href="/meus-reembolsos/" class="action-card">
+        <h3>Meus Reembolsos</h3>
+        <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
+    </a>
+    <a href="/meu-perfil/" class="action-card">
+        <h3>Meu Perfil</h3>
+        <p>Visualize e gerencie suas informações pessoais e dados bancários.</p>
     </a>
     {% else %}
     <a href="{% url 'intra:reembolso' %}" class="action-card">

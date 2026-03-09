@@ -21,10 +21,13 @@ _PATH_PODE_NAO_TER_CADASTRO = (
 
 
 def _is_gestor(user):
-    """Usuário com regra Gestor Administrativo não precisa completar cadastro."""
+    """Usuário com regra Gestor ou Gestor Administrativo não precisa completar cadastro."""
     return (
         user.is_authenticated
-        and user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists()
+        and (
+            user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR).exists()
+            or user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists()
+        )
     )
 
 

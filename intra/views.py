@@ -17,6 +17,10 @@ from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 import json
 import html
+import logging
+
+# Configurar logger para debug
+logger = logging.getLogger(__name__)
 
 from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto
@@ -718,11 +722,16 @@ def reembolso_anexos_json(request, pk):
     tipos_labels = dict(TIPOS_DESPESA)
     anexos = []
     for item in sol.itens.all():
+        anexo_url = None
+        anexo_nome = None
+        if item.anexo:
+            anexo_url = item.anexo.url
+            anexo_nome = item.anexo.name.split('/')[-1] if item.anexo.name else None
         anexos.append({
             "tipo_despesa": tipos_labels.get(item.tipo_despesa, item.tipo_despesa),
             "descricao": item.descricao or "",
-            "url": None,  # Será preenchido quando houver campo de anexo
-            "nome": None,
+            "url": anexo_url,
+            "nome": anexo_nome,
         })
     return JsonResponse({"anexos": anexos})
 
@@ -1304,6 +1313,22 @@ def dashboard_gestor(request):
 @login_required
 def reembolso(request):
     """Página de solicitação de reembolso com formulário."""
+    # Debug: Verificar configuração S3 no início
+    if request.method == 'POST':
+        print(f"[DEBUG S3] Verificando configuração S3...")
+        print(f"[DEBUG S3] DEFAULT_FILE_STORAGE: {settings.DEFAULT_FILE_STORAGE}")
+        print(f"[DEBUG S3] AWS_STORAGE_BUCKET_NAME: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
+        print(f"[DEBUG S3] AWS_S3_REGION_NAME: {getattr(settings, 'AWS_S3_REGION_NAME', 'NÃO CONFIGURADO')}")
+        print(f"[DEBUG S3] MEDIA_URL: {getattr(settings, 'MEDIA_URL', 'NÃO CONFIGURADO')}")
+        try:
+            from storages.backends.s3boto3 import S3Boto3Storage
+            storage = S3Boto3Storage()
+            print(f"[DEBUG S3] Storage instanciado: {storage}")
+            print(f"[DEBUG S3] Bucket name do storage: {storage.bucket_name}")
+        except Exception as e:
+            print(f"[DEBUG S3] ERRO ao instanciar storage: {str(e)}")
+            import traceback
+            print(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
     # Buscar valores únicos de PROGRAMA para Centro de Custo
     programas = CentroCusto.objects.exclude(PROGRAMA__isnull=True).exclude(PROGRAMA__exact='').values_list("PROGRAMA", flat=True).distinct().order_by("PROGRAMA")
     
@@ -1378,7 +1403,22 @@ def reembolso(request):
                     anexo_key = f"anexo_{item['idx']}"
                     if anexo_key in request.FILES:
                         anexo = request.FILES[anexo_key]
-                    ItemReembolso.objects.create(
+                        print(f"[DEBUG S3] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
+                        print(f"[DEBUG S3] Storage configurado: {settings.DEFAULT_FILE_STORAGE}")
+                        print(f"[DEBUG S3] Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
+                        logger.info(f"[DEBUG S3] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
+                        logger.info(f"[DEBUG S3] Storage configurado: {settings.DEFAULT_FILE_STORAGE}")
+                        logger.info(f"[DEBUG S3] Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
+                    
+                    # Debug antes de salvar
+                    if anexo:
+                        print(f"[DEBUG S3] Antes de salvar - Verificando storage do campo anexo")
+                        from intra.models import ItemReembolso
+                        field = ItemReembolso._meta.get_field('anexo')
+                        print(f"[DEBUG S3] Storage do campo: {field.storage}")
+                        print(f"[DEBUG S3] Tipo do storage: {type(field.storage)}")
+                    
+                    item_obj = ItemReembolso.objects.create(
                         solicitacao=sol,
                         tipo_despesa=item["tipo_despesa"],
                         cod_despesa=item["cod_despesa"],
@@ -1387,6 +1427,50 @@ def reembolso(request):
                         valor=item["valor"],
                         anexo=anexo,
                     )
+                    
+                    # Debug após salvar
+                    if item_obj.anexo:
+                        print(f"[DEBUG S3] Item salvo - ID: {item_obj.pk}")
+                        print(f"[DEBUG S3] Anexo name: {item_obj.anexo.name}")
+                        print(f"[DEBUG S3] Storage class: {type(item_obj.anexo.storage)}")
+                        print(f"[DEBUG S3] Storage object: {item_obj.anexo.storage}")
+                        logger.info(f"[DEBUG S3] Item salvo - ID: {item_obj.pk}")
+                        logger.info(f"[DEBUG S3] Anexo name: {item_obj.anexo.name}")
+                        try:
+                            # Verificar se o arquivo existe no S3
+                            storage = item_obj.anexo.storage
+                            file_exists = storage.exists(item_obj.anexo.name)
+                            print(f"[DEBUG S3] Arquivo existe no S3? {file_exists}")
+                            logger.info(f"[DEBUG S3] Arquivo existe no S3? {file_exists}")
+                            
+                            anexo_url = item_obj.anexo.url
+                            print(f"[DEBUG S3] Anexo URL: {anexo_url}")
+                            logger.info(f"[DEBUG S3] Anexo URL: {anexo_url}")
+                            
+                            # Tentar fazer upload manual se não existir
+                            if not file_exists and anexo:
+                                print(f"[DEBUG S3] Arquivo não existe no S3, tentando upload manual...")
+                                try:
+                                    # Ler o arquivo do request.FILES
+                                    anexo.seek(0)  # Voltar ao início do arquivo
+                                    storage.save(item_obj.anexo.name, anexo)
+                                    print(f"[DEBUG S3] Upload manual realizado com sucesso!")
+                                    logger.info(f"[DEBUG S3] Upload manual realizado com sucesso!")
+                                except Exception as upload_error:
+                                    print(f"[DEBUG S3] ERRO no upload manual: {str(upload_error)}")
+                                    import traceback
+                                    print(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
+                                    logger.error(f"[DEBUG S3] ERRO no upload manual: {str(upload_error)}")
+                                    logger.error(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
+                        except Exception as e:
+                            print(f"[DEBUG S3] ERRO ao verificar/obter URL do anexo: {str(e)}")
+                            import traceback
+                            print(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
+                            logger.error(f"[DEBUG S3] Erro ao obter URL do anexo: {str(e)}")
+                            logger.error(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
+                    else:
+                        print(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
+                        logger.warning(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
             # Enviar e-mail aos gestores administrativos
             _enviar_email_nova_solicitacao(sol, request)
             messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")

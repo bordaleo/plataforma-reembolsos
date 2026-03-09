@@ -1,5 +1,12 @@
 from django.db import models
 from django.conf import settings
+from storages.backends.s3boto3 import S3Boto3Storage
+
+
+class MediaStorage(S3Boto3Storage):
+    """Storage customizado para arquivos de mídia no S3."""
+    location = ''
+    file_overwrite = False
 
 
 class PerfilSolicitante(models.Model):
@@ -149,7 +156,7 @@ class ItemReembolso(models.Model):
     descricao = models.CharField("Descrição", max_length=300, blank=True)
     valor = models.DecimalField("Valor", max_digits=12, decimal_places=2, default=0)
     km = models.DecimalField("KM (deslocamento)", max_digits=10, decimal_places=2, null=True, blank=True)
-    anexo = models.FileField("Anexo", upload_to="reembolsos/anexos/", blank=True, null=True)
+    anexo = models.FileField("Anexo", upload_to="reembolsos/anexos/", storage=MediaStorage(), blank=True, null=True)
 
     class Meta:
         verbose_name = "Item de reembolso"

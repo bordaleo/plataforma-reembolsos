@@ -61,6 +61,7 @@
     }
     .tabela-reembolsos .acoes {
         white-space: nowrap;
+        text-align: center;
     }
     .email-clicavel:hover {
         color: #2c3e50 !important;
@@ -144,19 +145,17 @@
         box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
     }
     .btn-ver-solicitacao {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
-        color: #fff;
+        background: #e8e8e8;
+        color: #34495e;
         border: none;
-        padding: 0.75rem 1.25rem;
-        border-radius: 6px;
+        padding: 0.75rem 1.5rem;
         cursor: pointer;
-        font-size: 0.9rem;
         font-weight: 600;
-        transition: all 0.2s;
+        border-radius: 6px;
     }
     .btn-ver-solicitacao:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        background: #ddd;
+        color: #2c3e50;
     }
     .detalhe-solicitacao {
         display: grid;
@@ -558,6 +557,7 @@
                 <th>Centro de custo</th>
                 <th>Ver Solicitação</th>
                 <th>Status</th>
+                <th>Status do contrato</th>
             </tr>
         </thead>
         <tbody>
@@ -576,12 +576,15 @@
                 </td>
                 <td>{{ s.centro_custo|default:"—" }}</td>
                 <td class="acoes">
-                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver</button>
                 </td>
                 <td>
                     {% if s.status == 'PENDENTE' %}<span class="status-pendente">Pendente</span>{% endif %}
                     {% if s.status == 'APROVADO' %}<span class="status-aprovado">Aprovado</span>{% endif %}
                     {% if s.status == 'REJEITADO' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
+                </td>
+                <td class="acoes">
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                 </td>
             </tr>
             {% endfor %}
@@ -746,9 +749,9 @@
                         return;
                     }
                     var html = '<div style="text-align: right; margin-bottom: 1.5rem;">';
-                    html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Gerar PDF</a>';
+                    html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Visualizar PDF</a>';
                     html += '</div>';
-                    
+                     
                     html += '<div class="detalhe-solicitacao">';
                     html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';

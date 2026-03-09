@@ -276,9 +276,9 @@
                 <th>Centro de custo</th>
                 <th>Código de despesa</th>
                 <th class="valor">Valor total</th>
+                <th>Ver Solicitação</th>
                 <th>Status</th>
-                <th>Ações</th>
-                <th>Gerar PDF</th>
+                <th>Status do contrato</th>
             </tr>
         </thead>
         <tbody>
@@ -289,16 +289,16 @@
                 <td>{{ s.centro_custo }}</td>
                 <td>{{ s.codigos_despesa }}</td>
                 <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
+                <td class="acoes">
+                    <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                </td>
                 <td>
                     {% if s.status == 'PENDENTE' %}<span class="status-pendente">Pendente</span>{% endif %}
                     {% if s.status == 'APROVADO' %}<span class="status-aprovado">Aprovado</span>{% endif %}
                     {% if s.status == 'REJEITADO' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
                 </td>
                 <td class="acoes">
-                    <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
-                </td>
-                <td class="acoes">
-                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Gerar PDF</a>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                 </td>
             </tr>
             {% endfor %}

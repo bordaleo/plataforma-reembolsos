@@ -49,6 +49,16 @@
     .card .form-group input:hover {
         border-color: #bdc3c7;
     }
+    .dados-gerais-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    @media (max-width: 768px) {
+        .dados-gerais-grid {
+            grid-template-columns: 1fr;
+        }
+    }
     .linha-despesa {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -316,6 +326,14 @@
         margin-top: 1.5rem;
         justify-content: flex-end;
     }
+    .campos-pagamento {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+    }
+    .campos-pagamento .form-group {
+        margin-bottom: 1.25rem;
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -323,19 +341,30 @@
 
 <form method="post" action="" enctype="multipart/form-data" id="form-reembolso">
     {% csrf_token %}
+    {% if solicitacao_editar %}
+    <input type="hidden" name="editar_id" value="{{ solicitacao_editar.pk }}">
+    {% endif %}
 
     <div class="card">
         <div class="card-header">
             <h2>Dados Gerais</h2>
         </div>
-        <div class="form-group">
-            <label for="centro_custo">Centro de Custo <span style="color: #e74c3c;">*</span></label>
-            <select name="centro_custo" id="centro_custo" required class="form-control">
-                <option value="">Selecione...</option>
-                {% for programa in programas %}
-                <option value="{{ programa }}">{{ programa }}</option>
-                {% endfor %}
-            </select>
+        <div class="dados-gerais-grid">
+            <div class="form-group">
+                <label for="centro_custo">Centro de Custo <span style="color: #e74c3c;">*</span></label>
+                <select name="centro_custo" id="centro_custo" required class="form-control">
+                    <option value="">Selecione...</option>
+                    {% for programa in programas %}
+                    <option value="{{ programa }}">{{ programa }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nome_gestor">Nome do Gestor <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="nome_gestor" id="nome_gestor" required class="form-control" 
+                       value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
+                       placeholder="Digite o nome do gestor">
+            </div>
         </div>
     </div>
 
@@ -396,6 +425,71 @@
             <p id="valor-total-container" class="valor-total-container">
                 <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
             </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Forma de Pagamento</h2>
+        </div>
+        <div class="form-group">
+            <label for="forma_pagamento">Forma de Pagamento <span style="color: #e74c3c;">*</span></label>
+            <select name="forma_pagamento" id="forma_pagamento" required class="form-control">
+                <option value="">Selecione...</option>
+                <option value="PIX">PIX</option>
+                <option value="TRANSFERENCIA">Transferência Bancária</option>
+            </select>
+        </div>
+
+        <!-- Campos para PIX -->
+        <div id="campos-pix" class="campos-pagamento" style="display: none;">
+            <div class="form-group">
+                <label for="pix_chave">Chave PIX <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="pix_chave" id="pix_chave" class="form-control" 
+                       value="{% if perfil.chave_pix %}{{ perfil.chave_pix }}{% endif %}" 
+                       placeholder="CPF, e-mail, telefone ou chave aleatória">
+            </div>
+            <div class="form-group">
+                <label for="pix_banco">Banco <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="pix_banco" id="pix_banco" class="form-control" 
+                       value="{% if perfil.banco %}{{ perfil.banco }}{% endif %}" 
+                       placeholder="Nome do banco">
+            </div>
+            <div class="form-group">
+                <label for="pix_cpf">CPF <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="pix_cpf" id="pix_cpf" class="form-control" 
+                       placeholder="000.000.000-00" maxlength="14">
+            </div>
+        </div>
+
+        <!-- Campos para Transferência -->
+        <div id="campos-transferencia" class="campos-pagamento" style="display: none;">
+            <div class="form-group">
+                <label for="transf_banco">Banco <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="transf_banco" id="transf_banco" class="form-control" 
+                       value="{% if perfil.banco %}{{ perfil.banco }}{% endif %}" 
+                       placeholder="Nome do banco">
+            </div>
+            <div class="form-group">
+                <label for="transf_agencia">Agência <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="transf_agencia" id="transf_agencia" class="form-control" 
+                       value="{% if perfil.agencia %}{{ perfil.agencia }}{% endif %}" 
+                       placeholder="0000" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label for="transf_conta_tipo">Tipo de Conta <span style="color: #e74c3c;">*</span></label>
+                <select name="transf_conta_tipo" id="transf_conta_tipo" class="form-control">
+                    <option value="">Selecione...</option>
+                    <option value="CORRENTE" {% if perfil.conta_tipo == 'CORRENTE' %}selected{% endif %}>Conta Corrente</option>
+                    <option value="POUPANCA" {% if perfil.conta_tipo == 'POUPANCA' %}selected{% endif %}>Poupança</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="transf_conta_numero">Conta Corrente ou Poupança <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="transf_conta_numero" id="transf_conta_numero" class="form-control" 
+                       value="{% if perfil.conta_numero %}{{ perfil.conta_numero }}{% endif %}" 
+                       placeholder="00000-0" maxlength="30">
+            </div>
         </div>
     </div>
 
@@ -687,6 +781,97 @@
         if (e.target.name && e.target.name.indexOf('valor_') === 0) atualizarTotal();
     });
     atualizarTotal();
+
+    // Controle de forma de pagamento
+    var formaPagamento = document.getElementById('forma_pagamento');
+    var camposPix = document.getElementById('campos-pix');
+    var camposTransferencia = document.getElementById('campos-transferencia');
+    
+    function atualizarCamposPagamento() {
+        var forma = formaPagamento ? formaPagamento.value : '';
+        
+        if (forma === 'PIX') {
+            if (camposPix) camposPix.style.display = 'block';
+            if (camposTransferencia) camposTransferencia.style.display = 'none';
+            // Tornar campos PIX obrigatórios
+            var pixChave = document.getElementById('pix_chave');
+            var pixBanco = document.getElementById('pix_banco');
+            var pixCpf = document.getElementById('pix_cpf');
+            if (pixChave) pixChave.setAttribute('required', 'required');
+            if (pixBanco) pixBanco.setAttribute('required', 'required');
+            if (pixCpf) pixCpf.setAttribute('required', 'required');
+            // Remover obrigatoriedade dos campos de transferência
+            var transfBanco = document.getElementById('transf_banco');
+            var transfAgencia = document.getElementById('transf_agencia');
+            var transfContaTipo = document.getElementById('transf_conta_tipo');
+            var transfContaNumero = document.getElementById('transf_conta_numero');
+            if (transfBanco) transfBanco.removeAttribute('required');
+            if (transfAgencia) transfAgencia.removeAttribute('required');
+            if (transfContaTipo) transfContaTipo.removeAttribute('required');
+            if (transfContaNumero) transfContaNumero.removeAttribute('required');
+        } else if (forma === 'TRANSFERENCIA') {
+            if (camposPix) camposPix.style.display = 'none';
+            if (camposTransferencia) camposTransferencia.style.display = 'block';
+            // Remover obrigatoriedade dos campos PIX
+            var pixChave = document.getElementById('pix_chave');
+            var pixBanco = document.getElementById('pix_banco');
+            var pixCpf = document.getElementById('pix_cpf');
+            if (pixChave) pixChave.removeAttribute('required');
+            if (pixBanco) pixBanco.removeAttribute('required');
+            if (pixCpf) pixCpf.removeAttribute('required');
+            // Tornar campos de transferência obrigatórios
+            var transfBanco = document.getElementById('transf_banco');
+            var transfAgencia = document.getElementById('transf_agencia');
+            var transfContaTipo = document.getElementById('transf_conta_tipo');
+            var transfContaNumero = document.getElementById('transf_conta_numero');
+            if (transfBanco) transfBanco.setAttribute('required', 'required');
+            if (transfAgencia) transfAgencia.setAttribute('required', 'required');
+            if (transfContaTipo) transfContaTipo.setAttribute('required', 'required');
+            if (transfContaNumero) transfContaNumero.setAttribute('required', 'required');
+        } else {
+            if (camposPix) camposPix.style.display = 'none';
+            if (camposTransferencia) camposTransferencia.style.display = 'none';
+            // Remover obrigatoriedade de todos os campos
+            var pixChave = document.getElementById('pix_chave');
+            var pixBanco = document.getElementById('pix_banco');
+            var pixCpf = document.getElementById('pix_cpf');
+            var transfBanco = document.getElementById('transf_banco');
+            var transfAgencia = document.getElementById('transf_agencia');
+            var transfContaTipo = document.getElementById('transf_conta_tipo');
+            var transfContaNumero = document.getElementById('transf_conta_numero');
+            if (pixChave) pixChave.removeAttribute('required');
+            if (pixBanco) pixBanco.removeAttribute('required');
+            if (pixCpf) pixCpf.removeAttribute('required');
+            if (transfBanco) transfBanco.removeAttribute('required');
+            if (transfAgencia) transfAgencia.removeAttribute('required');
+            if (transfContaTipo) transfContaTipo.removeAttribute('required');
+            if (transfContaNumero) transfContaNumero.removeAttribute('required');
+        }
+    }
+    
+    if (formaPagamento) {
+        formaPagamento.addEventListener('change', atualizarCamposPagamento);
+    }
+    
+    // Máscara para CPF
+    var pixCpf = document.getElementById('pix_cpf');
+    if (pixCpf) {
+        pixCpf.addEventListener('input', function(e) {
+            var value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                if (value.length <= 3) {
+                    value = value;
+                } else if (value.length <= 6) {
+                    value = value.substring(0, 3) + '.' + value.substring(3);
+                } else if (value.length <= 9) {
+                    value = value.substring(0, 3) + '.' + value.substring(3, 6) + '.' + value.substring(6);
+                } else {
+                    value = value.substring(0, 3) + '.' + value.substring(3, 6) + '.' + value.substring(6, 9) + '-' + value.substring(9, 11);
+                }
+                e.target.value = value;
+            }
+        });
+    }
 })();
 </script>
 {% endblock %}

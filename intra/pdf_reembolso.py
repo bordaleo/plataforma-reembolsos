@@ -59,7 +59,7 @@ def _formatar_valor(valor):
 def gerar_pdf(solicitacao):
     """
     Gera o PDF da solicitação de reembolso conforme o modelo.
-    Ordem: Imagens anexadas -> PDFs anexados -> Folha de rosto (última)
+    Ordem: Folha de rosto (primeira) -> Anexos (se houver)
     solicitacao: instância de SolicitacaoReembolso com itens e user com perfil_solicitante.
     """
     # --- Coletar e separar anexos ---
@@ -107,11 +107,16 @@ def gerar_pdf(solicitacao):
     # --- Gerar folha de rosto ---
     folha_rosto = _gerar_folha_rosto(solicitacao)
     
-    # --- Merge final: Imagens -> PDFs anexados -> Folha de rosto (última) ---
+    # --- Merge final: Folha de rosto (primeira) -> Anexos (se houver) ---
     if PYPDF2_AVAILABLE:
         writer_final = PdfWriter()
         
-        # 1. Adicionar imagens primeiro (criar PDFs para cada imagem)
+        # 1. Adicionar folha de rosto primeiro
+        reader_rosto = PdfReader(BytesIO(folha_rosto))
+        for page in reader_rosto.pages:
+            writer_final.add_page(page)
+        
+        # 2. Adicionar imagens (criar PDFs para cada imagem)
         if anexos_imagem:
             for anexo in anexos_imagem:
                 try:
@@ -124,16 +129,11 @@ def gerar_pdf(solicitacao):
                     # Se houver erro, continua
                     pass
         
-        # 2. Adicionar PDFs anexados
+        # 3. Adicionar PDFs anexados
         if pdfs_merged:
             reader_merged = PdfReader(pdfs_merged)
             for page in reader_merged.pages:
                 writer_final.add_page(page)
-        
-        # 3. Adicionar folha de rosto por último
-        reader_rosto = PdfReader(BytesIO(folha_rosto))
-        for page in reader_rosto.pages:
-            writer_final.add_page(page)
         
         # Gerar PDF final
         buffer_final = BytesIO()
@@ -373,33 +373,69 @@ def _gerar_folha_rosto(solicitacao):
     c.drawString(margin_left, y, "Solicito providenciar depósito em minha conta corrente, conforme dados abaixo:")
     y -= 8 * mm
     
+    # Usar dados de pagamento da solicitação (não do cadastro)
     perfil = getattr(solicitacao.user, "perfil_solicitante", None)
-    if perfil:
-        c.setFont("Helvetica", 9)
-        c.drawString(margin_left, y, f"Nome: {perfil.nome_solicitante or '-'}")
+    nome_solicitante = perfil.nome_solicitante if perfil else solicitacao.user.get_full_name() or solicitacao.user.email or '-'
+    
+    c.setFont("Helvetica", 9)
+    c.drawString(margin_left, y, f"Nome: {nome_solicitante}")
+    y -= 5 * mm
+    
+    # Verificar forma de pagamento da solicitação
+    if solicitacao.forma_pagamento == 'PIX':
+        # Dados PIX da solicitação
+        pix_chave = solicitacao.pix_chave or solicitacao.user.email or '-'
+        pix_banco = solicitacao.pix_banco or '-'
+        pix_cpf = solicitacao.pix_cpf or 'XXX.XXX.XXX-XX'
+        
+        c.drawString(margin_left, y, f"PIX: {pix_chave}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"PIX: {solicitacao.user.email or '-'}")
+        c.drawString(margin_left, y, f"CPF/CNPJ: {pix_cpf}")
         y -= 5 * mm
-        c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
+        c.drawString(margin_left, y, f"Banco: {pix_banco}")
+        # Não exibir Agência e Conta para PIX
+    elif solicitacao.forma_pagamento == 'TRANSFERENCIA':
+        # Dados de transferência da solicitação
+        transf_banco = solicitacao.transf_banco or '-'
+        transf_agencia = solicitacao.transf_agencia or '-'
+        transf_conta_numero = solicitacao.transf_conta_numero or '-'
+        
+        # PIX pode ser do cadastro ou email do usuário como fallback
+        pix_fallback = perfil.chave_pix if perfil and perfil.chave_pix else solicitacao.user.email or '-'
+        cpf_fallback = 'XXX.XXX.XXX-XX'
+        
+        c.drawString(margin_left, y, f"PIX: {pix_fallback}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Banco: {perfil.banco or 'YYYY'}")
+        c.drawString(margin_left, y, f"CPF/CNPJ: {cpf_fallback}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Agencia: {perfil.agencia or 'XXXX-X'}")
+        c.drawString(margin_left, y, f"Banco: {transf_banco}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"Conta: {perfil.conta_numero or 'XXXXX-X'}")
+        c.drawString(margin_left, y, f"Agência: {transf_agencia}")
+        y -= 5 * mm
+        c.drawString(margin_left, y, f"Conta: {transf_conta_numero}")
     else:
-        c.setFont("Helvetica", 9)
-        c.drawString(margin_left, y, "Nome: -")
-        y -= 5 * mm
-        c.drawString(margin_left, y, "PIX: -")
-        y -= 5 * mm
-        c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
-        y -= 5 * mm
-        c.drawString(margin_left, y, "Banco: YYYY")
-        y -= 5 * mm
-        c.drawString(margin_left, y, "Agencia: XXXX-X")
-        y -= 5 * mm
-        c.drawString(margin_left, y, "Conta: XXXXX-X")
+        # Fallback: usar dados do cadastro se não houver forma de pagamento definida
+        if perfil:
+            pix_chave = perfil.chave_pix or solicitacao.user.email or '-'
+            c.drawString(margin_left, y, f"PIX: {pix_chave}")
+            y -= 5 * mm
+            c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
+            y -= 5 * mm
+            c.drawString(margin_left, y, f"Banco: {perfil.banco or 'YYYY'}")
+            y -= 5 * mm
+            c.drawString(margin_left, y, f"Agência: {perfil.agencia or 'XXXX-X'}")
+            y -= 5 * mm
+            c.drawString(margin_left, y, f"Conta: {perfil.conta_numero or 'XXXXX-X'}")
+        else:
+            c.drawString(margin_left, y, "PIX: -")
+            y -= 5 * mm
+            c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
+            y -= 5 * mm
+            c.drawString(margin_left, y, "Banco: YYYY")
+            y -= 5 * mm
+            c.drawString(margin_left, y, "Agência: XXXX-X")
+            y -= 5 * mm
+            c.drawString(margin_left, y, "Conta: XXXXX-X")
     
     y -= 10 * mm
     

@@ -133,6 +133,41 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
     }
+    .btn-marcar-pago {
+        background: #3182ce;
+        color: #fff;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-right: 0.5rem;
+        white-space: nowrap;
+    }
+    .btn-marcar-pago:hover {
+        background: #2c5aa0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+    }
+    .btn-concluir {
+        background: #805ad5;
+        color: #fff;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .btn-concluir:hover {
+        background: #6b46c1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(128, 90, 213, 0.3);
+    }
     .btn-rejeitar-modal {
         background: #e53e3e;
         color: #fff;
@@ -257,6 +292,38 @@
         font-weight: 600;
         padding: 0.375rem 0.75rem;
         background: #fed7d7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aguardando-assinatura {
+        color: #856404;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #fff3cd;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aguardando-pagamento {
+        color: #0c5460;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d1ecf1;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-assinado {
+        color: #155724;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d4edda;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-concluido {
+        color: #0c5460;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d1ecf1;
         border-radius: 4px;
         display: inline-block;
     }
@@ -600,8 +667,22 @@
                 <td>
                     {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
-                    {% if s.status_descritivo == 'aprovado' %}<span class="status-aprovado">Aprovado</span>{% endif %}
-                    {% if s.status_descritivo == 'rejeitado' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
+                    {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
+                    {% if s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                        <span class="status-aguardando-assinatura">⏳ Pago - Aguardando assinaturas</span>
+                        {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                            <br><small style="color: #856404; margin-top: 4px; display: block;">
+                                Aguardando assinatura de: 
+                                {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                    {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </small>
+                        {% endif %}
+                    {% endif %}
+                    {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
+                    {% if s.status_descritivo == 'rejeitado_gestor' %}<span class="status-rejeitado">Rejeitado pelo gestor</span>{% endif %}
+                    {% if s.status_descritivo == 'rejeitado_gestor_admin' %}<span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>{% endif %}
+                    {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
                 </td>
                 <td class="acoes">
                     {% if s.pode_decidir %}
@@ -611,6 +692,16 @@
                             <button type="submit" class="btn-aprovar" style="margin-right: 0.5rem;">Aprovar</button>
                         </form>
                         <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                    {% elif s.pode_marcar_pago %}
+                        <form method="post" action="/reembolso/{{ s.pk }}/marcar-pago/" style="display: inline-block;" onsubmit="showLoading('Marcando como pago...'); return true;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-marcar-pago">Marcar como pago</button>
+                        </form>
+                    {% elif s.pode_concluir %}
+                        <form method="post" action="/reembolso/{{ s.pk }}/concluir/" style="display: inline-block;" onsubmit="showLoading('Concluindo solicitação...'); return true;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-concluir">Concluir</button>
+                        </form>
                     {% else %}
                         <span style="color: #7f8c8d; font-size: 0.9rem;">Processada</span>
                     {% endif %}
@@ -798,6 +889,31 @@
                     
                     html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
                     
+                    // Dados de pagamento
+                    if (data.forma_pagamento) {
+                        html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong>';
+                        if (data.forma_pagamento === 'PIX') {
+                            html += '<div style="margin-top: 0.5rem;">';
+                            html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
+                            if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
+                            if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
+                            if (data.pix_cpf) html += '<span style="display: block;">CPF: ' + escapeHtml(data.pix_cpf) + '</span>';
+                            html += '</div>';
+                        } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                            html += '<div style="margin-top: 0.5rem;">';
+                            html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>Transferência Bancária</strong></span>';
+                            if (data.transf_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
+                            if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
+                            if (data.transf_conta_tipo) {
+                                var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                                html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
+                            }
+                            if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                            html += '</div>';
+                        }
+                        html += '</div>';
+                    }
+                    
                     // Descrição (apenas a descrição dos itens) - ANTES de anexos
                     html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
                     html += '<div class="detalhe-itens-lista">';
@@ -884,6 +1000,12 @@
                     html += '<span style="font-size: 1.5rem;">' + statusIcon + '</span>';
                     html += '<strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong>';
                     html += '</div>';
+                    
+                    // Adicionar informações de assinatura DocuSign se aguardando assinatura
+                    if (data.status_descritivo === 'aguardando_assinatura' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
+                        var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
+                        html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + nomesAguardando + '</small></div>';
+                    }
                     
                     // Se aprovado, mostrar informações de aprovação
                     if (data.status_descritivo === 'aprovado' && data.aprovacao_gestor_admin && Object.keys(data.aprovacao_gestor_admin).length > 0) {
@@ -974,13 +1096,36 @@
                 html += '</div>';
                 
                 html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
-                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários</h4>';
+                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários (Cadastro)</h4>';
                 html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + (solicitante.banco || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + (solicitante.agencia || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>Tipo de conta</strong><span>' + (solicitante.conta_tipo || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>Conta Corrente ou Poupança</strong><span>' + (solicitante.conta_numero || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + (solicitante.chave_pix || '—') + '</span></div>';
                 html += '</div>';
+                
+                // Adicionar dados de pagamento da solicitação específica
+                if (data.forma_pagamento) {
+                    html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                    html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Forma de Pagamento desta Solicitação</h4>';
+                    if (data.forma_pagamento === 'PIX') {
+                        html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>PIX</span></div>';
+                        if (data.pix_chave) html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + escapeHtml(data.pix_chave) + '</span></div>';
+                        if (data.pix_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.pix_banco) + '</span></div>';
+                        if (data.pix_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF</strong><span>' + escapeHtml(data.pix_cpf) + '</span></div>';
+                    } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                        html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>Transferência Bancária</span></div>';
+                        if (data.transf_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.transf_banco) + '</span></div>';
+                        if (data.transf_agencia) html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + escapeHtml(data.transf_agencia) + '</span></div>';
+                        if (data.transf_conta_tipo) {
+                            var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                            html += '<div class="detalhe-solicitacao-item"><strong>Tipo de Conta</strong><span>' + tipoConta + '</span></div>';
+                        }
+                        if (data.transf_conta_numero) html += '<div class="detalhe-solicitacao-item"><strong>Conta</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                    }
+                    html += '</div>';
+                }
+                
                 html += '</div>';
                 
                 dadosSolicitanteContent.innerHTML = html;

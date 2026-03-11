@@ -93,6 +93,25 @@
         text-decoration: none;
         color: #ffffff;
     }
+    .btn-editar {
+        background: #3182ce;
+        color: #ffffff;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    .btn-editar:hover {
+        background: #2c5aa0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+        text-decoration: none;
+        color: #ffffff;
+    }
     .btn-ver {
         background: #e8e8e8;
         color: #34495e;
@@ -134,6 +153,38 @@
         font-weight: 600;
         padding: 0.375rem 0.75rem;
         background: #fed7d7;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-concluido {
+        color: #1e8449;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d5f4e6;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aguardando-assinatura {
+        color: #856404;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #fff3cd;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-aguardando-pagamento {
+        color: #0c5460;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d1ecf1;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .status-assinado {
+        color: #155724;
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        background: #d4edda;
         border-radius: 4px;
         display: inline-block;
     }
@@ -303,11 +354,28 @@
                 <td>
                     {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
-                    {% if s.status_descritivo == 'aprovado' %}<span class="status-aprovado">Aprovado</span>{% endif %}
-                    {% if s.status_descritivo == 'rejeitado' %}<span class="status-rejeitado">Rejeitado</span>{% endif %}
+                    {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
+                    {% if s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                        <span class="status-aguardando-assinatura">⏳ Pago - Aguardando assinaturas</span>
+                        {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                            <br><small style="color: #856404; margin-top: 4px; display: block;">
+                                Aguardando assinatura de: 
+                                {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                    {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </small>
+                        {% endif %}
+                    {% endif %}
+                    {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
+                    {% if s.status_descritivo == 'rejeitado_gestor' %}<span class="status-rejeitado">Rejeitado pelo gestor</span>{% endif %}
+                    {% if s.status_descritivo == 'rejeitado_gestor_admin' %}<span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>{% endif %}
+                    {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
                 </td>
                 <td class="acoes">
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
+                        <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar" style="margin-left: 0.5rem;">Editar e Reenviar</a>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -348,6 +416,12 @@
                 </tbody>
             </table>
             <p class="detalhe-total"><strong>Total: <span id="detalhe-total"></span></strong></p>
+            
+            <div id="detalhe-pagamento" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">
+                <h3 class="detalhe-subtitulo">Dados de Pagamento</h3>
+                <div id="detalhe-pagamento-content"></div>
+            </div>
+            
             <div id="detalhe-status" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">
                 <h3 style="color: #34495e; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Status da Solicitação</h3>
                 <div id="detalhe-status-content"></div>
@@ -405,6 +479,34 @@
                     });
                     detalheTotal.textContent = 'R$ ' + formatarValor(data.valor_total);
                     
+                    // Mostrar dados de pagamento
+                    var pagamentoContent = document.getElementById('detalhe-pagamento-content');
+                    var pagamentoHtml = '';
+                    if (data.forma_pagamento) {
+                        if (data.forma_pagamento === 'PIX') {
+                            pagamentoHtml = '<div class="detalhe-campos">';
+                            pagamentoHtml += '<p><strong>Forma de Pagamento:</strong> PIX</p>';
+                            if (data.pix_chave) pagamentoHtml += '<p><strong>Chave PIX:</strong> ' + (data.pix_chave || '-') + '</p>';
+                            if (data.pix_banco) pagamentoHtml += '<p><strong>Banco:</strong> ' + (data.pix_banco || '-') + '</p>';
+                            if (data.pix_cpf) pagamentoHtml += '<p><strong>CPF:</strong> ' + (data.pix_cpf || '-') + '</p>';
+                            pagamentoHtml += '</div>';
+                        } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                            pagamentoHtml = '<div class="detalhe-campos">';
+                            pagamentoHtml += '<p><strong>Forma de Pagamento:</strong> Transferência Bancária</p>';
+                            if (data.transf_banco) pagamentoHtml += '<p><strong>Banco:</strong> ' + (data.transf_banco || '-') + '</p>';
+                            if (data.transf_agencia) pagamentoHtml += '<p><strong>Agência:</strong> ' + (data.transf_agencia || '-') + '</p>';
+                            if (data.transf_conta_tipo) {
+                                var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                                pagamentoHtml += '<p><strong>Tipo de Conta:</strong> ' + tipoConta + '</p>';
+                            }
+                            if (data.transf_conta_numero) pagamentoHtml += '<p><strong>Conta:</strong> ' + (data.transf_conta_numero || '-') + '</p>';
+                            pagamentoHtml += '</div>';
+                        }
+                    } else {
+                        pagamentoHtml = '<p style="color: #7f8c8d;">Nenhum dado de pagamento informado.</p>';
+                    }
+                    pagamentoContent.innerHTML = pagamentoHtml;
+                    
                     // Mostrar status descritivo
                     var statusContent = document.getElementById('detalhe-status-content');
                     var statusLabel = '';
@@ -432,9 +534,23 @@
                         statusBg = '#fed7d7';
                         statusColor = '#e53e3e';
                         statusIcon = '✗';
+                    } else if (data.status_descritivo === 'concluido') {
+                        statusLabel = 'Concluído';
+                        statusBg = '#d5f4e6';
+                        statusColor = '#1e8449';
+                        statusIcon = '✓';
                     }
                     
-                    statusContent.innerHTML = '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px;"><div style="display: flex; align-items: center; gap: 0.5rem;"><span style="font-size: 1.5rem;">' + statusIcon + '</span><strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong></div></div>';
+                    var statusHtml = '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px;"><div style="display: flex; align-items: center; gap: 0.5rem;"><span style="font-size: 1.5rem;">' + statusIcon + '</span><strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong></div>';
+                    
+                    // Adicionar informações de assinatura DocuSign se aguardando assinatura
+                    if (data.status_descritivo === 'aguardando_assinatura' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
+                        var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
+                        statusHtml += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + nomesAguardando + '</small></div>';
+                    }
+                    
+                    statusHtml += '</div>';
+                    statusContent.innerHTML = statusHtml;
                     
                     // Mostrar motivo de rejeição se aplicável
                     var motivoDiv = document.getElementById('detalhe-motivo-rejeicao');

@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto
 from .pdf_reembolso import gerar_pdf
+from .docusign_integration import enviar_documento_para_assinatura, baixar_pdf_assinado, consultar_status_envelope
 
 User = get_user_model()
 
@@ -50,22 +51,120 @@ def _is_gestor_ou_gestor_admin(user):
     return _is_gestor_simples(user) or _is_gestor(user)
 
 
+def _get_status_assinatura_docusign(solicitacao):
+    """
+    Obtém o status da assinatura no DocuSign e informações sobre quem está aguardando.
+    Retorna dict com informações do status ou None se não houver envelope.
+    """
+    if not solicitacao.envelope_id_docusign:
+        return None
+    
+    try:
+        # Tentar consultar status atualizado do DocuSign
+        resposta = consultar_status_envelope(solicitacao.envelope_id_docusign)
+        status_envelope = resposta.get('status', solicitacao.status_docusign or 'sent')
+        
+        # Atualizar status no banco se mudou
+        status_mudou = False
+        if status_envelope != solicitacao.status_docusign:
+            solicitacao.status_docusign = status_envelope
+            status_mudou = True
+        
+        # Se todas as partes assinaram, atualizar status da solicitação
+        if status_envelope.lower() in ['completed', 'signed']:
+            if solicitacao.status != SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
+                solicitacao.status = SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
+                status_mudou = True
+        
+        # Salvar se houve mudança
+        if status_mudou:
+            solicitacao.save(update_fields=['status_docusign', 'status'])
+        
+        # Obter informações dos signatários
+        signers_info = []
+        recipients = resposta.get('recipients', {})
+        signers = recipients.get('signers', [])
+        
+        aguardando_assinatura = []
+        for signer in signers:
+            signer_status = signer.get('status', '').lower()
+            signer_info = {
+                'nome': signer.get('name', ''),
+                'email': signer.get('email', ''),
+                'status': signer_status,
+                'routing_order': signer.get('routingOrder', '')
+            }
+            signers_info.append(signer_info)
+            
+            # Se não assinou, está aguardando
+            if signer_status in ['sent', 'delivered', 'created']:
+                aguardando_assinatura.append(signer_info)
+        
+        return {
+            'status': status_envelope,
+            'status_legivel': _traduzir_status_docusign(status_envelope),
+            'signers': signers_info,
+            'aguardando_assinatura': aguardando_assinatura
+        }
+    except Exception as e:
+        logger.warning(f"Erro ao consultar status DocuSign: {e}")
+        # Retornar status salvo no banco se houver
+        if solicitacao.status_docusign:
+            return {
+                'status': solicitacao.status_docusign,
+                'status_legivel': _traduzir_status_docusign(solicitacao.status_docusign),
+                'signers': [],
+                'aguardando_assinatura': []
+            }
+        return None
+
+
+def _traduzir_status_docusign(status):
+    """
+    Traduz o status do DocuSign para português legível.
+    """
+    traducoes = {
+        'sent': 'Enviado - Aguardando assinatura',
+        'delivered': 'Entregue - Aguardando assinatura',
+        'signed': 'Assinado',
+        'completed': 'Completo - Todas as assinaturas concluídas',
+        'declined': 'Recusado',
+        'voided': 'Cancelado',
+        'created': 'Criado',
+    }
+    return traducoes.get(status.lower(), status)
+
+
 def _get_status_descritivo(solicitacao):
     """
     Retorna o status descritivo da solicitação baseado nos status_gestor e status_gestor_admin.
-    Retorna: 'aguardando_gestor', 'aguardando_gestor_admin', 'aprovado', 'rejeitado'
+    Retorna: 'aguardando_gestor', 'aguardando_gestor_admin', 'aguardando_pagamento', 'pago_aguardando_assinaturas', 
+             'assinado_todas_partes', 'rejeitado', 'concluido'
     """
-    # Se foi rejeitado pelo gestor, está rejeitado
+    # Se foi concluído, está concluído
+    if solicitacao.concluido:
+        return 'concluido'
+    
+    # Se foi rejeitado pelo gestor, está rejeitado (mas pode ser editado)
     if solicitacao.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO:
-        return 'rejeitado'
+        return 'rejeitado_gestor'
     
-    # Se foi rejeitado pelo gestor administrativo, está rejeitado
+    # Se foi rejeitado pelo gestor administrativo, está rejeitado (mas pode ser editado)
     if solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
-        return 'rejeitado'
+        return 'rejeitado_gestor_admin'
     
-    # Se foi aprovado pelo gestor administrativo, está aprovado
-    if solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
-        return 'aprovado'
+    # Se está aguardando pagamento (aprovado pelo gestor admin mas não pago)
+    if solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO and not solicitacao.pago:
+        return 'aguardando_pagamento'
+    
+    # Se foi pago e está aguardando assinaturas
+    if solicitacao.pago and solicitacao.envelope_id_docusign:
+        # Verificar status do DocuSign
+        status_docusign = solicitacao.status_docusign or ''
+        if status_docusign.lower() in ['completed', 'signed']:
+            return 'assinado_todas_partes'
+        else:
+            return 'pago_aguardando_assinaturas'
     
     # Se foi aprovado pelo gestor, está aguardando gestor administrativo
     if solicitacao.status_gestor == SolicitacaoReembolso.STATUS_APROVADO:
@@ -1186,7 +1285,15 @@ def meus_reembolsos(request):
             if item.cod_despesa and item.cod_despesa not in codigos_despesa:
                 codigos_despesa.append(item.cod_despesa)
         sol.codigos_despesa = ', '.join(codigos_despesa) if codigos_despesa else '—'
-        # Adicionar status descritivo
+        # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+        if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
+            sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+            # Atualizar status_docusign no objeto se foi atualizado
+            if sol.status_docusign_info:
+                sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
+        else:
+            sol.status_docusign_info = None
+        # Adicionar status descritivo (agora com status DocuSign atualizado)
         sol.status_descritivo = _get_status_descritivo(sol)
         solicitacoes_com_data.append(sol)
     return render(
@@ -1198,10 +1305,25 @@ def meus_reembolsos(request):
 
 @login_required
 def reembolso_pdf(request, pk):
-    """Gera PDF da solicitação de reembolso (solicitante, gestor ou gestor administrativo)."""
+    """Gera PDF da solicitação de reembolso (solicitante, gestor ou gestor administrativo).
+    Se houver envelope_id do DocuSign, retorna o PDF assinado."""
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
     if sol.user_id != request.user.id and not _is_gestor_ou_gestor_admin(request.user):
         return HttpResponse("Não autorizado.", status=403)
+    
+    # Se houver envelope_id do DocuSign, tentar baixar o PDF assinado
+    if sol.envelope_id_docusign:
+        try:
+            pdf_bytes = baixar_pdf_assinado(sol.envelope_id_docusign)
+            nome_arquivo = f"reembolso_{sol.pk}_{sol.criado_em.strftime('%Y%m%d')}_assinado.pdf"
+            response = HttpResponse(pdf_bytes, content_type="application/pdf")
+            response["Content-Disposition"] = f'inline; filename="{nome_arquivo}"'
+            return response
+        except Exception as e:
+            logger.warning(f"Erro ao baixar PDF assinado do DocuSign: {e}. Retornando PDF original.")
+            # Se falhar, continua com o PDF original
+    
+    # PDF original (sem assinatura ou se falhou ao baixar do DocuSign)
     pdf_bytes = gerar_pdf(sol)
     nome_arquivo = f"reembolso_{sol.pk}_{sol.criado_em.strftime('%Y%m%d')}.pdf"
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
@@ -1376,6 +1498,14 @@ def reembolso_detalhe_gestor_json(request, pk):
         "aprovacao": aprovacao_info,
         "aprovacao_gestor": aprovacao_gestor_info,
         "aprovacao_gestor_admin": aprovacao_gestor_admin_info,
+        "forma_pagamento": sol.forma_pagamento or "",
+        "pix_chave": sol.pix_chave or "",
+        "pix_banco": sol.pix_banco or "",
+        "pix_cpf": sol.pix_cpf or "",
+        "transf_banco": sol.transf_banco or "",
+        "transf_agencia": sol.transf_agencia or "",
+        "transf_conta_tipo": sol.transf_conta_tipo or "",
+        "transf_conta_numero": sol.transf_conta_numero or "",
     })
 
 
@@ -1438,7 +1568,15 @@ def reembolso_detalhe_json(request, pk):
                 codigos_despesa_com_descricao.append(item.cod_despesa)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     
-    # Calcular status descritivo
+    # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+    status_docusign_info = None
+    if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
+        status_docusign_info = _get_status_assinatura_docusign(sol)
+        # Atualizar status_docusign no objeto se foi atualizado
+        if status_docusign_info:
+            sol.status_docusign = status_docusign_info.get('status', sol.status_docusign)
+    
+    # Calcular status descritivo (agora com status DocuSign atualizado)
     status_descritivo = _get_status_descritivo(sol)
     
     # Determinar motivo de rejeição (se houver)
@@ -1456,8 +1594,17 @@ def reembolso_detalhe_json(request, pk):
         "criado_em": criado_em_brasilia.strftime("%d/%m/%Y %H:%M") if criado_em_brasilia else "",
         "status": sol.status,
         "status_descritivo": status_descritivo,
+        "status_docusign": status_docusign_info,
         "motivo_rejeicao": motivo_rejeicao,
         "itens": itens,
+        "forma_pagamento": sol.forma_pagamento or "",
+        "pix_chave": sol.pix_chave or "",
+        "pix_banco": sol.pix_banco or "",
+        "pix_cpf": sol.pix_cpf or "",
+        "transf_banco": sol.transf_banco or "",
+        "transf_agencia": sol.transf_agencia or "",
+        "transf_conta_tipo": sol.transf_conta_tipo or "",
+        "transf_conta_numero": sol.transf_conta_numero or "",
     })
 
 
@@ -1486,10 +1633,16 @@ def aprovar_reembolsos(request):
         ).values_list('user_id', flat=True)
         solicitacoes = solicitacoes.filter(user_id__in=perfis_com_gestor)
     else:
-        # Gestor Administrativo vê apenas solicitações aprovadas pelo gestor
+        # Gestor Administrativo vê solicitações aprovadas pelo gestor que ainda não foram aprovadas/rejeitadas por ele
+        # E também solicitações aprovadas por ele que estão aguardando pagamento
         solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
-            status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
-            status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE
+            Q(
+                status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+                status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE
+            ) | Q(
+                status_gestor_admin=SolicitacaoReembolso.STATUS_APROVADO,
+                pago=False
+            )
         )
     
     # Aplicar filtro de busca se fornecido
@@ -1528,12 +1681,27 @@ def aprovar_reembolsos(request):
             sol.nome_solicitante = ""
         # Garantir que sempre tenha um email ou username como fallback
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Determinar qual status mostrar e se pode aprovar/rejeitar
+        # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+        if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
+            sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+            # Atualizar status_docusign no objeto se foi atualizado
+            if sol.status_docusign_info:
+                sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
+        else:
+            sol.status_docusign_info = None
+        # Determinar qual status mostrar e se pode aprovar/rejeitar (agora com status DocuSign atualizado)
         sol.status_descritivo = _get_status_descritivo(sol)
         if is_gestor_simples:
             sol.pode_decidir = (sol.status_gestor == SolicitacaoReembolso.STATUS_PENDENTE)
+            sol.pode_marcar_pago = False
+            sol.pode_concluir = False
         else:
             sol.pode_decidir = (sol.status_gestor_admin == SolicitacaoReembolso.STATUS_PENDENTE and sol.status_gestor == SolicitacaoReembolso.STATUS_APROVADO)
+            # Pode marcar como pago se está aprovado pelo gestor admin e não está pago
+            sol.pode_marcar_pago = (sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO and not sol.pago)
+            # Pode concluir se está pago, tem envelope_id e está assinado
+            status_docusign = sol.status_docusign or ''
+            sol.pode_concluir = (sol.pago and sol.envelope_id_docusign and status_docusign.lower() in ['completed', 'signed'] and not sol.concluido)
         solicitacoes_com_data.append(sol)
     
     return render(
@@ -1605,44 +1773,180 @@ def reembolso_decidir(request, pk):
                 if not motivo:
                     messages.error(request, "É obrigatório informar o motivo da rejeição.")
                     return redirect("intra:aprovar_reembolsos")
+                # Rejeitar mas voltar status_gestor para PENDENTE para permitir edição
                 sol.status_gestor = SolicitacaoReembolso.STATUS_REJEITADO
-                sol.status = SolicitacaoReembolso.STATUS_REJEITADO  # Status final também
+                sol.status = SolicitacaoReembolso.STATUS_REJEITADO
                 sol.aprovado_por_gestor = request.user
                 sol.aprovado_em_gestor = timezone.now()
                 sol.motivo_rejeicao_gestor = motivo[:500]
                 sol.save()
                 # Enviar e-mail ao solicitante informando rejeição do gestor
                 _enviar_email_aprovacao_gestor(sol, aprovado=False)
-                messages.success(request, "Solicitação rejeitada pelo gestor.")
+                messages.success(request, "Solicitação rejeitada pelo gestor. O solicitante pode editar e reenviar.")
         else:
             # Aprovação/rejeição do Gestor Administrativo (segundo nível)
             if acao == "aprovar":
                 sol.status_gestor_admin = SolicitacaoReembolso.STATUS_APROVADO
-                sol.status = SolicitacaoReembolso.STATUS_APROVADO  # Status final
+                sol.status = SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO  # Status: Aprovado - Aguardando pagamento
+                sol.pago = False  # Ainda não foi pago
                 sol.aprovado_por_gestor_admin = request.user
                 sol.aprovado_em_gestor_admin = timezone.now()
                 sol.motivo_rejeicao_gestor_admin = ""
                 sol.save()
-                # Enviar e-mail ao solicitante e ao gestor informando aprovação final
+                # Enviar e-mail ao solicitante e ao gestor informando aprovação
                 _enviar_email_aprovacao_final(sol, aprovado=True)
-                messages.success(request, "Solicitação aprovada pelo gestor administrativo.")
+                messages.success(request, "Solicitação aprovada pelo gestor administrativo. Aguardando pagamento.")
             elif acao == "rejeitar":
                 motivo = (request.POST.get("motivo_rejeicao") or "").strip()
                 if not motivo:
                     messages.error(request, "É obrigatório informar o motivo da rejeição.")
                     return redirect("intra:aprovar_reembolsos")
+                # Rejeitar mas voltar status_gestor_admin para PENDENTE para permitir edição
                 sol.status_gestor_admin = SolicitacaoReembolso.STATUS_REJEITADO
-                sol.status = SolicitacaoReembolso.STATUS_REJEITADO  # Status final
+                sol.status = SolicitacaoReembolso.STATUS_REJEITADO
                 sol.aprovado_por_gestor_admin = request.user
                 sol.aprovado_em_gestor_admin = timezone.now()
                 sol.motivo_rejeicao_gestor_admin = motivo[:500]
                 sol.save()
                 # Enviar e-mail ao solicitante e ao gestor informando rejeição
                 _enviar_email_aprovacao_final(sol, aprovado=False)
-                messages.success(request, "Solicitação rejeitada pelo gestor administrativo.")
+                messages.success(request, "Solicitação rejeitada pelo gestor administrativo. O solicitante pode editar e reenviar.")
         
         return redirect("intra:aprovar_reembolsos")
     return redirect("intra:aprovar_reembolsos")
+
+
+@login_required
+def reembolso_marcar_pago(request, pk):
+    """Marca uma solicitação como paga e envia para DocuSign."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    
+    # Verificar se pode marcar como pago (deve estar aprovado pelo gestor admin e não estar pago)
+    if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_APROVADO or sol.pago:
+        messages.error(request, "Esta solicitação não pode ser marcada como paga.")
+        # Redirecionar de volta para a página de origem ou ultimos_reembolsos
+        next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
+        if 'ultimos-reembolsos' in next_url or not next_url:
+            return redirect("intra:ultimos_reembolsos")
+        return redirect(next_url)
+    
+    if request.method == "POST":
+        # Marcar como pago
+        sol.pago = True
+        sol.pago_em = timezone.now()
+        sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+        sol.save()
+        
+        # Enviar documento para assinatura no DocuSign
+        try:
+            # Gerar PDF da solicitação
+            pdf_bytes = gerar_pdf(sol)
+            
+            # Obter dados do solicitante
+            try:
+                perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+                nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
+                email_solicitante = sol.user.email
+            except PerfilSolicitante.DoesNotExist:
+                nome_solicitante = sol.user.get_full_name() or sol.user.email
+                email_solicitante = sol.user.email
+            
+            # Obter dados do gestor
+            email_gestor = None
+            nome_gestor = None
+            try:
+                perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+                if perfil_solicitante.email_gestor:
+                    # Tentar obter nome do gestor se for usuário do sistema
+                    try:
+                        gestor_user = User.objects.get(email__iexact=perfil_solicitante.email_gestor)
+                        email_gestor = gestor_user.email
+                        nome_gestor = gestor_user.get_full_name() or perfil_solicitante.nome_gestor or email_gestor
+                    except User.DoesNotExist:
+                        # Se não for usuário, usar dados do perfil
+                        email_gestor = perfil_solicitante.email_gestor
+                        nome_gestor = perfil_solicitante.nome_gestor or email_gestor
+            except PerfilSolicitante.DoesNotExist:
+                pass
+            
+            # Enviar para DocuSign
+            if email_solicitante:
+                resposta_docusign = enviar_documento_para_assinatura(
+                    pdf_bytes=pdf_bytes,
+                    email_solicitante=email_solicitante,
+                    nome_solicitante=nome_solicitante,
+                    email_gestor=email_gestor,
+                    nome_gestor=nome_gestor
+                )
+                envelope_id = resposta_docusign.get('envelopeId')
+                status_envelope = resposta_docusign.get('status', 'sent')
+                # Salvar envelope_id e status no banco
+                sol.envelope_id_docusign = envelope_id
+                sol.status_docusign = status_envelope
+                sol.save()
+                logger.info(f"Documento enviado para DocuSign. Envelope ID: {envelope_id}, Status: {status_envelope}")
+                messages.success(request, "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.")
+            else:
+                logger.warning(f"Não foi possível enviar para DocuSign: email do solicitante não encontrado.")
+                messages.success(request, "Solicitação marcada como paga. Erro ao enviar para DocuSign: email do solicitante não encontrado.")
+        except Exception as e:
+            logger.error(f"Erro ao enviar documento para DocuSign: {e}")
+            messages.warning(request, f"Solicitação marcada como paga, mas houve erro ao enviar para DocuSign: {str(e)}")
+        
+        # Redirecionar de volta para a página de origem ou ultimos_reembolsos
+        next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
+        if 'ultimos-reembolsos' in next_url or not next_url:
+            return redirect("intra:ultimos_reembolsos")
+        return redirect(next_url)
+    
+    # Se não for POST, redirecionar
+    return redirect("intra:ultimos_reembolsos")
+
+
+@login_required
+def reembolso_concluir(request, pk):
+    """Conclui uma solicitação após todas as assinaturas."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    
+    # Verificar se pode concluir (deve estar assinado por todas as partes)
+    if not sol.pago or not sol.envelope_id_docusign:
+        messages.error(request, "Esta solicitação não pode ser concluída ainda.")
+        # Redirecionar de volta para a página de origem ou ultimos_reembolsos
+        next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
+        if 'ultimos-reembolsos' in next_url or not next_url:
+            return redirect("intra:ultimos_reembolsos")
+        return redirect(next_url)
+    
+    # Verificar status do DocuSign
+    status_docusign = sol.status_docusign or ''
+    if status_docusign.lower() not in ['completed', 'signed']:
+        messages.error(request, "A solicitação ainda não foi assinada por todas as partes.")
+        # Redirecionar de volta para a página de origem ou ultimos_reembolsos
+        next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
+        if 'ultimos-reembolsos' in next_url or not next_url:
+            return redirect("intra:ultimos_reembolsos")
+        return redirect(next_url)
+    
+    if request.method == "POST":
+        sol.concluido = True
+        sol.concluido_em = timezone.now()
+        # Status permanece como ASSINADO_TODAS_PARTES, mas concluido=True indica que foi finalizado
+        sol.save()
+        messages.success(request, "Solicitação concluída com sucesso.")
+        # Redirecionar de volta para a página de origem ou ultimos_reembolsos
+        next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
+        if 'ultimos-reembolsos' in next_url or not next_url:
+            return redirect("intra:ultimos_reembolsos")
+        return redirect(next_url)
+    
+    # Se não for POST, redirecionar
+    return redirect("intra:ultimos_reembolsos")
 
 
 @login_required
@@ -1686,21 +1990,46 @@ def dashboard_gestor(request):
         except ValueError:
             pass
     
-    # Filtro de status
-    if status_filtro and status_filtro != 'TODOS':
-        filtros_solicitacao &= Q(status=status_filtro)
-    
     # Filtro de centro de custo
     if centro_custo_filtro:
         filtros_solicitacao &= Q(centro_custo=centro_custo_filtro)
     
-    # Estatísticas gerais com filtros
+    # Estatísticas gerais com filtros - apenas reembolsos concluídos no dashboard
+    # Mas se o filtro for "concluido", mostrar apenas concluídos
+    # Se for outro status, aplicar o filtro normalmente
+    if status_filtro == 'concluido':
+        filtros_solicitacao &= Q(concluido=True)
+    elif status_filtro == 'aguardando_assinatura':
+        # Aguardando assinatura: pagos mas não concluídos e com envelope_id
+        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, concluido=False, envelope_id_docusign__isnull=False)
+    elif status_filtro == 'aguardando_pagamento':
+        # Aguardando pagamento: aprovados pelo gestor admin mas não pagos
+        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, concluido=False)
+    elif status_filtro == 'assinado_todas_partes':
+        # Assinado por todas as partes: pagos, assinados mas não concluídos
+        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, concluido=False)
+    elif status_filtro and status_filtro != 'TODOS':
+        # Outros status: aplicar filtro normal mas ainda mostrar apenas concluídos por padrão
+        # Se não for status especial, manter apenas concluídos
+        if status_filtro in [SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, SolicitacaoReembolso.STATUS_REJEITADO, SolicitacaoReembolso.STATUS_PENDENTE]:
+            filtros_solicitacao &= Q(status=status_filtro, concluido=True)
+        else:
+            filtros_solicitacao &= Q(concluido=True)
+    else:
+        # Sem filtro de status: mostrar apenas concluídos
+        filtros_solicitacao &= Q(concluido=True)
     queryset_base = SolicitacaoReembolso.objects.filter(filtros_solicitacao)
     
     # Se houver filtro de tipo de despesa, calcular totais baseados nos itens
     if tipo_despesa_filtro:
         # Construir filtros para itens considerando tipo de despesa
-        filtros_itens_aprovado = Q(solicitacao__status=SolicitacaoReembolso.STATUS_APROVADO, tipo_despesa=tipo_despesa_filtro)
+        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+        filtros_itens_aprovado = Q(
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES),
+            tipo_despesa=tipo_despesa_filtro
+        )
         filtros_itens_rejeitado = Q(solicitacao__status=SolicitacaoReembolso.STATUS_REJEITADO, tipo_despesa=tipo_despesa_filtro)
         filtros_itens_pendente = Q(solicitacao__status=SolicitacaoReembolso.STATUS_PENDENTE, tipo_despesa=tipo_despesa_filtro)
         
@@ -1758,7 +2087,12 @@ def dashboard_gestor(request):
         count_pendente = ItemReembolso.objects.filter(filtros_itens_pendente).values('solicitacao').distinct().count()
     else:
         # Comportamento padrão: calcular baseado nas solicitações
-        total_aprovado = queryset_base.filter(status=SolicitacaoReembolso.STATUS_APROVADO).aggregate(
+        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+        total_aprovado = queryset_base.filter(
+            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+        ).aggregate(
             total=Sum('valor_total')
         )['total'] or 0
         
@@ -1771,7 +2105,11 @@ def dashboard_gestor(request):
         )['total'] or 0
         
         # Contagem por status
-        count_aprovado = queryset_base.filter(status=SolicitacaoReembolso.STATUS_APROVADO).count()
+        count_aprovado = queryset_base.filter(
+            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+        ).count()
         count_rejeitado = queryset_base.filter(status=SolicitacaoReembolso.STATUS_REJEITADO).count()
         count_pendente = queryset_base.filter(status=SolicitacaoReembolso.STATUS_PENDENTE).count()
     
@@ -1799,7 +2137,12 @@ def dashboard_gestor(request):
         filtros_itens_tipo &= Q(solicitacao__status=status_filtro)
     else:
         # Comportamento padrão: mostrar apenas aprovados para gastos por tipo
-        filtros_itens_tipo &= Q(solicitacao__status=SolicitacaoReembolso.STATUS_APROVADO)
+        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+        filtros_itens_tipo &= (
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+        )
     
     # Filtro de centro de custo via relacionamento
     if centro_custo_filtro:
@@ -1856,7 +2199,12 @@ def dashboard_gestor(request):
         if status_filtro and status_filtro != 'TODOS':
             filtros_itens_centro &= Q(solicitacao__status=status_filtro)
         else:
-            filtros_itens_centro &= Q(solicitacao__status=SolicitacaoReembolso.STATUS_APROVADO)
+            # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+            filtros_itens_centro &= (
+                Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+                Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+                Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+            )
         
         # Filtro de centro de custo via relacionamento
         if centro_custo_filtro:
@@ -1889,8 +2237,11 @@ def dashboard_gestor(request):
             })
     else:
         # Comportamento padrão: calcular baseado nas solicitações
+        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
         gastos_por_centro = queryset_base.filter(
-            status=SolicitacaoReembolso.STATUS_APROVADO
+            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
         ).values('centro_custo').annotate(
             total=Sum('valor_total')
         ).order_by('-total')
@@ -1919,7 +2270,11 @@ def dashboard_gestor(request):
         mes=TruncMonth('criado_em')
     ).values('mes').annotate(
         total=Count('id'),
-        valor_aprovado=Sum('valor_total', filter=Q(status=SolicitacaoReembolso.STATUS_APROVADO)),
+        valor_aprovado=Sum('valor_total', filter=(
+            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
+            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
+            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+        )),
         valor_rejeitado=Sum('valor_total', filter=Q(status=SolicitacaoReembolso.STATUS_REJEITADO)),
         valor_pendente=Sum('valor_total', filter=Q(status=SolicitacaoReembolso.STATUS_PENDENTE))
     ).order_by('mes')
@@ -1964,9 +2319,11 @@ def dashboard_gestor(request):
     # Labels para os filtros
     status_labels = dict([
         ('', 'Todos'),
-        (SolicitacaoReembolso.STATUS_APROVADO, 'Aprovado'),
+        ('aguardando_pagamento', 'Aguardando Pagamento'),
+        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
+        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
         (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-        (SolicitacaoReembolso.STATUS_PENDENTE, 'Pendente'),
+        ('concluido', 'Concluído'),
     ])
     centro_labels = dict(CENTROS_CUSTO)
     tipo_labels = dict(TIPOS_DESPESA)
@@ -2038,13 +2395,15 @@ def dashboard_gestor(request):
     # Últimos reembolsos aprovados (ordenados por data de aprovação do gestor admin)
     ultimos_aprovados = SolicitacaoReembolso.objects.filter(
         status=SolicitacaoReembolso.STATUS_APROVADO,
-        aprovado_em_gestor_admin__isnull=False
+        aprovado_em_gestor_admin__isnull=False,
+        concluido=True
     ).select_related('user', 'aprovado_por_gestor_admin').order_by('-aprovado_em_gestor_admin')[:10]
     
     # Últimos reembolsos rejeitados (ordenados por data de rejeição do gestor admin)
     ultimos_rejeitados = SolicitacaoReembolso.objects.filter(
         status=SolicitacaoReembolso.STATUS_REJEITADO,
-        aprovado_em_gestor_admin__isnull=False
+        aprovado_em_gestor_admin__isnull=False,
+        concluido=True
     ).select_related('user', 'aprovado_por_gestor_admin').order_by('-aprovado_em_gestor_admin')[:10]
     
     # Preparar dados dos últimos aprovados
@@ -2122,6 +2481,8 @@ def dashboard_gestor(request):
             (SolicitacaoReembolso.STATUS_APROVADO, 'Aprovado'),
             (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
             (SolicitacaoReembolso.STATUS_PENDENTE, 'Pendente'),
+            ('aguardando_assinatura', 'Aguardando Assinaturas'),
+            ('concluido', 'Concluído'),
         ],
     }
     
@@ -2168,6 +2529,27 @@ def reembolso(request):
     # Também manter a lista completa para compatibilidade
     codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""} for c in codigos]
     
+    # Buscar perfil do solicitante para pré-preencher dados de pagamento
+    perfil = None
+    try:
+        perfil = PerfilSolicitante.objects.get(user=request.user)
+    except PerfilSolicitante.DoesNotExist:
+        pass
+    
+    # Verificar se é edição de uma solicitação rejeitada
+    solicitacao_editar = None
+    editar_id = request.GET.get("editar", "").strip()
+    if editar_id:
+        try:
+            solicitacao_editar = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
+            # Verificar se pode editar (deve estar rejeitada)
+            if solicitacao_editar.status_gestor != SolicitacaoReembolso.STATUS_REJEITADO and solicitacao_editar.status_gestor_admin != SolicitacaoReembolso.STATUS_REJEITADO:
+                messages.error(request, "Esta solicitação não pode ser editada.")
+                return redirect("intra:meus_reembolsos")
+        except (SolicitacaoReembolso.DoesNotExist, ValueError):
+            messages.error(request, "Solicitação não encontrada.")
+            return redirect("intra:meus_reembolsos")
+    
     context = {
         "programas": programas,
         "codigos": codigos,
@@ -2175,6 +2557,8 @@ def reembolso(request):
         "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
         "codigos_despesa_json": json.dumps(codigos_json),
         "codigos_por_programa_json": json.dumps(codigos_por_programa),
+        "perfil": perfil,
+        "solicitacao_editar": solicitacao_editar,
     }
     if request.method == "POST":
         centro_custo = request.POST.get("centro_custo", "").strip()
@@ -2208,11 +2592,81 @@ def reembolso(request):
                 except (ValueError, TypeError):
                     pass
         if centro_custo:
-            sol = SolicitacaoReembolso.objects.create(
+            # Verificar se é edição de uma solicitação rejeitada
+            editar_id = request.POST.get("editar_id", "").strip()
+            sol = None
+            if editar_id:
+                try:
+                    sol = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
+                    # Verificar se pode editar (deve estar rejeitada)
+                    if sol.status_gestor != SolicitacaoReembolso.STATUS_REJEITADO and sol.status_gestor_admin != SolicitacaoReembolso.STATUS_REJEITADO:
+                        messages.error(request, "Esta solicitação não pode ser editada.")
+                        return redirect("intra:reembolso")
+                    # Deletar itens antigos
+                    sol.itens.all().delete()
+                    # Resetar status para permitir nova aprovação
+                    sol.status_gestor = SolicitacaoReembolso.STATUS_PENDENTE
+                    sol.status_gestor_admin = SolicitacaoReembolso.STATUS_PENDENTE
+                    sol.status = SolicitacaoReembolso.STATUS_PENDENTE
+                    sol.motivo_rejeicao_gestor = ""
+                    sol.motivo_rejeicao_gestor_admin = ""
+                    sol.aprovado_por_gestor = None
+                    sol.aprovado_em_gestor = None
+                    sol.aprovado_por_gestor_admin = None
+                    sol.aprovado_em_gestor_admin = None
+                    sol.pago = False
+                    sol.pago_em = None
+                    sol.concluido = False
+                    sol.concluido_em = None
+                    sol.envelope_id_docusign = ""
+                    sol.status_docusign = ""
+                except (SolicitacaoReembolso.DoesNotExist, ValueError):
+                    messages.error(request, "Solicitação não encontrada.")
+                    return redirect("intra:reembolso")
+            
+            # Capturar dados de pagamento
+            forma_pagamento = request.POST.get("forma_pagamento", "").strip()
+            pix_chave = request.POST.get("pix_chave", "").strip()
+            pix_banco = request.POST.get("pix_banco", "").strip()
+            pix_cpf = request.POST.get("pix_cpf", "").strip()
+            transf_banco = request.POST.get("transf_banco", "").strip()
+            transf_agencia = request.POST.get("transf_agencia", "").strip()
+            transf_conta_tipo = request.POST.get("transf_conta_tipo", "").strip()
+            transf_conta_numero = request.POST.get("transf_conta_numero", "").strip()
+            # Capturar nome do gestor
+            nome_gestor = request.POST.get("nome_gestor", "").strip()
+            
+            if sol:
+                # Atualizar solicitação existente
+                sol.centro_custo = centro_custo
+                sol.cod_despesa = ""  # Não é mais obrigatório no nível da solicitação
+                sol.valor_total = valor_total
+                sol.forma_pagamento = forma_pagamento if forma_pagamento else None
+                sol.pix_chave = pix_chave if pix_chave else None
+                sol.pix_banco = pix_banco if pix_banco else None
+                sol.pix_cpf = pix_cpf if pix_cpf else None
+                sol.transf_banco = transf_banco if transf_banco else None
+                sol.transf_agencia = transf_agencia if transf_agencia else None
+                sol.transf_conta_tipo = transf_conta_tipo if transf_conta_tipo else None
+                sol.transf_conta_numero = transf_conta_numero if transf_conta_numero else None
+                sol.nome_gestor = nome_gestor if nome_gestor else None
+                sol.save()
+            else:
+                # Criar nova solicitação
+                sol = SolicitacaoReembolso.objects.create(
                 user=request.user,
                 centro_custo=centro_custo,
                 cod_despesa="",  # Não é mais obrigatório no nível da solicitação
                 valor_total=valor_total,
+                forma_pagamento=forma_pagamento if forma_pagamento else None,
+                pix_chave=pix_chave if pix_chave else None,
+                pix_banco=pix_banco if pix_banco else None,
+                pix_cpf=pix_cpf if pix_cpf else None,
+                transf_banco=transf_banco if transf_banco else None,
+                transf_agencia=transf_agencia if transf_agencia else None,
+                transf_conta_tipo=transf_conta_tipo if transf_conta_tipo else None,
+                transf_conta_numero=transf_conta_numero if transf_conta_numero else None,
+                nome_gestor=nome_gestor if nome_gestor else None,
             )
             for item in itens_dados:
                 if item["tipo_despesa"]:
@@ -2309,6 +2763,795 @@ def reembolso(request):
                         _enviar_email_nova_solicitacao_gestor(sol, request, perfil.email_gestor)
                 except PerfilSolicitante.DoesNotExist:
                     pass
-            messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
+            # Verificar se foi edição
+            editar_id_final = request.POST.get("editar_id", "").strip()
+            if editar_id_final:
+                messages.success(request, f"Solicitação de reembolso editada e reenviada com sucesso! ID da solicitação: #{sol.pk}")
+            else:
+                messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
         return redirect("intra:reembolso")
     return render(request, "intra/reembolso.html", context)
+
+
+@login_required
+def ultimos_reembolsos(request):
+    """Lista os últimos reembolsos aprovados e rejeitados para o gestor administrativo."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    
+    # Capturar filtros do GET
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    status_filtro = request.GET.get('status', '')
+    centro_custo_filtro = request.GET.get('centro_custo', '')
+    tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
+    id_filtro = request.GET.get('id', '').strip()
+    
+    # Construir filtros base para diferentes status
+    filtros_aguardando_pagamento = Q(
+        status_gestor_admin=SolicitacaoReembolso.STATUS_APROVADO,
+        status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO,
+        concluido=False
+    )
+    filtros_pago_aguardando_assinaturas = Q(
+        status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
+        concluido=False
+    )
+    filtros_assinado_todas_partes = Q(
+        status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES,
+        concluido=False
+    )
+    filtros_rejeitados = Q(
+        status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+    )
+    filtros_concluidos = Q(
+        concluido=True
+    )
+    
+    # Filtro de ID
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_aguardando_pagamento &= Q(pk=id_valor)
+            filtros_pago_aguardando_assinaturas &= Q(pk=id_valor)
+            filtros_assinado_todas_partes &= Q(pk=id_valor)
+            filtros_rejeitados &= Q(pk=id_valor)
+            filtros_concluidos &= Q(pk=id_valor)
+        except ValueError:
+            pass
+    
+    # Filtro de data início (usar data de aprovação/rejeição)
+    if data_inicio:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            filtros_aguardando_pagamento &= Q(aprovado_em_gestor_admin__date__gte=data_inicio_obj)
+            filtros_pago_aguardando_assinaturas &= Q(pago_em__date__gte=data_inicio_obj)
+            filtros_assinado_todas_partes &= Q(pago_em__date__gte=data_inicio_obj)
+            filtros_rejeitados &= Q(aprovado_em_gestor_admin__date__gte=data_inicio_obj)
+            filtros_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de data fim (usar data de aprovação/rejeição)
+    if data_fim:
+        try:
+            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            filtros_aguardando_pagamento &= Q(aprovado_em_gestor_admin__date__lte=data_fim_obj)
+            filtros_pago_aguardando_assinaturas &= Q(pago_em__date__lte=data_fim_obj)
+            filtros_assinado_todas_partes &= Q(pago_em__date__lte=data_fim_obj)
+            filtros_rejeitados &= Q(aprovado_em_gestor_admin__date__lte=data_fim_obj)
+            filtros_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de centro de custo
+    if centro_custo_filtro:
+        filtros_aguardando_pagamento &= Q(centro_custo=centro_custo_filtro)
+        filtros_pago_aguardando_assinaturas &= Q(centro_custo=centro_custo_filtro)
+        filtros_assinado_todas_partes &= Q(centro_custo=centro_custo_filtro)
+        filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
+        filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
+    
+    # Filtro de tipo de despesa (via itens)
+    if tipo_despesa_filtro:
+        # Construir filtros para itens considerando outros filtros já aplicados
+        filtros_itens_aguardando_pagamento = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_pago_aguardando_assinaturas = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_assinado_todas_partes = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_rejeitados = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_concluidos = Q(tipo_despesa=tipo_despesa_filtro)
+        
+        # Aplicar filtros de data via relacionamento
+        if data_inicio:
+            try:
+                data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                filtros_itens_aguardando_pagamento &= Q(solicitacao__aprovado_em_gestor_admin__date__gte=data_inicio_obj)
+                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pago_em__date__gte=data_inicio_obj)
+                filtros_itens_assinado_todas_partes &= Q(solicitacao__pago_em__date__gte=data_inicio_obj)
+                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor_admin__date__gte=data_inicio_obj)
+                filtros_itens_concluidos &= Q(solicitacao__concluido_em__date__gte=data_inicio_obj)
+            except ValueError:
+                pass
+        
+        if data_fim:
+            try:
+                data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                filtros_itens_aguardando_pagamento &= Q(solicitacao__aprovado_em_gestor_admin__date__lte=data_fim_obj)
+                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pago_em__date__lte=data_fim_obj)
+                filtros_itens_assinado_todas_partes &= Q(solicitacao__pago_em__date__lte=data_fim_obj)
+                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor_admin__date__lte=data_fim_obj)
+                filtros_itens_concluidos &= Q(solicitacao__concluido_em__date__lte=data_fim_obj)
+            except ValueError:
+                pass
+        
+        # Aplicar filtro de centro de custo via relacionamento
+        if centro_custo_filtro:
+            filtros_itens_aguardando_pagamento &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_assinado_todas_partes &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_rejeitados &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_concluidos &= Q(solicitacao__centro_custo=centro_custo_filtro)
+        
+        # Aplicar filtro de ID via relacionamento
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens_aguardando_pagamento &= Q(solicitacao__pk=id_valor)
+                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pk=id_valor)
+                filtros_itens_assinado_todas_partes &= Q(solicitacao__pk=id_valor)
+                filtros_itens_rejeitados &= Q(solicitacao__pk=id_valor)
+                filtros_itens_concluidos &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
+        
+        # Obter IDs das solicitações que têm itens com esse tipo de despesa
+        solicitacoes_ids_aguardando_pagamento = ItemReembolso.objects.filter(
+            filtros_itens_aguardando_pagamento,
+            solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO,
+            solicitacao__concluido=False
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        solicitacoes_ids_pago_aguardando_assinaturas = ItemReembolso.objects.filter(
+            filtros_itens_pago_aguardando_assinaturas,
+            solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
+            solicitacao__concluido=False
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        solicitacoes_ids_assinado_todas_partes = ItemReembolso.objects.filter(
+            filtros_itens_assinado_todas_partes,
+            solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES,
+            solicitacao__concluido=False
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        solicitacoes_ids_rejeitados = ItemReembolso.objects.filter(
+            filtros_itens_rejeitados,
+            solicitacao__status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        solicitacoes_ids_concluidos = ItemReembolso.objects.filter(
+            filtros_itens_concluidos,
+            solicitacao__concluido=True
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        filtros_aguardando_pagamento &= Q(pk__in=solicitacoes_ids_aguardando_pagamento)
+        filtros_pago_aguardando_assinaturas &= Q(pk__in=solicitacoes_ids_pago_aguardando_assinaturas)
+        filtros_assinado_todas_partes &= Q(pk__in=solicitacoes_ids_assinado_todas_partes)
+        filtros_rejeitados &= Q(pk__in=solicitacoes_ids_rejeitados)
+        filtros_concluidos &= Q(pk__in=solicitacoes_ids_concluidos)
+    
+    # Últimos reembolsos aguardando pagamento
+    aguardando_pagamento = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_aguardando_pagamento
+    ).order_by('-aprovado_em_gestor_admin')[:50]
+    
+    # Últimos reembolsos pago aguardando assinaturas
+    # Excluir as que já têm status ASSINADO_TODAS_PARTES para evitar duplicação
+    pago_aguardando_assinaturas = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_pago_aguardando_assinaturas
+    ).exclude(
+        status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
+    ).order_by('-pago_em')[:50]
+    
+    # Últimos reembolsos assinado todas as partes (aguardando conclusão)
+    assinado_todas_partes = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_assinado_todas_partes
+    ).order_by('-pago_em')[:50]
+    
+    # Últimos reembolsos rejeitados
+    rejeitados = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_rejeitados
+    ).order_by('-aprovado_em_gestor_admin')[:50]
+    
+    # Últimos reembolsos concluídos
+    concluidos = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_concluidos
+    ).order_by('-concluido_em')[:50]
+    
+    # Preparar dados para exibição - Aguardando Pagamento
+    aguardando_pagamento_com_data = []
+    for sol in aguardando_pagamento:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        sol.status_descritivo = _get_status_descritivo(sol)
+        aguardando_pagamento_com_data.append(sol)
+    
+    # Preparar dados para exibição - Pago Aguardando Assinaturas
+    pago_aguardando_assinaturas_com_data = []
+    assinadas_que_precisam_mover = []  # Solicitações que foram assinadas e precisam ir para outra tabela
+    for sol in pago_aguardando_assinaturas:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.pago_em_brasilia = localtime(sol.pago_em) if sol.pago_em else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Consultar status DocuSign primeiro (para atualizar status)
+        sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+        # Atualizar status_docusign no objeto se foi atualizado
+        if sol.status_docusign_info:
+            sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
+        # Recarregar do banco para pegar status atualizado
+        sol.refresh_from_db()
+        # Adicionar status descritivo (agora com status DocuSign atualizado)
+        sol.status_descritivo = _get_status_descritivo(sol)
+        # Se foi assinado por todas as partes, não adicionar aqui, será adicionado na lista correta
+        if sol.status == SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
+            assinadas_que_precisam_mover.append(sol)
+        else:
+            pago_aguardando_assinaturas_com_data.append(sol)
+    
+    # Preparar dados para exibição - Assinado Todas as Partes
+    assinado_todas_partes_com_data = []
+    for sol in assinado_todas_partes:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.pago_em_brasilia = localtime(sol.pago_em) if sol.pago_em else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Consultar status DocuSign primeiro (para atualizar status)
+        sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+        # Atualizar status_docusign no objeto se foi atualizado
+        if sol.status_docusign_info:
+            sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
+        # Recarregar do banco para pegar status atualizado
+        sol.refresh_from_db()
+        # Adicionar status descritivo (agora com status DocuSign atualizado)
+        sol.status_descritivo = _get_status_descritivo(sol)
+        assinado_todas_partes_com_data.append(sol)
+    
+    # Adicionar solicitações que foram assinadas durante o processamento
+    for sol in assinadas_que_precisam_mover:
+        # Recarregar do banco para garantir dados atualizados
+        sol.refresh_from_db()
+        sol.status_descritivo = _get_status_descritivo(sol)
+        assinado_todas_partes_com_data.append(sol)
+    
+    rejeitados_com_data = []
+    for sol in rejeitados:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
+        rejeitados_com_data.append(sol)
+    
+    # Preparar dados dos concluídos
+    concluidos_com_data = []
+    for sol in concluidos:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.concluido_em_brasilia = localtime(sol.concluido_em) if sol.concluido_em else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
+        concluidos_com_data.append(sol)
+    
+    # Função helper para construir URL sem um filtro específico
+    def get_url_without_filter(exclude_param):
+        params = {}
+        if data_inicio and exclude_param != 'data_inicio':
+            params['data_inicio'] = data_inicio
+        if data_fim and exclude_param != 'data_fim':
+            params['data_fim'] = data_fim
+        if status_filtro and exclude_param != 'status':
+            params['status'] = status_filtro
+        if centro_custo_filtro and exclude_param != 'centro_custo':
+            params['centro_custo'] = centro_custo_filtro
+        if tipo_despesa_filtro and exclude_param != 'tipo_despesa':
+            params['tipo_despesa'] = tipo_despesa_filtro
+        if id_filtro and exclude_param != 'id':
+            params['id'] = id_filtro
+        
+        from django.http import QueryDict
+        query_string = QueryDict('', mutable=True)
+        query_string.update(params)
+        return '?' + query_string.urlencode() if params else ''
+    
+    # Labels para os filtros
+    status_labels = dict([
+        ('', 'Todos'),
+        ('aguardando_pagamento', 'Aguardando Pagamento'),
+        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
+        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
+        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ('concluido', 'Concluído'),
+    ])
+    centro_labels = dict(CENTROS_CUSTO)
+    tipo_labels = dict(TIPOS_DESPESA)
+    
+    # Construir lista de badges de filtros ativos
+    active_filter_badges = []
+    if data_inicio:
+        active_filter_badges.append({
+            'label': f'Data Início: {data_inicio}',
+            'remove_url': get_url_without_filter('data_inicio')
+        })
+    if data_fim:
+        active_filter_badges.append({
+            'label': f'Data Fim: {data_fim}',
+            'remove_url': get_url_without_filter('data_fim')
+        })
+    if status_filtro:
+        active_filter_badges.append({
+            'label': f'Status: {status_labels.get(status_filtro, status_filtro)}',
+            'remove_url': get_url_without_filter('status')
+        })
+    if centro_custo_filtro:
+        active_filter_badges.append({
+            'label': f'Centro de Custo: {centro_labels.get(centro_custo_filtro, centro_custo_filtro)}',
+            'remove_url': get_url_without_filter('centro_custo')
+        })
+    if tipo_despesa_filtro:
+        active_filter_badges.append({
+            'label': f'Tipo de Despesa: {tipo_labels.get(tipo_despesa_filtro, tipo_despesa_filtro)}',
+            'remove_url': get_url_without_filter('tipo_despesa')
+        })
+    if id_filtro:
+        active_filter_badges.append({
+            'label': f'ID: #{id_filtro}',
+            'remove_url': get_url_without_filter('id')
+        })
+    
+    # Aplicar filtro de status descritivo
+    if status_filtro:
+        if status_filtro == 'aguardando_pagamento':
+            # Filtrar apenas aguardando pagamento
+            pago_aguardando_assinaturas_com_data = []
+            assinado_todas_partes_com_data = []
+            rejeitados_com_data = []
+            concluidos_com_data = []
+        elif status_filtro == 'pago_aguardando_assinaturas':
+            # Filtrar apenas pago aguardando assinaturas
+            aguardando_pagamento_com_data = []
+            assinado_todas_partes_com_data = []
+            rejeitados_com_data = []
+            concluidos_com_data = []
+        elif status_filtro == 'assinado_todas_partes':
+            # Filtrar apenas assinado todas as partes
+            aguardando_pagamento_com_data = []
+            pago_aguardando_assinaturas_com_data = []
+            rejeitados_com_data = []
+            concluidos_com_data = []
+        elif status_filtro == 'concluido':
+            # Filtrar apenas concluídos
+            aguardando_pagamento_com_data = []
+            pago_aguardando_assinaturas_com_data = []
+            assinado_todas_partes_com_data = []
+            rejeitados_com_data = []
+        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+            # Filtrar apenas rejeitados
+            aguardando_pagamento_com_data = []
+            pago_aguardando_assinaturas_com_data = []
+            assinado_todas_partes_com_data = []
+            concluidos_com_data = []
+    
+    # Opções para status (adaptado para últimos reembolsos)
+    status_choices = [
+        ('', 'Todos'),
+        ('aguardando_pagamento', 'Aguardando Pagamento'),
+        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
+        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
+        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ('concluido', 'Concluído'),
+    ]
+    
+    return render(
+        request,
+        "intra/ultimos_reembolsos.html",
+        {
+            "aguardando_pagamento": aguardando_pagamento_com_data,
+            "pago_aguardando_assinaturas": pago_aguardando_assinaturas_com_data,
+            "assinado_todas_partes": assinado_todas_partes_com_data,
+            "rejeitados": rejeitados_com_data,
+            "concluidos": concluidos_com_data,
+            "filtros": {
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "status": status_filtro,
+                "centro_custo": centro_custo_filtro,
+                "tipo_despesa": tipo_despesa_filtro,
+                "id": id_filtro,
+            },
+            "status_choices": status_choices,
+            "centros_custo": CENTROS_CUSTO,
+            "tipos_despesa": TIPOS_DESPESA,
+            "active_filter_badges": active_filter_badges,
+        },
+    )
+
+
+@login_required
+def ultimos_reembolsos_gestor(request):
+    """Lista os últimos reembolsos aprovados e rejeitados pelo gestor simples."""
+    if not _is_gestor_simples(request.user):
+        return HttpResponse("Acesso restrito a Gestores.", status=403)
+    
+    # Capturar filtros do GET
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    status_filtro = request.GET.get('status', '')
+    centro_custo_filtro = request.GET.get('centro_custo', '')
+    tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
+    id_filtro = request.GET.get('id', '').strip()
+    
+    # Construir filtros base
+    filtros_aprovados = Q(
+        status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+        aprovado_por_gestor=request.user
+    )
+    filtros_rejeitados = Q(
+        status_gestor=SolicitacaoReembolso.STATUS_REJEITADO,
+        aprovado_por_gestor=request.user
+    )
+    
+    # Filtro de ID
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_aprovados &= Q(pk=id_valor)
+            filtros_rejeitados &= Q(pk=id_valor)
+        except ValueError:
+            pass
+    
+    # Filtro de data início (usar data de aprovação/rejeição pelo gestor)
+    if data_inicio:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            filtros_aprovados &= Q(aprovado_em_gestor__date__gte=data_inicio_obj)
+            filtros_rejeitados &= Q(aprovado_em_gestor__date__gte=data_inicio_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de data fim (usar data de aprovação/rejeição pelo gestor)
+    if data_fim:
+        try:
+            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            filtros_aprovados &= Q(aprovado_em_gestor__date__lte=data_fim_obj)
+            filtros_rejeitados &= Q(aprovado_em_gestor__date__lte=data_fim_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de centro de custo
+    if centro_custo_filtro:
+        filtros_aprovados &= Q(centro_custo=centro_custo_filtro)
+        filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
+    
+    # Filtro de tipo de despesa (via itens)
+    if tipo_despesa_filtro:
+        # Construir filtros para itens considerando outros filtros já aplicados
+        filtros_itens_aprovados = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_rejeitados = Q(tipo_despesa=tipo_despesa_filtro)
+        
+        # Aplicar filtros de data via relacionamento
+        if data_inicio:
+            try:
+                data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                filtros_itens_aprovados &= Q(solicitacao__aprovado_em_gestor__date__gte=data_inicio_obj)
+                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor__date__gte=data_inicio_obj)
+            except ValueError:
+                pass
+        
+        if data_fim:
+            try:
+                data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                filtros_itens_aprovados &= Q(solicitacao__aprovado_em_gestor__date__lte=data_fim_obj)
+                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor__date__lte=data_fim_obj)
+            except ValueError:
+                pass
+        
+        # Aplicar filtro de centro de custo via relacionamento
+        if centro_custo_filtro:
+            filtros_itens_aprovados &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_rejeitados &= Q(solicitacao__centro_custo=centro_custo_filtro)
+        
+        # Aplicar filtro de ID via relacionamento
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens_aprovados &= Q(solicitacao__pk=id_valor)
+                filtros_itens_rejeitados &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
+        
+        # Obter IDs das solicitações que têm itens com esse tipo de despesa
+        solicitacoes_ids_aprovados = ItemReembolso.objects.filter(
+            filtros_itens_aprovados,
+            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+            solicitacao__aprovado_por_gestor=request.user
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        solicitacoes_ids_rejeitados = ItemReembolso.objects.filter(
+            filtros_itens_rejeitados,
+            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_REJEITADO,
+            solicitacao__aprovado_por_gestor=request.user
+        ).values_list('solicitacao_id', flat=True).distinct()
+        
+        filtros_aprovados &= Q(pk__in=solicitacoes_ids_aprovados)
+        filtros_rejeitados &= Q(pk__in=solicitacoes_ids_rejeitados)
+    
+    # Últimos reembolsos aprovados pelo gestor
+    aprovados = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_aprovados
+    ).order_by('-aprovado_em_gestor')[:50]
+    
+    # Últimos reembolsos rejeitados pelo gestor
+    rejeitados = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_rejeitados
+    ).order_by('-aprovado_em_gestor')[:50]
+    
+    # Últimos reembolsos concluídos pelo gestor (aprovados e concluídos)
+    filtros_concluidos = Q(
+        status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+        aprovado_por_gestor=request.user,
+        concluido=True
+    )
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_concluidos &= Q(pk=id_valor)
+        except ValueError:
+            pass
+    if data_inicio:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            filtros_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
+        except ValueError:
+            pass
+    if data_fim:
+        try:
+            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            filtros_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
+        except ValueError:
+            pass
+    if centro_custo_filtro:
+        filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
+    if tipo_despesa_filtro:
+        # Aplicar filtro de tipo de despesa via itens
+        solicitacoes_ids_concluidos = ItemReembolso.objects.filter(
+            tipo_despesa=tipo_despesa_filtro,
+            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+            solicitacao__aprovado_por_gestor=request.user,
+            solicitacao__concluido=True
+        ).values_list('solicitacao_id', flat=True).distinct()
+        filtros_concluidos &= Q(pk__in=solicitacoes_ids_concluidos)
+    
+    concluidos = SolicitacaoReembolso.objects.select_related("user").filter(
+        filtros_concluidos
+    ).order_by('-concluido_em')[:50]
+    
+    # Preparar dados para exibição
+    aprovados_com_data = []
+    for sol in aprovados:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor) if sol.aprovado_em_gestor else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
+        aprovados_com_data.append(sol)
+    
+    rejeitados_com_data = []
+    for sol in rejeitados:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor) if sol.aprovado_em_gestor else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
+        rejeitados_com_data.append(sol)
+    
+    concluidos_com_data = []
+    for sol in concluidos:
+        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        sol.concluido_em_brasilia = localtime(sol.concluido_em) if sol.concluido_em else None
+        try:
+            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            sol.nome_solicitante = perfil.nome_solicitante or ""
+        except PerfilSolicitante.DoesNotExist:
+            sol.nome_solicitante = ""
+        sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Adicionar status descritivo
+        sol.status_descritivo = _get_status_descritivo(sol)
+        concluidos_com_data.append(sol)
+    
+    # Função helper para construir URL sem um filtro específico
+    def get_url_without_filter(exclude_param):
+        params = {}
+        if data_inicio and exclude_param != 'data_inicio':
+            params['data_inicio'] = data_inicio
+        if data_fim and exclude_param != 'data_fim':
+            params['data_fim'] = data_fim
+        if status_filtro and exclude_param != 'status':
+            params['status'] = status_filtro
+        if centro_custo_filtro and exclude_param != 'centro_custo':
+            params['centro_custo'] = centro_custo_filtro
+        if tipo_despesa_filtro and exclude_param != 'tipo_despesa':
+            params['tipo_despesa'] = tipo_despesa_filtro
+        if id_filtro and exclude_param != 'id':
+            params['id'] = id_filtro
+        
+        from django.http import QueryDict
+        query_string = QueryDict('', mutable=True)
+        query_string.update(params)
+        return '?' + query_string.urlencode() if params else ''
+    
+    # Labels para os filtros
+    status_labels = dict([
+        ('', 'Todos'),
+        ('aguardando_pagamento', 'Aguardando Pagamento'),
+        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
+        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
+        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ('concluido', 'Concluído'),
+    ])
+    centro_labels = dict(CENTROS_CUSTO)
+    tipo_labels = dict(TIPOS_DESPESA)
+    
+    # Construir lista de badges de filtros ativos
+    active_filter_badges = []
+    if data_inicio:
+        active_filter_badges.append({
+            'label': f'Data Início: {data_inicio}',
+            'remove_url': get_url_without_filter('data_inicio')
+        })
+    if data_fim:
+        active_filter_badges.append({
+            'label': f'Data Fim: {data_fim}',
+            'remove_url': get_url_without_filter('data_fim')
+        })
+    if status_filtro:
+        active_filter_badges.append({
+            'label': f'Status: {status_labels.get(status_filtro, status_filtro)}',
+            'remove_url': get_url_without_filter('status')
+        })
+    if centro_custo_filtro:
+        active_filter_badges.append({
+            'label': f'Centro de Custo: {centro_labels.get(centro_custo_filtro, centro_custo_filtro)}',
+            'remove_url': get_url_without_filter('centro_custo')
+        })
+    if tipo_despesa_filtro:
+        active_filter_badges.append({
+            'label': f'Tipo de Despesa: {tipo_labels.get(tipo_despesa_filtro, tipo_despesa_filtro)}',
+            'remove_url': get_url_without_filter('tipo_despesa')
+        })
+    if id_filtro:
+        active_filter_badges.append({
+            'label': f'ID: #{id_filtro}',
+            'remove_url': get_url_without_filter('id')
+        })
+    
+    # Aplicar filtro de status descritivo
+    if status_filtro:
+        if status_filtro == 'aguardando_assinatura':
+            # Filtrar apenas aprovados que estão aguardando assinatura
+            aprovados_filtrados = []
+            for sol in aprovados_com_data:
+                if sol.status_descritivo == 'aguardando_assinatura':
+                    aprovados_filtrados.append(sol)
+            aprovados_com_data = aprovados_filtrados
+            # Limpar rejeitados quando filtrar por aguardando assinatura
+            rejeitados_com_data = []
+        elif status_filtro == SolicitacaoReembolso.STATUS_APROVADO:
+            # Filtrar apenas aprovados (não aguardando assinatura)
+            aprovados_filtrados = []
+            for sol in aprovados_com_data:
+                if sol.status_descritivo == 'aprovado' or sol.status_descritivo == 'aguardando_gestor_admin':
+                    aprovados_filtrados.append(sol)
+            aprovados_com_data = aprovados_filtrados
+            # Limpar rejeitados
+            rejeitados_com_data = []
+        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+            # Filtrar apenas rejeitados
+            # Limpar aprovados
+            aprovados_com_data = []
+        elif status_filtro == 'concluido':
+            # Filtrar apenas concluídos
+            # Limpar aprovados e rejeitados
+            aprovados_com_data = []
+            rejeitados_com_data = []
+    
+    # Opções para status (adaptado para últimos reembolsos)
+    status_choices = [
+        ('', 'Todos'),
+        (SolicitacaoReembolso.STATUS_APROVADO, 'Aprovado'),
+        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ('aguardando_assinatura', 'Aguardando Assinaturas'),
+        ('concluido', 'Concluído'),
+    ]
+    
+    return render(
+        request,
+        "intra/ultimos_reembolsos_gestor.html",
+        {
+            "aprovados": aprovados_com_data,
+            "rejeitados": rejeitados_com_data,
+            "concluidos": concluidos_com_data,
+            "filtros": {
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "status": status_filtro,
+                "centro_custo": centro_custo_filtro,
+                "tipo_despesa": tipo_despesa_filtro,
+                "id": id_filtro,
+            },
+            "status_choices": status_choices,
+            "centros_custo": CENTROS_CUSTO,
+            "tipos_despesa": TIPOS_DESPESA,
+            "active_filter_badges": active_filter_badges,
+        },
+    )
+
+
+@login_required
+def concluir_reembolso(request, pk):
+    """Conclui uma solicitação de reembolso aprovada."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    
+    # Verificar se está aprovado e não concluído
+    if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_APROVADO:
+        messages.error(request, "Apenas solicitações aprovadas podem ser concluídas.")
+        return redirect("intra:ultimos_reembolsos")
+    
+    if sol.concluido:
+        messages.warning(request, "Esta solicitação já foi concluída.")
+        return redirect("intra:ultimos_reembolsos")
+    
+    if request.method == "POST":
+        sol.concluido = True
+        sol.concluido_em = timezone.now()
+        sol.save()
+        messages.success(request, f"Solicitação #{sol.pk} concluída com sucesso!")
+        return redirect("intra:ultimos_reembolsos")
+    
+    return redirect("intra:ultimos_reembolsos")

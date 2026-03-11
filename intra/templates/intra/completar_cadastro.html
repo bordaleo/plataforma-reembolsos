@@ -302,83 +302,106 @@
             </div>
 
             <div class="form-section">
-                <div class="section-title">Dados do Gestor</div>
-                <div class="form-group" style="position: relative;">
-                    <label for="id_gestor_busca">
-                        {{ form.gestor_busca.label }}
-                        <span class="required">*</span>
-                    </label>
-                    <div class="gestor-input-wrapper">
-                        {{ form.gestor_busca }}
-                        <button type="button" class="gestor-toggle-btn" id="gestor-toggle-btn" title="Mostrar lista de gestores">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                    </div>
-                    <div id="gestor-autocomplete" class="autocomplete-dropdown"></div>
-                    {% if form.gestor_busca.errors or form.nome_gestor.errors or form.email_gestor.errors %}
-                        <ul class="errorlist">
-                            {% if form.gestor_busca.errors %}{{ form.gestor_busca.errors }}{% endif %}
-                            {% if form.nome_gestor.errors %}{{ form.nome_gestor.errors }}{% endif %}
-                            {% if form.email_gestor.errors %}{{ form.email_gestor.errors }}{% endif %}
-                        </ul>
-                    {% endif %}
-                    {{ form.nome_gestor }}
-                    {{ form.email_gestor }}
-                </div>
-            </div>
-
-            <div class="form-section">
                 <div class="section-title">Dados de Pagamento</div>
-                <p class="section-description">Banco, Agência, Conta Corrente ou Poupança e Chave PIX</p>
-                <div class="form-group" style="position: relative;">
-                    <label for="id_banco">
-                        {{ form.banco.label }}
+                <p class="section-description">Escolha a forma de pagamento desejada</p>
+                
+                <div class="form-group">
+                    <label for="id_forma_pagamento">
+                        {{ form.forma_pagamento.label }}
                         <span class="required">*</span>
                     </label>
-                    <div class="banco-input-wrapper">
-                        {{ form.banco }}
-                        <button type="button" class="banco-toggle-btn" id="banco-toggle-btn" title="Mostrar lista de bancos">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
+                    {{ form.forma_pagamento }}
+                    {% if form.forma_pagamento.errors %}<ul class="errorlist">{{ form.forma_pagamento.errors }}</ul>{% endif %}
+                </div>
+
+                <!-- Campos para PIX -->
+                <div id="pix-fields" style="display: none;">
+                    <div class="form-group" style="position: relative;">
+                        <label for="id_banco_pix_select">
+                            Banco
+                            <span class="required">*</span>
+                        </label>
+                        <div class="banco-input-wrapper">
+                            {{ form.banco_pix_select }}
+                            <button type="button" class="banco-toggle-btn" id="banco-pix-toggle-btn" title="Mostrar lista de bancos">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="banco-pix-autocomplete" class="autocomplete-dropdown"></div>
+                        {{ form.banco_pix }}
+                        {% if form.banco_pix_select.errors or form.banco_pix.errors %}<ul class="errorlist">{{ form.banco_pix_select.errors }}{{ form.banco_pix.errors }}</ul>{% endif %}
                     </div>
-                    <div id="banco-autocomplete" class="autocomplete-dropdown"></div>
-                    {% if form.banco.errors %}<ul class="errorlist">{{ form.banco.errors }}</ul>{% endif %}
+                    <div class="form-group">
+                        <label for="id_chave_pix">
+                            {{ form.chave_pix.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.chave_pix }}
+                        {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_cpf_pix">
+                            {{ form.cpf_pix.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.cpf_pix }}
+                        {% if form.cpf_pix.errors %}<ul class="errorlist">{{ form.cpf_pix.errors }}</ul>{% endif %}
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="id_agencia">
-                        {{ form.agencia.label }}
-                        <span class="required">*</span>
-                    </label>
-                    {{ form.agencia }}
-                    {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
-                </div>
-                <div class="form-group">
-                    <label for="id_conta_tipo">
-                        {{ form.conta_tipo.label }}
-                        <span class="required">*</span>
-                    </label>
-                    {{ form.conta_tipo }}
-                    {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
-                </div>
-                <div class="form-group">
-                    <label for="id_conta_numero">
-                        {{ form.conta_numero.label }}
-                        <span class="required">*</span>
-                    </label>
-                    {{ form.conta_numero }}
-                    {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
-                </div>
-                <div class="form-group">
-                    <label for="id_chave_pix">
-                        {{ form.chave_pix.label }}
-                        <span class="required">*</span>
-                    </label>
-                    {{ form.chave_pix }}
-                    {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+
+                <!-- Campos para Transferência Bancária -->
+                <div id="transferencia-fields" style="display: none;">
+                    <div class="form-group" style="position: relative;">
+                        <label for="id_banco_transf_select">
+                            Banco
+                            <span class="required">*</span>
+                        </label>
+                        <div class="banco-input-wrapper">
+                            {{ form.banco_transf_select }}
+                            <button type="button" class="banco-toggle-btn" id="banco-transf-toggle-btn" title="Mostrar lista de bancos">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="banco-transf-autocomplete" class="autocomplete-dropdown"></div>
+                        {{ form.banco }}
+                        {% if form.banco_transf_select.errors or form.banco.errors %}<ul class="errorlist">{{ form.banco_transf_select.errors }}{{ form.banco.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_agencia">
+                            {{ form.agencia.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.agencia }}
+                        {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_conta_tipo">
+                            {{ form.conta_tipo.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.conta_tipo }}
+                        {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_conta_numero">
+                            {{ form.conta_numero.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.conta_numero }}
+                        {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_cpf_transferencia">
+                            {{ form.cpf_transferencia.label }}
+                            <span class="required">*</span>
+                        </label>
+                        {{ form.cpf_transferencia }}
+                        {% if form.cpf_transferencia.errors %}<ul class="errorlist">{{ form.cpf_transferencia.errors }}</ul>{% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -387,170 +410,67 @@
         </form>
     </div>
     <script>
+        // Controle de exibição dos campos baseado na forma de pagamento
         (function() {
-            const gestorBusca = document.getElementById('id_gestor_busca');
-            const nomeGestor = document.getElementById('id_nome_gestor');
-            const emailGestor = document.getElementById('id_email_gestor');
-            const autocomplete = document.getElementById('gestor-autocomplete');
-            const toggleBtn = document.getElementById('gestor-toggle-btn');
-            let timeoutId = null;
-            let selectedIndex = -1;
-            let gestores = [];
+            const formaPagamento = document.getElementById('id_forma_pagamento');
+            const pixFields = document.getElementById('pix-fields');
+            const transferenciaFields = document.getElementById('transferencia-fields');
 
-            function buscarGestores(query) {
-                const queryParam = query || '';
-                fetch('{% url "intra:buscar_gestores" %}?q=' + encodeURIComponent(queryParam))
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Erro na requisição: ' + response.status);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        gestores = data.gestores || [];
-                        mostrarAutocomplete();
-                    })
-                    .catch(error => {
-                        console.error('Erro ao buscar gestores:', error);
-                        autocomplete.classList.remove('show');
-                        toggleBtn.classList.remove('active');
-                    });
-            }
-
-            function mostrarAutocomplete() {
-                if (gestores.length === 0) {
-                    autocomplete.classList.remove('show');
-                    toggleBtn.classList.remove('active');
-                    return;
-                }
-
-                autocomplete.innerHTML = '';
-                gestores.forEach((gestor, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'autocomplete-item';
-                    item.dataset.index = index;
-                    
-                    // Nome - garantir que não seja vazio
-                    const nomeDiv = document.createElement('div');
-                    nomeDiv.className = 'autocomplete-item-nome';
-                    const nomeTexto = gestor.nome && gestor.nome.trim() ? gestor.nome : gestor.email;
-                    nomeDiv.textContent = nomeTexto;
-                    
-                    // Email
-                    const emailDiv = document.createElement('div');
-                    emailDiv.className = 'autocomplete-item-email';
-                    emailDiv.textContent = gestor.email;
-                    
-                    item.appendChild(nomeDiv);
-                    item.appendChild(emailDiv);
-                    item.addEventListener('click', () => selecionarGestor(gestor));
-                    autocomplete.appendChild(item);
-                });
-                autocomplete.classList.add('show');
-                toggleBtn.classList.add('active');
-                selectedIndex = -1;
-            }
-
-            function selecionarGestor(gestor) {
-                gestorBusca.value = gestor.display;
-                nomeGestor.value = gestor.nome;
-                emailGestor.value = gestor.email;
-                autocomplete.classList.remove('show');
-                toggleBtn.classList.remove('active');
-            }
-            
-            // Botão toggle para abrir/fechar lista
-            toggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (autocomplete.classList.contains('show')) {
-                    autocomplete.classList.remove('show');
-                    toggleBtn.classList.remove('active');
+            function atualizarCampos() {
+                const forma = formaPagamento.value;
+                if (forma === 'PIX') {
+                    pixFields.style.display = 'block';
+                    transferenciaFields.style.display = 'none';
+                } else if (forma === 'TRANSFERENCIA') {
+                    pixFields.style.display = 'none';
+                    transferenciaFields.style.display = 'block';
                 } else {
-                    const query = gestorBusca.value.trim();
-                    buscarGestores(query);
+                    pixFields.style.display = 'none';
+                    transferenciaFields.style.display = 'none';
                 }
-            });
-
-            // Mostra lista ao focar ou clicar no campo
-            gestorBusca.addEventListener('focus', function() {
-                const query = gestorBusca.value.trim();
-                buscarGestores(query);
-            });
-            
-            gestorBusca.addEventListener('click', function() {
-                // Se a lista não estiver visível, busca e mostra
-                if (!autocomplete.classList.contains('show')) {
-                    const query = gestorBusca.value.trim();
-                    buscarGestores(query);
-                }
-            });
-
-            gestorBusca.addEventListener('input', function(e) {
-                clearTimeout(timeoutId);
-                const query = e.target.value.trim();
-                
-                // Limpa campos ocultos se o campo de busca for limpo
-                if (query.length === 0) {
-                    nomeGestor.value = '';
-                    emailGestor.value = '';
-                }
-
-                timeoutId = setTimeout(() => {
-                    buscarGestores(query);
-                }, 100);
-            });
-
-            gestorBusca.addEventListener('keydown', function(e) {
-                if (!autocomplete.classList.contains('show') || gestores.length === 0) {
-                    return;
-                }
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedIndex = Math.min(selectedIndex + 1, gestores.length - 1);
-                    atualizarSelecao();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedIndex = Math.max(selectedIndex - 1, -1);
-                    atualizarSelecao();
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (selectedIndex >= 0 && selectedIndex < gestores.length) {
-                        selecionarGestor(gestores[selectedIndex]);
-                    }
-                } else if (e.key === 'Escape') {
-                    autocomplete.classList.remove('show');
-                }
-            });
-
-            function atualizarSelecao() {
-                const items = autocomplete.querySelectorAll('.autocomplete-item');
-                items.forEach((item, index) => {
-                    if (index === selectedIndex) {
-                        item.classList.add('selected');
-                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                    } else {
-                        item.classList.remove('selected');
-                    }
-                });
             }
 
-            // Fechar autocomplete ao clicar fora
-            document.addEventListener('click', function(e) {
-                if (!gestorBusca.contains(e.target) && !autocomplete.contains(e.target) && !toggleBtn.contains(e.target)) {
-                    autocomplete.classList.remove('show');
-                    toggleBtn.classList.remove('active');
-                }
-            });
+            formaPagamento.addEventListener('change', atualizarCampos);
+            // Inicializar ao carregar
+            atualizarCampos();
         })();
 
-        // Variável global para atualizar placeholders
-        let atualizarPlaceholdersGlobal = null;
-
-        // Autocomplete de Bancos
+        // Máscara para CPF
         (function() {
+            function aplicarMascaraCPF(value) {
+                let numeros = value.replace(/\D/g, '');
+                if (numeros.length > 11) {
+                    numeros = numeros.substring(0, 11);
+                }
+                if (numeros.length <= 3) {
+                    return numeros;
+                } else if (numeros.length <= 6) {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3);
+                } else if (numeros.length <= 9) {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+                } else {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9);
+                }
+            }
+
+            const cpfPix = document.getElementById('id_cpf_pix');
+            const cpfTransf = document.getElementById('id_cpf_transferencia');
+
+            if (cpfPix) {
+                cpfPix.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraCPF(e.target.value);
+                });
+            }
+
+            if (cpfTransf) {
+                cpfTransf.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraCPF(e.target.value);
+                });
+            }
+        })();
+
+        // Função reutilizável para autocomplete de bancos
+        function criarAutocompleteBanco(inputId, autocompleteId, toggleBtnId, hiddenInputId) {
             const bancosPrincipais = [
                 'Banco do Brasil',
                 'Bradesco',
@@ -571,15 +491,23 @@
                 'Banco Digio',
                 'Banco Will',
                 'Banco Sofisa',
-                'Banco Rendimento'
+                'Banco Rendimento',
+                'Outro'
             ];
 
-            const bancoInput = document.getElementById('id_banco');
-            const bancoAutocomplete = document.getElementById('banco-autocomplete');
-            const bancoToggleBtn = document.getElementById('banco-toggle-btn');
+            const bancoInput = document.getElementById(inputId);
+            const bancoAutocomplete = document.getElementById(autocompleteId);
+            const bancoToggleBtn = document.getElementById(toggleBtnId);
+            const bancoHidden = document.getElementById(hiddenInputId);
+            
+            if (!bancoInput || !bancoAutocomplete || !bancoToggleBtn || !bancoHidden) {
+                return;
+            }
+
             let bancoTimeoutId = null;
             let bancoSelectedIndex = -1;
             let bancosFiltrados = [];
+            let outroSelecionado = false;
 
             function filtrarBancos(query) {
                 const queryLower = query.toLowerCase().trim();
@@ -613,15 +541,19 @@
             }
 
             function selecionarBanco(banco) {
-                bancoInput.value = banco;
+                if (banco === 'Outro') {
+                    outroSelecionado = true;
+                    bancoInput.value = '';
+                    bancoInput.placeholder = 'Digite o nome do banco...';
+                    bancoInput.focus();
+                } else {
+                    outroSelecionado = false;
+                    bancoInput.value = banco;
+                    bancoHidden.value = banco;
+                    bancoInput.placeholder = 'Selecione ou digite o banco...';
+                }
                 bancoAutocomplete.classList.remove('show');
                 bancoToggleBtn.classList.remove('active');
-                // Atualizar placeholders quando banco é selecionado
-                setTimeout(() => {
-                    if (atualizarPlaceholdersGlobal) {
-                        atualizarPlaceholdersGlobal();
-                    }
-                }, 50);
             }
 
             bancoInput.addEventListener('focus', function() {
@@ -641,6 +573,11 @@
             bancoInput.addEventListener('input', function(e) {
                 clearTimeout(bancoTimeoutId);
                 const query = e.target.value.trim();
+                
+                // Se "Outro" foi selecionado, atualizar o campo hidden
+                if (outroSelecionado || (!bancosPrincipais.includes(query) && query.length > 0)) {
+                    bancoHidden.value = query;
+                }
                 
                 bancoTimeoutId = setTimeout(() => {
                     bancosFiltrados = filtrarBancos(query);
@@ -666,7 +603,6 @@
                     if (bancoSelectedIndex >= 0 && bancoSelectedIndex < bancosFiltrados.length) {
                         selecionarBanco(bancosFiltrados[bancoSelectedIndex]);
                     } else if (bancosFiltrados.length === 1) {
-                        // Se houver apenas um banco na lista, selecionar automaticamente
                         selecionarBanco(bancosFiltrados[0]);
                     }
                 } else if (e.key === 'Escape') {
@@ -708,11 +644,18 @@
                     bancoToggleBtn.classList.remove('active');
                 }
             });
-        })();
+        }
+
+        // Criar autocomplete para banco PIX
+        criarAutocompleteBanco('id_banco_pix_select', 'banco-pix-autocomplete', 'banco-pix-toggle-btn', 'id_banco_pix');
+        
+        // Criar autocomplete para banco Transferência
+        criarAutocompleteBanco('id_banco_transf_select', 'banco-transf-autocomplete', 'banco-transf-toggle-btn', 'id_banco');
 
         // Máscaras dinâmicas para Agência e Conta baseadas no banco
         (function() {
-            const bancoInput = document.getElementById('id_banco');
+            const bancoInput = document.getElementById('id_banco_transf_select');
+            const bancoHidden = document.getElementById('id_banco');
             const agenciaInput = document.getElementById('id_agencia');
             const contaInput = document.getElementById('id_conta_numero');
 
@@ -753,7 +696,7 @@
             };
 
             function getMascaraBanco() {
-                const bancoSelecionado = bancoInput.value.trim();
+                const bancoSelecionado = (bancoInput ? bancoInput.value.trim() : '') || (bancoHidden ? bancoHidden.value.trim() : '');
                 for (const [nomeBanco, mascara] of Object.entries(mascarasBancos)) {
                     if (bancoSelecionado.toLowerCase().includes(nomeBanco.toLowerCase())) {
                         return mascara;
@@ -844,32 +787,38 @@
                 });
 
                 // Atualizar máscara e placeholders quando o banco mudar
-                bancoInput.addEventListener('change', function() {
-                    contaInput.value = aplicarMascaraConta(contaInput.value);
-                    atualizarPlaceholders();
-                });
-
-                bancoInput.addEventListener('input', function() {
-                    // Se o banco foi selecionado da lista, atualizar máscara e placeholders
-                    setTimeout(() => {
+                if (bancoInput) {
+                    bancoInput.addEventListener('change', function() {
                         contaInput.value = aplicarMascaraConta(contaInput.value);
                         atualizarPlaceholders();
-                    }, 100);
-                });
+                    });
 
-                // Atualizar placeholders quando o banco é selecionado da lista
-                bancoInput.addEventListener('blur', function() {
-                    atualizarPlaceholders();
-                });
+                    bancoInput.addEventListener('input', function() {
+                        // Se o banco foi selecionado da lista, atualizar máscara e placeholders
+                        setTimeout(() => {
+                            contaInput.value = aplicarMascaraConta(contaInput.value);
+                            atualizarPlaceholders();
+                        }, 100);
+                    });
+
+                    // Atualizar placeholders quando o banco é selecionado da lista
+                    bancoInput.addEventListener('blur', function() {
+                        atualizarPlaceholders();
+                    });
+                }
+
+                if (bancoHidden) {
+                    bancoHidden.addEventListener('change', function() {
+                        contaInput.value = aplicarMascaraConta(contaInput.value);
+                        atualizarPlaceholders();
+                    });
+                }
             }
 
             // Inicializar placeholders ao carregar a página
-            if (bancoInput && agenciaInput && contaInput) {
+            if (agenciaInput && contaInput) {
                 atualizarPlaceholders();
             }
-
-            // Tornar função acessível globalmente
-            atualizarPlaceholdersGlobal = atualizarPlaceholders;
         })();
     </script>
 </body>

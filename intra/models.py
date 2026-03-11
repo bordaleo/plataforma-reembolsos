@@ -17,12 +17,28 @@ class PerfilSolicitante(models.Model):
         ("POUPANCA", "Poupança"),
     ]
 
+    FORMA_PAGAMENTO_CHOICES = [
+        ("PIX", "PIX"),
+        ("TRANSFERENCIA", "Transferência Bancária"),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="perfil_solicitante",
     )
     nome_solicitante = models.CharField("Nome do solicitante", max_length=200, blank=True)
+    forma_pagamento = models.CharField(
+        "Forma de Pagamento",
+        max_length=20,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        blank=True,
+    )
+    # Campos para PIX
+    chave_pix = models.CharField("Chave PIX", max_length=100, blank=True)
+    banco_pix = models.CharField("Banco (PIX)", max_length=100, blank=True)
+    cpf_pix = models.CharField("CPF (PIX)", max_length=14, blank=True)
+    # Campos para Transferência Bancária
     banco = models.CharField("Banco", max_length=100, blank=True)
     agencia = models.CharField("Agência", max_length=20, blank=True)
     conta_tipo = models.CharField(
@@ -32,7 +48,8 @@ class PerfilSolicitante(models.Model):
         blank=True,
     )
     conta_numero = models.CharField("Conta Corrente ou Poupança", max_length=30, blank=True)
-    chave_pix = models.CharField("Chave PIX", max_length=100, blank=True)
+    cpf_transferencia = models.CharField("CPF (Transferência)", max_length=14, blank=True)
+    # Campos de gestor (mantidos para compatibilidade, mas não mais obrigatórios no cadastro)
     nome_gestor = models.CharField("Nome do gestor", max_length=200, blank=True)
     email_gestor = models.EmailField("E-mail do gestor", max_length=200, blank=True)
 
@@ -43,16 +60,28 @@ class PerfilSolicitante(models.Model):
     @property
     def dados_completos(self):
         """True se todos os campos obrigatórios estão preenchidos."""
-        return bool(
-            self.nome_solicitante.strip()
-            and self.banco.strip()
-            and self.agencia.strip()
-            and self.conta_tipo
-            and self.conta_numero.strip()
-            and self.chave_pix.strip()
-            and self.nome_gestor.strip()
-            and self.email_gestor.strip()
-        )
+        if not self.nome_solicitante or not self.nome_solicitante.strip():
+            return False
+        
+        if not self.forma_pagamento:
+            return False
+        
+        if self.forma_pagamento == "PIX":
+            return bool(
+                self.chave_pix and self.chave_pix.strip()
+                and self.banco_pix and self.banco_pix.strip()
+                and self.cpf_pix and self.cpf_pix.strip()
+            )
+        elif self.forma_pagamento == "TRANSFERENCIA":
+            return bool(
+                self.banco and self.banco.strip()
+                and self.agencia and self.agencia.strip()
+                and self.conta_tipo
+                and self.conta_numero and self.conta_numero.strip()
+                and self.cpf_transferencia and self.cpf_transferencia.strip()
+            )
+        
+        return False
 
     def __str__(self):
         return self.nome_solicitante or str(self.user)
@@ -64,10 +93,16 @@ class SolicitacaoReembolso(models.Model):
     STATUS_PENDENTE = "PENDENTE"
     STATUS_APROVADO = "APROVADO"
     STATUS_REJEITADO = "REJEITADO"
+    STATUS_AGUARDANDO_PAGAMENTO = "AGUARDANDO_PAGAMENTO"
+    STATUS_PAGO_AGUARDANDO_ASSINATURAS = "PAGO_AGUARDANDO_ASSINATURAS"
+    STATUS_ASSINADO_TODAS_PARTES = "ASSINADO_TODAS_PARTES"
     STATUS_CHOICES = [
         (STATUS_PENDENTE, "Pendente"),
         (STATUS_APROVADO, "Aprovado"),
         (STATUS_REJEITADO, "Rejeitado"),
+        (STATUS_AGUARDANDO_PAGAMENTO, "Aprovado - Aguardando pagamento"),
+        (STATUS_PAGO_AGUARDANDO_ASSINATURAS, "Pago - Aguardando assinaturas"),
+        (STATUS_ASSINADO_TODAS_PARTES, "Assinado por todas as partes"),
     ]
 
     user = models.ForeignKey(
@@ -87,14 +122,14 @@ class SolicitacaoReembolso(models.Model):
     # Status geral (final) - será APROVADO apenas quando gestor admin aprovar
     status = models.CharField(
         "Status",
-        max_length=20,
+        max_length=50,
         choices=STATUS_CHOICES,
         default=STATUS_PENDENTE,
     )
     # Campos de aprovação do Gestor (primeiro nível)
     status_gestor = models.CharField(
         "Status do Gestor",
-        max_length=20,
+        max_length=50,
         choices=STATUS_CHOICES,
         default=STATUS_PENDENTE,
     )
@@ -114,7 +149,7 @@ class SolicitacaoReembolso(models.Model):
     # Campos de aprovação do Gestor Administrativo (segundo nível)
     status_gestor_admin = models.CharField(
         "Status do Gestor Administrativo",
-        max_length=20,
+        max_length=50,
         choices=STATUS_CHOICES,
         default=STATUS_PENDENTE,
     )
@@ -145,6 +180,62 @@ class SolicitacaoReembolso(models.Model):
         max_length=500,
         blank=True,
     )
+    # Campo para marcar como concluído pelo gestor administrativo
+    concluido = models.BooleanField(
+        "Concluído",
+        default=False,
+        help_text="Marcado quando o gestor administrativo conclui a solicitação"
+    )
+    concluido_em = models.DateTimeField("Data da conclusão", null=True, blank=True)
+    # Campo para marcar como pago
+    pago = models.BooleanField(
+        "Pago",
+        default=False,
+        help_text="Marcado quando o gestor administrativo marca como pago"
+    )
+    pago_em = models.DateTimeField("Data do pagamento", null=True, blank=True)
+    # Campos DocuSign
+    envelope_id_docusign = models.CharField(
+        "ID do Envelope DocuSign",
+        max_length=200,
+        blank=True,
+        null=True,
+    )
+    status_docusign = models.CharField(
+        "Status da Assinatura DocuSign",
+        max_length=50,
+        blank=True,
+        null=True,
+    )
+    # Campos de forma de pagamento
+    FORMA_PAGAMENTO_CHOICES = [
+        ("PIX", "PIX"),
+        ("TRANSFERENCIA", "Transferência Bancária"),
+    ]
+    forma_pagamento = models.CharField(
+        "Forma de Pagamento",
+        max_length=20,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        blank=True,
+        null=True,
+    )
+    # Campos para PIX
+    pix_chave = models.CharField("Chave PIX", max_length=100, blank=True, null=True)
+    pix_banco = models.CharField("Banco (PIX)", max_length=100, blank=True, null=True)
+    pix_cpf = models.CharField("CPF (PIX)", max_length=14, blank=True, null=True)
+    # Campos para Transferência
+    transf_banco = models.CharField("Banco (Transferência)", max_length=100, blank=True, null=True)
+    transf_agencia = models.CharField("Agência (Transferência)", max_length=20, blank=True, null=True)
+    transf_conta_tipo = models.CharField(
+        "Tipo de Conta (Transferência)",
+        max_length=10,
+        choices=PerfilSolicitante.CONTA_TIPO,
+        blank=True,
+        null=True,
+    )
+    transf_conta_numero = models.CharField("Conta (Transferência)", max_length=30, blank=True, null=True)
+    # Campo para nome do gestor específico da solicitação
+    nome_gestor = models.CharField("Nome do Gestor", max_length=200, blank=True, null=True)
 
     class Meta:
         verbose_name = "Solicitação de reembolso"

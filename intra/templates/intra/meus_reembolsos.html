@@ -97,13 +97,15 @@
         background: #3182ce;
         color: #ffffff;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 0.375rem 0.75rem;
         font-size: 0.9rem;
         font-weight: 600;
-        border-radius: 6px;
+        border-radius: 4px;
         text-decoration: none;
         display: inline-block;
         transition: all 0.2s;
+        width: 100%;
+        text-align: center;
     }
     .btn-editar:hover {
         background: #2c5aa0;
@@ -352,30 +354,31 @@
                 <td>{{ s.codigos_despesa }}</td>
                 <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
                 <td>
-                    {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
-                    {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
-                    {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
-                    {% if s.status_descritivo == 'pago_aguardando_assinaturas' %}
-                        <span class="status-aguardando-assinatura">⏳ Pago - Aguardando assinaturas</span>
-                        {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
-                            <br><small style="color: #856404; margin-top: 4px; display: block;">
-                                Aguardando assinatura de: 
-                                {% for signer in s.status_docusign_info.aguardando_assinatura %}
-                                    {{ signer.nome }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </small>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
+                        {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
+                        {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
+                        {% if s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                            <span class="status-aguardando-assinatura">⏳ Pago - Aguardando assinaturas</span>
+                            {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                                <br><small style="color: #856404; margin-top: 4px; display: block;">
+                                    Aguardando assinatura de: 
+                                    {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                        {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </small>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
-                    {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
-                    {% if s.status_descritivo == 'rejeitado_gestor' %}<span class="status-rejeitado">Rejeitado pelo gestor</span>{% endif %}
-                    {% if s.status_descritivo == 'rejeitado_gestor_admin' %}<span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>{% endif %}
-                    {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
+                        {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
+                        {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
+                            <span class="status-rejeitado">Rejeitado</span>
+                            <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar" style="margin-top: 0.5rem;">Editar</a>
+                        {% endif %}
+                        {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
+                    </div>
                 </td>
                 <td class="acoes">
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
-                    {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
-                        <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar" style="margin-left: 0.5rem;">Editar e Reenviar</a>
-                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -417,6 +420,13 @@
             </table>
             <p class="detalhe-total"><strong>Total: <span id="detalhe-total"></span></strong></p>
             
+            <div id="detalhe-gestor-destaque" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">
+                <h3 class="detalhe-subtitulo">Nome do Gestor</h3>
+                <div style="background: #f8f9fa; padding: 1rem 1.25rem; border-radius: 6px; border-left: 4px solid #34495e;">
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #34495e;"><span id="detalhe-gestor-destaque-text">—</span></p>
+                </div>
+            </div>
+            
             <div id="detalhe-pagamento" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">
                 <h3 class="detalhe-subtitulo">Dados de Pagamento</h3>
                 <div id="detalhe-pagamento-content"></div>
@@ -430,6 +440,7 @@
                 <p style="margin: 0 0 0.5rem; font-weight: 700; color: #c53030; font-size: 1.05rem;">Motivo da Rejeição:</p>
                 <p style="margin: 0; color: #744210; font-size: 1rem; line-height: 1.6;" id="detalhe-motivo-texto"></p>
             </div>
+            <div id="detalhe-historico" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;"></div>
             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed; text-align: center;">
                 <button type="button" class="btn-notificar-gestor" id="btn-notificar-gestor" data-pk="">
                     Enviar Notificação ao Gestor
@@ -478,6 +489,12 @@
                         tbodyItens.appendChild(tr);
                     });
                     detalheTotal.textContent = 'R$ ' + formatarValor(data.valor_total);
+                    
+                    // Mostrar nome do gestor em destaque
+                    var detalheGestorDestaque = document.getElementById('detalhe-gestor-destaque-text');
+                    if (detalheGestorDestaque) {
+                        detalheGestorDestaque.textContent = data.nome_gestor || '—';
+                    }
                     
                     // Mostrar dados de pagamento
                     var pagamentoContent = document.getElementById('detalhe-pagamento-content');
@@ -529,7 +546,7 @@
                         statusBg = '#c6f6d5';
                         statusColor = '#38a169';
                         statusIcon = '✓';
-                    } else if (data.status_descritivo === 'rejeitado') {
+                    } else if (data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') {
                         statusLabel = 'Rejeitado';
                         statusBg = '#fed7d7';
                         statusColor = '#e53e3e';
@@ -555,12 +572,37 @@
                     // Mostrar motivo de rejeição se aplicável
                     var motivoDiv = document.getElementById('detalhe-motivo-rejeicao');
                     var motivoTexto = document.getElementById('detalhe-motivo-texto');
-                    if (data.status_descritivo === 'rejeitado' && data.motivo_rejeicao) {
+                    if ((data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') && data.motivo_rejeicao) {
                         motivoDiv.style.display = 'block';
                         motivoTexto.textContent = data.motivo_rejeicao;
                     } else {
                         motivoDiv.style.display = 'none';
                     }
+                    
+                    // Mostrar histórico de alterações se houver (sempre que houver histórico, não apenas quando rejeitada)
+                    var historicoDiv = document.getElementById('detalhe-historico');
+                    if (historicoDiv && data.historico && data.historico.length > 0) {
+                        var historicoHtml = '<h3 style="margin: 0 0 1rem; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">Histórico de Alterações</h3>';
+                        historicoHtml += '<div style="background: #f8f9fa; border-radius: 6px; padding: 1rem;">';
+                        data.historico.forEach(function(hist) {
+                            historicoHtml += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e1e8ed;">';
+                            historicoHtml += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+                            historicoHtml += '<strong style="color: #34495e; font-size: 0.95rem;">' + (hist.acao || '') + '</strong>';
+                            historicoHtml += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + (hist.data || '') + '</span>';
+                            historicoHtml += '</div>';
+                            if (hist.descricao) {
+                                historicoHtml += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + (hist.descricao || '') + '</p>';
+                            }
+                            historicoHtml += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + (hist.usuario || 'Sistema') + '</p>';
+                            historicoHtml += '</div>';
+                        });
+                        historicoHtml += '</div>';
+                        historicoDiv.innerHTML = historicoHtml;
+                        historicoDiv.style.display = 'block';
+                    } else if (historicoDiv) {
+                        historicoDiv.style.display = 'none';
+                    }
+                    
                     // Atualizar o data-pk do botão de notificação
                     var btnNotificar = document.getElementById('btn-notificar-gestor');
                     if (btnNotificar) btnNotificar.setAttribute('data-pk', pk);

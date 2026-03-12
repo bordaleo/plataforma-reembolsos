@@ -337,7 +337,24 @@
 </style>
 {% endblock %}
 {% block content %}
-<h1 class="page-title">Solicitação de Reembolso</h1>
+<h1 class="page-title">{% if solicitacao_editar %}Editar Solicitação de Reembolso{% else %}Solicitação de Reembolso{% endif %}</h1>
+
+{% if solicitacao_editar %}
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #e53e3e;">
+    <div style="padding: 1rem 1.5rem;">
+        <h3 style="margin: 0 0 0.75rem; font-size: 1.1rem; font-weight: 700; color: #e53e3e;">Motivo da Rejeição</h3>
+        <p style="margin: 0; color: #2c3e50; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">
+            {% if solicitacao_editar.motivo_rejeicao_gestor %}
+                {{ solicitacao_editar.motivo_rejeicao_gestor }}
+            {% elif solicitacao_editar.motivo_rejeicao_gestor_admin %}
+                {{ solicitacao_editar.motivo_rejeicao_gestor_admin }}
+            {% else %}
+                Nenhum motivo informado.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}
 
 <form method="post" action="" enctype="multipart/form-data" id="form-reembolso">
     {% csrf_token %}
@@ -402,7 +419,7 @@
                 </div>
                 <div class="form-group">
                     <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
-                    <input type="number" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control">
+                    <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?">
                 </div>
                 <div class="form-group">
                     <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
@@ -434,11 +451,18 @@
         </div>
         <div class="form-group">
             <label for="forma_pagamento">Forma de Pagamento <span style="color: #e74c3c;">*</span></label>
-            <select name="forma_pagamento" id="forma_pagamento" required class="form-control">
-                <option value="">Selecione...</option>
-                <option value="PIX">PIX</option>
-                <option value="TRANSFERENCIA">Transferência Bancária</option>
-            </select>
+            <div style="display: flex; gap: 0.75rem; align-items: stretch;">
+                <select name="forma_pagamento" id="forma_pagamento" required class="form-control" style="flex: 1;">
+                    <option value="">Selecione...</option>
+                    <option value="PIX">PIX</option>
+                    <option value="TRANSFERENCIA">Transferência Bancária</option>
+                </select>
+                {% if perfil and perfil.forma_pagamento %}
+                <button type="button" id="btn-usar-dados-perfil" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s; white-space: nowrap; align-self: stretch;">
+                    📋 Usar dados do perfil
+                </button>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Campos para PIX -->
@@ -446,13 +470,11 @@
             <div class="form-group">
                 <label for="pix_chave">Chave PIX <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="pix_chave" id="pix_chave" class="form-control" 
-                       value="{% if perfil.chave_pix %}{{ perfil.chave_pix }}{% endif %}" 
                        placeholder="CPF, e-mail, telefone ou chave aleatória">
             </div>
             <div class="form-group">
                 <label for="pix_banco">Banco <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="pix_banco" id="pix_banco" class="form-control" 
-                       value="{% if perfil.banco %}{{ perfil.banco }}{% endif %}" 
                        placeholder="Nome do banco">
             </div>
             <div class="form-group">
@@ -467,34 +489,31 @@
             <div class="form-group">
                 <label for="transf_banco">Banco <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_banco" id="transf_banco" class="form-control" 
-                       value="{% if perfil.banco %}{{ perfil.banco }}{% endif %}" 
                        placeholder="Nome do banco">
             </div>
             <div class="form-group">
                 <label for="transf_agencia">Agência <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_agencia" id="transf_agencia" class="form-control" 
-                       value="{% if perfil.agencia %}{{ perfil.agencia }}{% endif %}" 
                        placeholder="0000" maxlength="20">
             </div>
             <div class="form-group">
                 <label for="transf_conta_tipo">Tipo de Conta <span style="color: #e74c3c;">*</span></label>
                 <select name="transf_conta_tipo" id="transf_conta_tipo" class="form-control">
                     <option value="">Selecione...</option>
-                    <option value="CORRENTE" {% if perfil.conta_tipo == 'CORRENTE' %}selected{% endif %}>Conta Corrente</option>
-                    <option value="POUPANCA" {% if perfil.conta_tipo == 'POUPANCA' %}selected{% endif %}>Poupança</option>
+                    <option value="CORRENTE">Conta Corrente</option>
+                    <option value="POUPANCA">Poupança</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="transf_conta_numero">Conta Corrente ou Poupança <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_conta_numero" id="transf_conta_numero" class="form-control" 
-                       value="{% if perfil.conta_numero %}{{ perfil.conta_numero }}{% endif %}" 
                        placeholder="00000-0" maxlength="30">
             </div>
         </div>
     </div>
 
     <div class="card card-submit">
-        <button type="submit" class="btn btn-primary" style="margin: 0;">Enviar Solicitação</button>
+        <button type="submit" class="btn btn-primary" style="margin: 0;">{% if solicitacao_editar %}Reenviar Solicitação{% else %}Enviar Solicitação{% endif %}</button>
     </div>
 </form>
 
@@ -706,7 +725,7 @@
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
             '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" class="form-control"></div>' +
-            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="number" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"></div>' +
+            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div>' +
             '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
             '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
@@ -724,6 +743,11 @@
                 }
             });
             setupAnexo(inputAnexo);
+        }
+        // Aplicar máscara no campo de valor da nova linha
+        var inputValor = div.querySelector('input[name^="valor_"]');
+        if (inputValor) {
+            aplicarMascaraValor(inputValor);
         }
         div.querySelector('.btn-remover').addEventListener('click', function() {
             if (container.querySelectorAll('.linha-despesa').length > 1) div.remove();
@@ -763,22 +787,72 @@
         });
     });
 
+    // Função para aplicar máscara de valor monetário
+    function aplicarMascaraValor(input) {
+        input.addEventListener('input', function(e) {
+            var valor = e.target.value;
+            // Remove tudo que não é número
+            valor = valor.replace(/\D/g, '');
+            
+            if (valor === '') {
+                e.target.value = '';
+                atualizarTotal();
+                return;
+            }
+            
+            // Converte para número e divide por 100 para ter centavos
+            var valorNumerico = parseInt(valor, 10) / 100;
+            
+            // Formata com ponto para milhares e vírgula para decimais
+            var valorFormatado = valorNumerico.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            e.target.value = valorFormatado;
+            atualizarTotal();
+        });
+        
+        // Permitir backspace e delete
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                setTimeout(function() {
+                    atualizarTotal();
+                }, 10);
+            }
+        });
+    }
+    
+    // Aplicar máscara em todos os campos de valor existentes
+    container.querySelectorAll('input[name^="valor_"]').forEach(function(input) {
+        aplicarMascaraValor(input);
+    });
+
     function atualizarTotal() {
         var total = 0;
         container.querySelectorAll('input[name^="valor_"]').forEach(function(input) {
-            var v = parseFloat(String(input.value).replace(',', '.'), 10);
-            if (!isNaN(v) && v >= 0) total += v;
+            // Remove pontos (milhares) e substitui vírgula por ponto para parseFloat
+            var valorLimpo = input.value.replace(/\./g, '').replace(',', '.');
+            var v = parseFloat(valorLimpo) || 0;
+            total += v;
         });
         var el = document.getElementById('valor-total');
-        if (el) el.textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+        if (el) el.textContent = 'R$ ' + total.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 
     var form = document.getElementById('form-reembolso');
     form.addEventListener('input', function(e) {
-        if (e.target.name && e.target.name.indexOf('valor_') === 0) atualizarTotal();
+        if (e.target.name && e.target.name.indexOf('valor_') === 0) {
+            // A máscara já atualiza o total, não precisa chamar novamente
+        }
     });
     form.addEventListener('change', function(e) {
-        if (e.target.name && e.target.name.indexOf('valor_') === 0) atualizarTotal();
+        if (e.target.name && e.target.name.indexOf('valor_') === 0) {
+            atualizarTotal();
+        }
     });
     atualizarTotal();
 
@@ -849,8 +923,65 @@
         }
     }
     
+    // Garantir que os campos estejam ocultos inicialmente
+    if (camposPix) camposPix.style.display = 'none';
+    if (camposTransferencia) camposTransferencia.style.display = 'none';
+    
     if (formaPagamento) {
         formaPagamento.addEventListener('change', atualizarCamposPagamento);
+    }
+    
+    // Botão para usar dados do perfil
+    var btnUsarDadosPerfil = document.getElementById('btn-usar-dados-perfil');
+    if (btnUsarDadosPerfil) {
+        btnUsarDadosPerfil.addEventListener('click', function() {
+            // Dados do perfil passados via template
+            var perfilData = {
+                forma_pagamento: '{{ perfil.forma_pagamento|default:"" }}',
+                chave_pix: '{{ perfil.chave_pix|default:"" }}',
+                banco_pix: '{{ perfil.banco_pix|default:"" }}',
+                cpf_pix: '{{ perfil.cpf_pix|default:"" }}',
+                banco_transf: '{{ perfil.banco|default:"" }}',
+                agencia: '{{ perfil.agencia|default:"" }}',
+                conta_tipo: '{{ perfil.conta_tipo|default:"" }}',
+                conta_numero: '{{ perfil.conta_numero|default:"" }}',
+                cpf_transferencia: '{{ perfil.cpf_transferencia|default:"" }}'
+            };
+            
+            // Preencher forma de pagamento
+            if (perfilData.forma_pagamento && formaPagamento) {
+                formaPagamento.value = perfilData.forma_pagamento;
+                atualizarCamposPagamento();
+            }
+            
+            // Preencher campos PIX
+            if (perfilData.forma_pagamento === 'PIX') {
+                var pixChave = document.getElementById('pix_chave');
+                var pixBanco = document.getElementById('pix_banco');
+                var pixCpf = document.getElementById('pix_cpf');
+                if (pixChave && perfilData.chave_pix) pixChave.value = perfilData.chave_pix;
+                if (pixBanco && perfilData.banco_pix) pixBanco.value = perfilData.banco_pix;
+                if (pixCpf && perfilData.cpf_pix) pixCpf.value = perfilData.cpf_pix;
+            }
+            
+            // Preencher campos Transferência
+            if (perfilData.forma_pagamento === 'TRANSFERENCIA') {
+                var transfBanco = document.getElementById('transf_banco');
+                var transfAgencia = document.getElementById('transf_agencia');
+                var transfContaTipo = document.getElementById('transf_conta_tipo');
+                var transfContaNumero = document.getElementById('transf_conta_numero');
+                if (transfBanco && perfilData.banco_transf) transfBanco.value = perfilData.banco_transf;
+                if (transfAgencia && perfilData.agencia) transfAgencia.value = perfilData.agencia;
+                if (transfContaTipo && perfilData.conta_tipo) transfContaTipo.value = perfilData.conta_tipo;
+                if (transfContaNumero && perfilData.conta_numero) transfContaNumero.value = perfilData.conta_numero;
+            }
+            
+            // Feedback visual
+            btnUsarDadosPerfil.textContent = '✓ Dados preenchidos!';
+            setTimeout(function() {
+                btnUsarDadosPerfil.textContent = '📋 Usar dados do perfil';
+            }, 2000);
+        });
     }
     
     // Máscara para CPF
@@ -872,6 +1003,256 @@
             }
         });
     }
+    
+    // Pré-preencher dados se estiver editando
+    {% if solicitacao_editar %}
+    setTimeout(function() {
+        var sol = {
+            pk: {{ solicitacao_editar.pk }},
+            centro_custo: '{{ solicitacao_editar.centro_custo|default:"" }}',
+            nome_gestor: '{{ solicitacao_editar.nome_gestor|default:"" }}',
+            forma_pagamento: '{{ solicitacao_editar.forma_pagamento|default:"" }}',
+            pix_chave: '{{ solicitacao_editar.pix_chave|default:"" }}',
+            pix_banco: '{{ solicitacao_editar.pix_banco|default:"" }}',
+            pix_cpf: '{{ solicitacao_editar.pix_cpf|default:"" }}',
+            transf_banco: '{{ solicitacao_editar.transf_banco|default:"" }}',
+            transf_agencia: '{{ solicitacao_editar.transf_agencia|default:"" }}',
+            transf_conta_tipo: '{{ solicitacao_editar.transf_conta_tipo|default:"" }}',
+            transf_conta_numero: '{{ solicitacao_editar.transf_conta_numero|default:"" }}',
+            itens: [
+                {% for item in solicitacao_editar.itens.all %}
+                {
+                    tipo_despesa: '{{ item.tipo_despesa|default:"" }}',
+                    cod_despesa: '{{ item.cod_despesa|default:"" }}',
+                    data_despesa: '{{ item.data_despesa|date:"Y-m-d"|default:"" }}',
+                    descricao: '{{ item.descricao|default:""|escapejs }}',
+                    valor: {% if item.valor %}{{ item.valor }}{% else %}0{% endif %},
+                    anexo_url: {% if item.anexo %}'{{ item.anexo.url }}'{% else %}null{% endif %},
+                    anexo_nome: {% if item.anexo %}'{{ item.anexo.name|default:""|escapejs }}'{% else %}null{% endif %}
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ]
+        };
+        
+        // Preencher centro de custo
+        if (sol.centro_custo) {
+            var centroCustoEl = document.getElementById('centro_custo');
+            if (centroCustoEl) {
+                centroCustoEl.value = sol.centro_custo;
+                // Disparar evento change para atualizar códigos de despesa
+                if (centroCustoEl.dispatchEvent) {
+                    centroCustoEl.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+        
+        // Preencher nome do gestor
+        if (sol.nome_gestor) {
+            var nomeGestor = document.getElementById('nome_gestor');
+            if (nomeGestor) nomeGestor.value = sol.nome_gestor;
+        }
+        
+        // Preencher forma de pagamento
+        if (sol.forma_pagamento && formaPagamento) {
+            formaPagamento.value = sol.forma_pagamento;
+            atualizarCamposPagamento();
+            
+            // Preencher campos PIX
+            if (sol.forma_pagamento === 'PIX') {
+                var pixChave = document.getElementById('pix_chave');
+                var pixBanco = document.getElementById('pix_banco');
+                var pixCpf = document.getElementById('pix_cpf');
+                if (pixChave && sol.pix_chave) pixChave.value = sol.pix_chave;
+                if (pixBanco && sol.pix_banco) pixBanco.value = sol.pix_banco;
+                if (pixCpf && sol.pix_cpf) pixCpf.value = sol.pix_cpf;
+            }
+            
+            // Preencher campos Transferência
+            if (sol.forma_pagamento === 'TRANSFERENCIA') {
+                var transfBanco = document.getElementById('transf_banco');
+                var transfAgencia = document.getElementById('transf_agencia');
+                var transfContaTipo = document.getElementById('transf_conta_tipo');
+                var transfContaNumero = document.getElementById('transf_conta_numero');
+                if (transfBanco && sol.transf_banco) transfBanco.value = sol.transf_banco;
+                if (transfAgencia && sol.transf_agencia) transfAgencia.value = sol.transf_agencia;
+                if (transfContaTipo && sol.transf_conta_tipo) transfContaTipo.value = sol.transf_conta_tipo;
+                if (transfContaNumero && sol.transf_conta_numero) transfContaNumero.value = sol.transf_conta_numero;
+            }
+        }
+        
+        // Preencher itens
+        if (sol.itens && sol.itens.length > 0) {
+            var container = document.getElementById('linhas-container');
+            if (container) {
+                // Limpar todas as linhas existentes
+                container.innerHTML = '';
+                count = 0;
+                
+                sol.itens.forEach(function(item, index) {
+                    if (index === 0) {
+                        // Criar primeira linha
+                        novaLinha();
+                        var primeiraLinha = container.querySelector('.linha-despesa[data-index="0"]');
+                        if (primeiraLinha) {
+                            preencherLinha(primeiraLinha, item, 0);
+                        }
+                    } else {
+                        // Criar novas linhas
+                        novaLinha();
+                        var linha = container.querySelector('.linha-despesa[data-index="' + index + '"]');
+                        if (linha) {
+                            preencherLinha(linha, item, index);
+                        }
+                    }
+                });
+                
+                // Atualizar total após um pequeno delay para garantir que os valores foram preenchidos
+                setTimeout(function() {
+                    if (typeof atualizarTotal === 'function') {
+                        atualizarTotal();
+                    }
+                }, 100);
+            }
+        }
+        
+        function preencherLinha(linha, item, index) {
+            var dataDespesa = linha.querySelector('input[name="data_despesa_' + index + '"]');
+            var tipoDespesa = linha.querySelector('select[name="tipo_despesa_' + index + '"]');
+            var codDespesa = linha.querySelector('select[name="cod_despesa_' + index + '"]');
+            var descricao = linha.querySelector('input[name="descricao_' + index + '"]');
+            var valor = linha.querySelector('input[name="valor_' + index + '"]');
+            var anexoWrapper = linha.querySelector('.anexo-wrapper');
+            
+            if (dataDespesa && item.data_despesa) {
+                dataDespesa.value = item.data_despesa;
+            }
+            if (tipoDespesa && item.tipo_despesa) {
+                tipoDespesa.value = item.tipo_despesa;
+            }
+            if (codDespesa && item.cod_despesa) {
+                // Aguardar um pouco para garantir que os códigos foram carregados
+                setTimeout(function() {
+                    codDespesa.value = item.cod_despesa;
+                }, 50);
+            }
+            if (descricao && item.descricao) {
+                descricao.value = item.descricao;
+            }
+            // Preencher valor com delay para garantir que o campo está pronto
+            setTimeout(function() {
+                var valorEl = linha.querySelector('input[name="valor_' + index + '"]');
+                if (valorEl && item.valor) {
+                    // Converter valor para formato brasileiro com máscara
+                    var valorNum = parseFloat(item.valor);
+                    if (!isNaN(valorNum) && valorNum > 0) {
+                        // Formatar com ponto para milhares e vírgula para decimais
+                        var valorFormatado = valorNum.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        valorEl.value = valorFormatado;
+                        // Disparar evento input para atualizar total
+                        setTimeout(function() {
+                            if (typeof atualizarTotal === 'function') {
+                                atualizarTotal();
+                            }
+                        }, 50);
+                    }
+                }
+            }, 100);
+            
+            // Mostrar anexo existente no formato padrão
+            if (anexoWrapper && item.anexo_url) {
+                var inputAnexo = anexoWrapper.querySelector('input[type="file"]');
+                var anexoInfo = anexoWrapper.querySelector('.anexo-info');
+                var nomeArquivo = anexoWrapper.querySelector('.nome-arquivo');
+                
+                if (inputAnexo && anexoInfo && nomeArquivo) {
+                    // IMPORTANTE: Remover obrigatoriedade ANTES de ocultar para evitar erro de validação
+                    inputAnexo.removeAttribute('required');
+                    // Forçar remoção também via propriedade
+                    inputAnexo.required = false;
+                    // Marcar como oculto para referência futura
+                    inputAnexo.setAttribute('data-anexo-oculto', 'true');
+                    var asteriscoAnexo = linha.querySelector('.anexo-required');
+                    if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
+                    
+                    // Ocultar input de arquivo APÓS remover required
+                    inputAnexo.style.display = 'none';
+                    
+                    // Mostrar anexo existente no formato padrão
+                    var nomeArquivoTexto = item.anexo_nome ? item.anexo_nome.split('/').pop() : 'Anexo existente';
+                    nomeArquivo.textContent = nomeArquivoTexto;
+                    nomeArquivo.style.cursor = 'pointer';
+                    nomeArquivo.title = 'Clique para visualizar';
+                    nomeArquivo.addEventListener('click', function() {
+                        window.open(item.anexo_url, '_blank', 'noopener');
+                    });
+                    
+                    // Mostrar div de anexo-info
+                    anexoInfo.classList.remove('hidden');
+                    
+                    // Configurar botão remover para ocultar anexo e mostrar input novamente
+                    var btnRemover = anexoInfo.querySelector('.btn-remover-arquivo');
+                    if (btnRemover) {
+                        btnRemover.addEventListener('click', function() {
+                            anexoInfo.classList.add('hidden');
+                            inputAnexo.style.display = 'block';
+                            inputAnexo.setAttribute('required', 'required');
+                            inputAnexo.removeAttribute('data-anexo-oculto');
+                            if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
+                            inputAnexo.value = '';
+                        });
+                    }
+                }
+            }
+        }
+    }, 100);
+    {% endif %}
 })();
+
+// Interceptar submit do formulário para remover required de campos ocultos
+// Executar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('form-reembolso');
+    if (form) {
+        // Usar capture phase e invalid event para interceptar antes da validação
+        form.addEventListener('submit', function(e) {
+            // Remover required de todos os inputs de anexo que estão ocultos ANTES da validação do navegador
+            var inputsAnexo = form.querySelectorAll('input[type="file"][name^="anexo_"]');
+            inputsAnexo.forEach(function(input) {
+                // Verificar se está oculto de várias formas
+                var isHidden = input.style.display === 'none' || 
+                              input.offsetParent === null || 
+                              window.getComputedStyle(input).display === 'none' ||
+                              input.hasAttribute('data-anexo-oculto');
+                
+                if (isHidden) {
+                    input.removeAttribute('required');
+                    input.required = false;
+                    // Marcar como oculto para referência futura
+                    input.setAttribute('data-anexo-oculto', 'true');
+                }
+            });
+            // Não prevenir o submit, apenas remover o required
+        }, true); // Usar capture phase para executar antes da validação do navegador
+        
+        // Também interceptar o evento invalid para prevenir o erro
+        form.addEventListener('invalid', function(e) {
+            var input = e.target;
+            if (input && input.type === 'file' && input.name && input.name.startsWith('anexo_')) {
+                var isHidden = input.style.display === 'none' || 
+                              input.offsetParent === null || 
+                              window.getComputedStyle(input).display === 'none';
+                if (isHidden) {
+                    input.removeAttribute('required');
+                    input.required = false;
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        }, true);
+    }
+});
 </script>
 {% endblock %}

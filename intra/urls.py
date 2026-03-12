@@ -14,6 +14,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard_gestor, name="dashboard_gestor"),
     path("reembolso/<int:pk>/decidir/", views.reembolso_decidir, name="reembolso_decidir"),
     path("reembolso/<int:pk>/marcar-pago/", views.reembolso_marcar_pago, name="reembolso_marcar_pago"),
+    path("reembolso/<int:pk>/programar-pagamento/", views.reembolso_programar_pagamento, name="reembolso_programar_pagamento"),
     path("reembolso/<int:pk>/concluir/", views.reembolso_concluir, name="reembolso_concluir"),
     path("reembolso/<int:pk>/pdf/", views.reembolso_pdf, name="reembolso_pdf"),
     path("reembolso/<int:pk>/detalhe/", views.reembolso_detalhe_json, name="reembolso_detalhe_json"),

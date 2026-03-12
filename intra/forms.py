@@ -200,3 +200,185 @@ class CompletarCadastroForm(forms.ModelForm):
                 cleaned_data["banco"] = banco_transf_select
         
         return cleaned_data
+
+
+class EditarPagamentoForm(forms.ModelForm):
+    """Formulário para editar apenas dados de pagamento no perfil."""
+    
+    BANCOS_CHOICES = [
+        ('', 'Selecione...'),
+        ('Banco do Brasil', 'Banco do Brasil'),
+        ('Bradesco', 'Bradesco'),
+        ('Itaú', 'Itaú'),
+        ('Santander', 'Santander'),
+        ('Caixa Econômica Federal', 'Caixa Econômica Federal'),
+        ('Banco Inter', 'Banco Inter'),
+        ('Nubank', 'Nubank'),
+        ('Banco Original', 'Banco Original'),
+        ('Banrisul', 'Banrisul'),
+        ('Banco Safra', 'Banco Safra'),
+        ('BTG Pactual', 'BTG Pactual'),
+        ('Banco Pan', 'Banco Pan'),
+        ('Banco Votorantim', 'Banco Votorantim'),
+        ('Banco C6', 'Banco C6'),
+        ('Banco Next', 'Banco Next'),
+        ('Banco Neon', 'Banco Neon'),
+        ('Banco Digio', 'Banco Digio'),
+        ('Banco Will', 'Banco Will'),
+        ('Banco Sofisa', 'Banco Sofisa'),
+        ('Banco Rendimento', 'Banco Rendimento'),
+    ]
+    
+    banco_pix_select = forms.ChoiceField(
+        label="Banco",
+        choices=BANCOS_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            "class": "form-control"
+        }),
+    )
+    banco_transf_select = forms.ChoiceField(
+        label="Banco",
+        choices=BANCOS_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            "class": "form-control"
+        }),
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Definir valores iniciais dos campos de seleção de banco
+        if self.instance:
+            if self.instance.banco_pix:
+                self.initial['banco_pix_select'] = self.instance.banco_pix
+            if self.instance.banco:
+                self.initial['banco_transf_select'] = self.instance.banco
+
+    class Meta:
+        model = PerfilSolicitante
+        fields = [
+            "forma_pagamento",
+            "chave_pix",
+            "banco_pix",
+            "cpf_pix",
+            "banco",
+            "agencia",
+            "conta_tipo",
+            "conta_numero",
+            "cpf_transferencia",
+        ]
+        widgets = {
+            "forma_pagamento": forms.Select(attrs={"class": "form-control"}),
+            "chave_pix": forms.TextInput(attrs={"placeholder": "CPF, e-mail, telefone ou chave aleatória"}),
+            "banco_pix": forms.HiddenInput(),
+            "cpf_pix": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+            "banco": forms.HiddenInput(),
+            "agencia": forms.TextInput(attrs={"placeholder": "0000", "maxlength": "4"}),
+            "conta_numero": forms.TextInput(attrs={"placeholder": "00000-0", "maxlength": "8"}),
+            "cpf_transferencia": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+        }
+        labels = {
+            "forma_pagamento": "Forma de Pagamento",
+            "chave_pix": "Chave PIX",
+            "banco_pix": "Banco",
+            "cpf_pix": "CPF",
+            "banco": "Banco",
+            "agencia": "Agência",
+            "conta_tipo": "Tipo de conta",
+            "conta_numero": "Conta Corrente ou Poupança",
+            "cpf_transferencia": "CPF",
+        }
+
+    def clean_forma_pagamento(self):
+        forma = self.cleaned_data.get("forma_pagamento", "").strip()
+        if not forma:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return forma
+
+    def clean_chave_pix(self):
+        chave_pix = self.cleaned_data.get("chave_pix", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "PIX" and not chave_pix:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return chave_pix
+
+    def clean_banco_pix(self):
+        banco_pix = self.cleaned_data.get("banco_pix", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "PIX" and not banco_pix:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return banco_pix
+
+    def clean_cpf_pix(self):
+        cpf_pix = self.cleaned_data.get("cpf_pix", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "PIX" and not cpf_pix:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return cpf_pix
+
+    def clean_banco(self):
+        banco = self.cleaned_data.get("banco", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not banco:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return banco
+
+    def clean_agencia(self):
+        agencia = self.cleaned_data.get("agencia", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not agencia:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return agencia
+
+    def clean_conta_tipo(self):
+        conta_tipo = self.cleaned_data.get("conta_tipo", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not conta_tipo:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return conta_tipo
+
+    def clean_conta_numero(self):
+        conta_numero = self.cleaned_data.get("conta_numero", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not conta_numero:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return conta_numero
+
+    def clean_cpf_transferencia(self):
+        cpf_transferencia = self.cleaned_data.get("cpf_transferencia", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not cpf_transferencia:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return cpf_transferencia
+
+    def clean_banco_pix_select(self):
+        banco_pix_select = self.cleaned_data.get("banco_pix_select", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "PIX" and not banco_pix_select:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return banco_pix_select
+
+    def clean_banco_transf_select(self):
+        banco_transf_select = self.cleaned_data.get("banco_transf_select", "").strip()
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        if forma_pagamento == "TRANSFERENCIA" and not banco_transf_select:
+            raise forms.ValidationError("Este campo é obrigatório.")
+        return banco_transf_select
+
+    def clean(self):
+        cleaned_data = super().clean()
+        forma_pagamento = cleaned_data.get("forma_pagamento", "")
+        
+        # Transferir valores dos campos de seleção para os campos hidden
+        if forma_pagamento == "PIX":
+            banco_pix_select = cleaned_data.get("banco_pix_select", "").strip()
+            if banco_pix_select:
+                cleaned_data["banco_pix"] = banco_pix_select
+        elif forma_pagamento == "TRANSFERENCIA":
+            banco_transf_select = cleaned_data.get("banco_transf_select", "").strip()
+            if banco_transf_select:
+                cleaned_data["banco"] = banco_transf_select
+        
+        return cleaned_data

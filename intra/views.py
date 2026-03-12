@@ -18,16 +18,39 @@ from datetime import datetime, timedelta
 import json
 import html
 import logging
+import time
+from functools import wraps
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from django.core.cache import cache
 
 # Configurar logger para debug
 logger = logging.getLogger(__name__)
 
-from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm
-from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto
+from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm, EditarPagamentoForm
+from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso
 from .pdf_reembolso import gerar_pdf
 from .docusign_integration import enviar_documento_para_assinatura, baixar_pdf_assinado, consultar_status_envelope
 
 User = get_user_model()
+
+
+def medir_tempo(view_func):
+    """Decorator para medir o tempo de execução de uma view."""
+    def wrapper(request, *args, **kwargs):
+        inicio = time.time()
+        nome_view = view_func.__name__
+        path = request.path
+        
+        try:
+            response = view_func(request, *args, **kwargs)
+            tempo_total = time.time() - inicio
+            print(f"[TEMPO] {nome_view} | Path: {path} | Tempo: {tempo_total:.4f}s")
+            return response
+        except Exception as e:
+            tempo_total = time.time() - inicio
+            print(f"[TEMPO] {nome_view} | Path: {path} | Tempo: {tempo_total:.4f}s | ERRO: {str(e)}")
+            raise
+    return wrapper
 
 
 def _is_gestor(user):
@@ -51,17 +74,35 @@ def _is_gestor_ou_gestor_admin(user):
     return _is_gestor_simples(user) or _is_gestor(user)
 
 
-def _get_status_assinatura_docusign(solicitacao):
+def _get_status_assinatura_docusign(solicitacao, use_cache=True):
     """
     Obtém o status da assinatura no DocuSign e informações sobre quem está aguardando.
     Retorna dict com informações do status ou None se não houver envelope.
+    Usa cache para evitar consultas desnecessárias ao DocuSign.
     """
     if not solicitacao.envelope_id_docusign:
         return None
     
+    envelope_id = solicitacao.envelope_id_docusign
+    
+    # Verificar cache primeiro (TTL de 5 minutos)
+    cache_key = f"docusign_status_{envelope_id}"
+    if use_cache:
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            # Retornar do cache, mas ainda verificar se precisa atualizar status no banco
+            status_envelope = cached_result.get('status')
+            if status_envelope and status_envelope != solicitacao.status_docusign:
+                solicitacao.status_docusign = status_envelope
+                if status_envelope.lower() in ['completed', 'signed']:
+                    if solicitacao.status != SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
+                        solicitacao.status = SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
+                solicitacao.save(update_fields=['status_docusign', 'status'])
+            return cached_result
+    
     try:
         # Tentar consultar status atualizado do DocuSign
-        resposta = consultar_status_envelope(solicitacao.envelope_id_docusign)
+        resposta = consultar_status_envelope(envelope_id)
         status_envelope = resposta.get('status', solicitacao.status_docusign or 'sent')
         
         # Atualizar status no banco se mudou
@@ -100,23 +141,83 @@ def _get_status_assinatura_docusign(solicitacao):
             if signer_status in ['sent', 'delivered', 'created']:
                 aguardando_assinatura.append(signer_info)
         
-        return {
+        result = {
             'status': status_envelope,
             'status_legivel': _traduzir_status_docusign(status_envelope),
             'signers': signers_info,
             'aguardando_assinatura': aguardando_assinatura
         }
+        
+        # Salvar no cache por 5 minutos (300 segundos)
+        cache.set(cache_key, result, 300)
+        
+        return result
     except Exception as e:
         logger.warning(f"Erro ao consultar status DocuSign: {e}")
         # Retornar status salvo no banco se houver
         if solicitacao.status_docusign:
-            return {
+            result = {
                 'status': solicitacao.status_docusign,
                 'status_legivel': _traduzir_status_docusign(solicitacao.status_docusign),
                 'signers': [],
                 'aguardando_assinatura': []
             }
+            # Cachear mesmo em caso de erro (por menos tempo - 1 minuto)
+            cache.set(cache_key, result, 60)
+            return result
         return None
+
+
+def _get_status_assinatura_docusign_parallel(solicitacoes):
+    """
+    Consulta status do DocuSign para múltiplas solicitações em paralelo.
+    Retorna um dict mapeando pk da solicitação para o resultado.
+    Para solicitações sem envelope_id ou já completadas, retorna None.
+    """
+    if not solicitacoes:
+        return {}
+    
+    # Filtrar apenas solicitações que precisam ser consultadas
+    solicitacoes_para_consultar = []
+    resultados = {}
+    
+    for sol in solicitacoes:
+        # Se não tem envelope_id, retornar None
+        if not sol.envelope_id_docusign:
+            resultados[sol.pk] = None
+        # Se já está completed ou signed, não precisa consultar (mas retornar None para manter compatibilidade)
+        elif sol.status_docusign and sol.status_docusign.lower() in ['completed', 'signed']:
+            resultados[sol.pk] = None
+        else:
+            # Adicionar à lista para consultar
+            solicitacoes_para_consultar.append(sol)
+    
+    if not solicitacoes_para_consultar:
+        return resultados
+    
+    def consultar_uma(solicitacao):
+        """Função auxiliar para consultar uma solicitação."""
+        try:
+            return solicitacao.pk, _get_status_assinatura_docusign(solicitacao, use_cache=True)
+        except Exception as e:
+            logger.warning(f"Erro ao consultar DocuSign para solicitação {solicitacao.pk}: {e}")
+            return solicitacao.pk, None
+    
+    # Executar consultas em paralelo (máximo 10 threads simultâneas)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_sol = {
+            executor.submit(consultar_uma, sol): sol 
+            for sol in solicitacoes_para_consultar
+        }
+        
+        for future in as_completed(future_to_sol):
+            try:
+                pk, resultado = future.result()
+                resultados[pk] = resultado
+            except Exception as e:
+                logger.error(f"Erro ao processar resultado DocuSign: {e}")
+    
+    return resultados
 
 
 def _traduzir_status_docusign(status):
@@ -133,6 +234,103 @@ def _traduzir_status_docusign(status):
         'created': 'Criado',
     }
     return traducoes.get(status.lower(), status)
+
+
+def _processar_pagamentos_programados():
+    """
+    Verifica solicitações com data de pagamento programada que já passou
+    e as marca como pagas automaticamente, enviando para DocuSign.
+    Usa cache para evitar processamento repetido em requisições consecutivas.
+    """
+    from datetime import date
+    hoje = date.today()
+    
+    # Verificar cache para evitar processamento repetido (executar no máximo 1x por minuto)
+    cache_key = "processar_pagamentos_programados"
+    ultima_execucao = cache.get(cache_key)
+    if ultima_execucao:
+        # Já foi executado recentemente, pular
+        return
+    
+    # Marcar que está processando (TTL de 60 segundos)
+    cache.set(cache_key, True, 60)
+    
+    # Buscar solicitações com data programada que já passou e ainda não foram pagas
+    # Limitar a 10 por vez para não bloquear muito
+    solicitacoes_para_processar = SolicitacaoReembolso.objects.filter(
+        data_pagamento_programada__lte=hoje,
+        pago=False,
+        status_gestor_admin=SolicitacaoReembolso.STATUS_APROVADO
+    )[:10]  # Processar no máximo 10 por vez
+    
+    for sol in solicitacoes_para_processar:
+        try:
+            # Marcar como pago e limpar data programada
+            sol.pago = True
+            sol.pago_em = timezone.now()
+            sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+            sol.data_pagamento_programada = None  # Limpar data programada após processar
+            sol.save()
+            
+            # Enviar documento para assinatura no DocuSign
+            try:
+                # Gerar PDF da solicitação
+                pdf_bytes = gerar_pdf(sol)
+                
+                # Obter dados do solicitante
+                try:
+                    perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+                    nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
+                    email_solicitante = sol.user.email
+                except PerfilSolicitante.DoesNotExist:
+                    nome_solicitante = sol.user.get_full_name() or sol.user.email
+                    email_solicitante = sol.user.email
+                
+                # Obter dados do gestor da solicitação
+                email_gestor = None
+                nome_gestor = sol.nome_gestor or None
+                if nome_gestor:
+                    # Tentar encontrar o usuário gestor pelo nome ou email
+                    try:
+                        partes_nome = nome_gestor.split()
+                        if len(partes_nome) >= 2:
+                            gestor_user = User.objects.filter(
+                                first_name__iexact=partes_nome[0],
+                                last_name__iexact=" ".join(partes_nome[1:])
+                            ).first()
+                        else:
+                            gestor_user = User.objects.filter(
+                                Q(email__iexact=nome_gestor) | 
+                                Q(first_name__iexact=nome_gestor) |
+                                Q(last_name__iexact=nome_gestor)
+                            ).first()
+                        
+                        if gestor_user:
+                            email_gestor = gestor_user.email
+                            nome_gestor = gestor_user.get_full_name() or nome_gestor
+                    except:
+                        pass
+                
+                # Enviar para DocuSign
+                if email_solicitante:
+                    resposta_docusign = enviar_documento_para_assinatura(
+                        pdf_bytes=pdf_bytes,
+                        email_solicitante=email_solicitante,
+                        nome_solicitante=nome_solicitante,
+                        email_gestor=email_gestor,
+                        nome_gestor=nome_gestor
+                    )
+                    envelope_id = resposta_docusign.get('envelopeId')
+                    status_envelope = resposta_docusign.get('status', 'sent')
+                    # Salvar envelope_id e status no banco
+                    sol.envelope_id_docusign = envelope_id
+                    sol.status_docusign = status_envelope
+                    sol.save()
+                    logger.info(f"Pagamento programado processado automaticamente. Solicitação #{sol.pk} marcada como paga e enviada para DocuSign. Envelope ID: {envelope_id}")
+            except Exception as e:
+                logger.error(f"Erro ao enviar documento para DocuSign ao processar pagamento programado (Solicitação #{sol.pk}): {e}")
+        except Exception as e:
+            logger.error(f"Erro ao processar pagamento programado (Solicitação #{sol.pk}): {e}")
 
 
 def _get_status_descritivo(solicitacao):
@@ -1265,29 +1463,55 @@ def home(request):
 
 
 @login_required
+@medir_tempo
 def meu_perfil(request):
-    """Visualização somente leitura das informações do perfil do usuário."""
+    """Visualização e edição das informações do perfil do usuário."""
     perfil, _ = PerfilSolicitante.objects.get_or_create(user=request.user)
-    return render(request, "intra/meu_perfil.html", {"perfil": perfil})
+    
+    if request.method == 'POST':
+        form = EditarPagamentoForm(request.POST, instance=perfil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Dados de pagamento atualizados com sucesso!")
+            return redirect("intra:meu_perfil")
+    else:
+        form = EditarPagamentoForm(instance=perfil)
+    
+    return render(request, "intra/meu_perfil.html", {
+        "perfil": perfil,
+        "form": form
+    })
 
 
 @login_required
 def meus_reembolsos(request):
     """Lista de solicitações de reembolso do usuário."""
+    # Otimizar query com prefetch_related para itens
     solicitacoes = SolicitacaoReembolso.objects.filter(user=request.user).prefetch_related('itens').order_by('-criado_em')
+    
+    # Converter para lista para processar em paralelo
+    solicitacoes_list = list(solicitacoes)
+    
+    # Consultar status DocuSign em paralelo apenas para solicitações aprovadas pelo gestor admin
+    solicitacoes_para_docusign = [
+        sol for sol in solicitacoes_list 
+        if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO
+    ]
+    status_docusign_map = _get_status_assinatura_docusign_parallel(solicitacoes_para_docusign)
+    
     # Converter datas para timezone de Brasília e coletar códigos de despesa dos itens
     solicitacoes_com_data = []
-    for sol in solicitacoes:
+    for sol in solicitacoes_list:
         sol.criado_em_brasilia = localtime(sol.criado_em)
-        # Coletar códigos de despesa únicos dos itens
+        # Coletar códigos de despesa únicos dos itens (já está em cache do prefetch_related)
         codigos_despesa = []
         for item in sol.itens.all():
             if item.cod_despesa and item.cod_despesa not in codigos_despesa:
                 codigos_despesa.append(item.cod_despesa)
         sol.codigos_despesa = ', '.join(codigos_despesa) if codigos_despesa else '—'
-        # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+        # Usar resultado do cache/paralelo
         if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
-            sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+            sol.status_docusign_info = status_docusign_map.get(sol.pk)
             # Atualizar status_docusign no objeto se foi atualizado
             if sol.status_docusign_info:
                 sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
@@ -1343,13 +1567,28 @@ def reembolso_detalhe_gestor_json(request, pk):
     
     # Verificar se o usuário tem permissão para ver esta solicitação
     if is_gestor_simples:
-        # Gestor só pode ver solicitações dos seus solicitantes
-        try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
-            if not perfil.email_gestor or perfil.email_gestor.lower() != request.user.email.lower():
-                return JsonResponse({"error": "Você não é o gestor deste solicitante."}, status=403)
-        except PerfilSolicitante.DoesNotExist:
-            return JsonResponse({"error": "Perfil do solicitante não encontrado."}, status=403)
+        # Gestor só pode ver solicitações onde ele é o gestor indicado (via nome_gestor da solicitação)
+        nome_gestor_solicitacao = (sol.nome_gestor or "").strip()
+        if not nome_gestor_solicitacao:
+            return JsonResponse({"error": "Esta solicitação não possui gestor indicado."}, status=403)
+        
+        # Buscar nome completo do usuário logado
+        partes_nome = []
+        if request.user.first_name:
+            partes_nome.append(request.user.first_name.strip())
+        if request.user.last_name:
+            partes_nome.append(request.user.last_name.strip())
+        nome_completo_usuario = " ".join(partes_nome).strip()
+        
+        # Verificar correspondência
+        corresponde = False
+        if nome_completo_usuario and nome_gestor_solicitacao.lower() == nome_completo_usuario.lower():
+            corresponde = True
+        elif request.user.email and nome_gestor_solicitacao.lower() == request.user.email.lower():
+            corresponde = True
+        
+        if not corresponde:
+            return JsonResponse({"error": "Você não é o gestor indicado nesta solicitação."}, status=403)
     tipos_labels = dict(TIPOS_DESPESA)
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     
@@ -1414,8 +1653,6 @@ def reembolso_detalhe_gestor_json(request, pk):
             "conta_tipo": perfil.get_conta_tipo_display() if perfil.conta_tipo else "",
             "conta_numero": perfil.conta_numero or "",
             "chave_pix": perfil.chave_pix or "",
-            "nome_gestor": perfil.nome_gestor or "",
-            "email_gestor": perfil.email_gestor or "",
         }
     else:
         dados_solicitante = {
@@ -1426,8 +1663,6 @@ def reembolso_detalhe_gestor_json(request, pk):
             "conta_tipo": "",
             "conta_numero": "",
             "chave_pix": "",
-            "nome_gestor": "",
-            "email_gestor": "",
         }
     
     # Informações de aprovação/rejeição do gestor
@@ -1482,6 +1717,34 @@ def reembolso_detalhe_gestor_json(request, pk):
         elif sol.status_gestor != SolicitacaoReembolso.STATUS_PENDENTE:
             aprovacao_info = aprovacao_gestor_info
     
+    # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+    status_docusign_info = None
+    if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
+        status_docusign_info = _get_status_assinatura_docusign(sol)
+        # Atualizar status_docusign no objeto se foi atualizado
+        if status_docusign_info:
+            sol.status_docusign = status_docusign_info.get('status', sol.status_docusign)
+    
+    # Calcular status descritivo (agora com status DocuSign atualizado)
+    status_descritivo = _get_status_descritivo(sol)
+    
+    # Determinar motivo de rejeição (se houver)
+    motivo_rejeicao = ""
+    if sol.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO:
+        motivo_rejeicao = sol.motivo_rejeicao_gestor or ""
+    elif sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
+        motivo_rejeicao = sol.motivo_rejeicao_gestor_admin or ""
+    
+    # Buscar histórico de alterações
+    historico = []
+    for hist in sol.historico.all():
+        historico.append({
+            "acao": hist.acao,
+            "descricao": hist.descricao,
+            "usuario": hist.usuario.get_full_name() if hist.usuario and hist.usuario.get_full_name() else (hist.usuario.email if hist.usuario else "Sistema"),
+            "data": localtime(hist.criado_em).strftime("%d/%m/%Y %H:%M") if hist.criado_em else ""
+        })
+    
     return JsonResponse({
         "pk": sol.pk,
         "centro_custo": sol.centro_custo or "",
@@ -1492,6 +1755,9 @@ def reembolso_detalhe_gestor_json(request, pk):
         "status": sol.status,
         "status_gestor": sol.status_gestor,
         "status_gestor_admin": sol.status_gestor_admin,
+        "status_descritivo": status_descritivo,
+        "status_docusign": status_docusign_info,
+        "motivo_rejeicao": motivo_rejeicao,
         "itens": itens,
         "anexos": anexos,
         "solicitante": dados_solicitante,
@@ -1506,6 +1772,8 @@ def reembolso_detalhe_gestor_json(request, pk):
         "transf_agencia": sol.transf_agencia or "",
         "transf_conta_tipo": sol.transf_conta_tipo or "",
         "transf_conta_numero": sol.transf_conta_numero or "",
+        "nome_gestor": sol.nome_gestor or "",  # Nome do gestor indicado na solicitação
+        "historico": historico,
     })
 
 
@@ -1586,6 +1854,16 @@ def reembolso_detalhe_json(request, pk):
     elif sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
         motivo_rejeicao = sol.motivo_rejeicao_gestor_admin or ""
     
+    # Buscar histórico de alterações
+    historico = []
+    for hist in sol.historico.all():
+        historico.append({
+            "acao": hist.acao,
+            "descricao": hist.descricao,
+            "usuario": hist.usuario.get_full_name() if hist.usuario and hist.usuario.get_full_name() else (hist.usuario.email if hist.usuario else "Sistema"),
+            "data": localtime(hist.criado_em).strftime("%d/%m/%Y %H:%M") if hist.criado_em else ""
+        })
+    
     return JsonResponse({
         "pk": sol.pk,
         "centro_custo": sol.centro_custo,
@@ -1605,6 +1883,8 @@ def reembolso_detalhe_json(request, pk):
         "transf_agencia": sol.transf_agencia or "",
         "transf_conta_tipo": sol.transf_conta_tipo or "",
         "transf_conta_numero": sol.transf_conta_numero or "",
+        "nome_gestor": sol.nome_gestor or "",  # Nome do gestor indicado na solicitação
+        "historico": historico,
     })
 
 
@@ -1617,31 +1897,47 @@ def aprovar_reembolsos(request):
     if not is_gestor_simples and not is_gestor_admin:
         return HttpResponse("Acesso restrito a Gestores ou Gestores Administrativos.", status=403)
     
+    # Processar pagamentos programados que já passaram da data (apenas para gestor admin)
+    if is_gestor_admin:
+        _processar_pagamentos_programados()
+    
     # Capturar parâmetro de busca
     busca = request.GET.get('busca', '').strip()
     
     # Query base - diferente para gestor e gestor administrativo
     if is_gestor_simples:
-        # Gestor vê apenas solicitações dos seus solicitantes (onde ele é gestor via email_gestor)
+        # Gestor vê apenas solicitações onde o nome_gestor corresponde ao seu nome completo ou email
         # E que ainda não foram aprovadas/rejeitadas por ele
         solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
             status_gestor=SolicitacaoReembolso.STATUS_PENDENTE
         )
-        # Filtrar por solicitantes onde o gestor é o gestor (via email_gestor no perfil)
-        perfis_com_gestor = PerfilSolicitante.objects.filter(
-            email_gestor__iexact=request.user.email
-        ).values_list('user_id', flat=True)
-        solicitacoes = solicitacoes.filter(user_id__in=perfis_com_gestor)
+        # Buscar nome completo do usuário logado
+        partes_nome = []
+        if request.user.first_name:
+            partes_nome.append(request.user.first_name.strip())
+        if request.user.last_name:
+            partes_nome.append(request.user.last_name.strip())
+        nome_completo_usuario = " ".join(partes_nome).strip()
+        
+        # Filtrar solicitações onde o nome_gestor corresponde ao nome completo ou email do usuário logado
+        filtros_gestor = Q()
+        if nome_completo_usuario:
+            filtros_gestor |= Q(nome_gestor__iexact=nome_completo_usuario)
+        if request.user.email:
+            filtros_gestor |= Q(nome_gestor__iexact=request.user.email)
+        
+        solicitacoes = solicitacoes.filter(filtros_gestor)
     else:
         # Gestor Administrativo vê solicitações aprovadas pelo gestor que ainda não foram aprovadas/rejeitadas por ele
-        # E também solicitações aprovadas por ele que estão aguardando pagamento
+        # E também solicitações aprovadas por ele que estão aguardando pagamento (mas sem data programada)
         solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
             Q(
                 status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
                 status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE
             ) | Q(
                 status_gestor_admin=SolicitacaoReembolso.STATUS_APROVADO,
-                pago=False
+                pago=False,
+                data_pagamento_programada__isnull=True  # Excluir as que já têm data programada
             )
         )
     
@@ -1662,28 +1958,41 @@ def aprovar_reembolsos(request):
             )
     
     # Ordenar por data de criação (mais recentes primeiro)
-    solicitacoes = solicitacoes.order_by('-criado_em')
+    # Otimizar query com prefetch_related para evitar N+1
+    solicitacoes = solicitacoes.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).order_by('-criado_em')
     
     # Paginação - 5 por página
     paginator = Paginator(solicitacoes, 5)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
+    # Converter page_obj para lista para processar em paralelo
+    page_obj_list = list(page_obj)
+    
+    # Consultar status DocuSign em paralelo apenas para solicitações aprovadas pelo gestor admin
+    solicitacoes_para_docusign = [
+        sol for sol in page_obj_list 
+        if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO
+    ]
+    status_docusign_map = _get_status_assinatura_docusign_parallel(solicitacoes_para_docusign)
+    
     # Converter datas para timezone de Brasília e adicionar informações do solicitante
     solicitacoes_com_data = []
-    for sol in page_obj:
+    for sol in page_obj_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
-        # Buscar perfil do solicitante para garantir que o nome seja exibido
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         # Garantir que sempre tenha um email ou username como fallback
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Consultar status DocuSign primeiro se aprovado pelo gestor administrativo (para atualizar status)
+        # Usar resultado do cache/paralelo
         if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_APROVADO:
-            sol.status_docusign_info = _get_status_assinatura_docusign(sol)
+            sol.status_docusign_info = status_docusign_map.get(sol.pk)
             # Atualizar status_docusign no objeto se foi atualizado
             if sol.status_docusign_info:
                 sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
@@ -1734,14 +2043,30 @@ def reembolso_decidir(request, pk):
         if sol.status_gestor != SolicitacaoReembolso.STATUS_PENDENTE:
             messages.warning(request, "Esta solicitação já foi processada pelo gestor.")
             return redirect("intra:aprovar_reembolsos")
-        # Verificar se o gestor é realmente o gestor deste solicitante
-        try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
-            if perfil.email_gestor and perfil.email_gestor.lower() != request.user.email.lower():
-                messages.error(request, "Você não é o gestor deste solicitante.")
-                return redirect("intra:aprovar_reembolsos")
-        except PerfilSolicitante.DoesNotExist:
-            messages.error(request, "Perfil do solicitante não encontrado.")
+        # Verificar se o gestor é realmente o gestor indicado na solicitação
+        # Buscar nome completo do usuário logado
+        partes_nome = []
+        if request.user.first_name:
+            partes_nome.append(request.user.first_name.strip())
+        if request.user.last_name:
+            partes_nome.append(request.user.last_name.strip())
+        nome_completo_usuario = " ".join(partes_nome).strip()
+        
+        # Verificar se o nome_gestor da solicitação corresponde ao nome completo ou email do usuário logado
+        nome_gestor_solicitacao = (sol.nome_gestor or "").strip()
+        if not nome_gestor_solicitacao:
+            messages.error(request, "Esta solicitação não possui gestor indicado.")
+            return redirect("intra:aprovar_reembolsos")
+        
+        # Verificar correspondência
+        corresponde = False
+        if nome_completo_usuario and nome_gestor_solicitacao.lower() == nome_completo_usuario.lower():
+            corresponde = True
+        elif request.user.email and nome_gestor_solicitacao.lower() == request.user.email.lower():
+            corresponde = True
+        
+        if not corresponde:
+            messages.error(request, "Você não é o gestor indicado nesta solicitação.")
             return redirect("intra:aprovar_reembolsos")
     else:
         # Gestor Administrativo só pode processar se já foi aprovado pelo gestor
@@ -1780,6 +2105,13 @@ def reembolso_decidir(request, pk):
                 sol.aprovado_em_gestor = timezone.now()
                 sol.motivo_rejeicao_gestor = motivo[:500]
                 sol.save()
+                # Registrar no histórico
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Rejeitada pelo gestor",
+                    descricao=f"Rejeitada pelo gestor. Motivo: {motivo[:500]}",
+                    usuario=request.user
+                )
                 # Enviar e-mail ao solicitante informando rejeição do gestor
                 _enviar_email_aprovacao_gestor(sol, aprovado=False)
                 messages.success(request, "Solicitação rejeitada pelo gestor. O solicitante pode editar e reenviar.")
@@ -1808,6 +2140,13 @@ def reembolso_decidir(request, pk):
                 sol.aprovado_em_gestor_admin = timezone.now()
                 sol.motivo_rejeicao_gestor_admin = motivo[:500]
                 sol.save()
+                # Registrar no histórico
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Rejeitada pelo gestor administrativo",
+                    descricao=f"Rejeitada pelo gestor administrativo. Motivo: {motivo[:500]}",
+                    usuario=request.user
+                )
                 # Enviar e-mail ao solicitante e ao gestor informando rejeição
                 _enviar_email_aprovacao_final(sol, aprovado=False)
                 messages.success(request, "Solicitação rejeitada pelo gestor administrativo. O solicitante pode editar e reenviar.")
@@ -1904,6 +2243,182 @@ def reembolso_marcar_pago(request, pk):
     
     # Se não for POST, redirecionar
     return redirect("intra:ultimos_reembolsos")
+
+
+@login_required
+def reembolso_programar_pagamento(request, pk):
+    """Programa uma data de pagamento ou marca como pago imediatamente."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    
+    # Verificar se pode programar pagamento (deve estar aprovado pelo gestor admin e não estar pago)
+    if sol.status_gestor_admin != SolicitacaoReembolso.STATUS_APROVADO or sol.pago:
+        messages.error(request, "Esta solicitação não pode ter o pagamento programado.")
+        return redirect("intra:aprovar_reembolsos")
+    
+    if request.method == "POST":
+        data_pagamento = request.POST.get("data_pagamento", "").strip()
+        marcar_como_pago = request.POST.get("marcar_como_pago", "") == "on"
+        
+        if marcar_como_pago:
+            # Marcar como pago imediatamente (mesma lógica de reembolso_marcar_pago)
+            sol.pago = True
+            sol.pago_em = timezone.now()
+            sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+            sol.data_pagamento_programada = None
+            sol.save()
+            
+            # Enviar documento para assinatura no DocuSign
+            try:
+                # Gerar PDF da solicitação
+                pdf_bytes = gerar_pdf(sol)
+                
+                # Obter dados do solicitante
+                try:
+                    perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+                    nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
+                    email_solicitante = sol.user.email
+                except PerfilSolicitante.DoesNotExist:
+                    nome_solicitante = sol.user.get_full_name() or sol.user.email
+                    email_solicitante = sol.user.email
+                
+                # Obter dados do gestor da solicitação
+                email_gestor = None
+                nome_gestor = sol.nome_gestor or None
+                if nome_gestor:
+                    # Tentar encontrar o usuário gestor pelo nome ou email
+                    try:
+                        partes_nome = nome_gestor.split()
+                        if len(partes_nome) >= 2:
+                            gestor_user = User.objects.filter(
+                                first_name__iexact=partes_nome[0],
+                                last_name__iexact=" ".join(partes_nome[1:])
+                            ).first()
+                        else:
+                            gestor_user = User.objects.filter(
+                                Q(email__iexact=nome_gestor) | 
+                                Q(first_name__iexact=nome_gestor) |
+                                Q(last_name__iexact=nome_gestor)
+                            ).first()
+                        
+                        if gestor_user:
+                            email_gestor = gestor_user.email
+                            nome_gestor = gestor_user.get_full_name() or nome_gestor
+                    except:
+                        pass
+                
+                # Enviar para DocuSign
+                if email_solicitante:
+                    resposta_docusign = enviar_documento_para_assinatura(
+                        pdf_bytes=pdf_bytes,
+                        email_solicitante=email_solicitante,
+                        nome_solicitante=nome_solicitante,
+                        email_gestor=email_gestor,
+                        nome_gestor=nome_gestor
+                    )
+                    envelope_id = resposta_docusign.get('envelopeId')
+                    status_envelope = resposta_docusign.get('status', 'sent')
+                    # Salvar envelope_id e status no banco
+                    sol.envelope_id_docusign = envelope_id
+                    sol.status_docusign = status_envelope
+                    sol.save()
+                    logger.info(f"Documento enviado para DocuSign. Envelope ID: {envelope_id}, Status: {status_envelope}")
+                    messages.success(request, "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.")
+                else:
+                    logger.warning(f"Não foi possível enviar para DocuSign: email do solicitante não encontrado.")
+                    messages.success(request, "Solicitação marcada como paga. Erro ao enviar para DocuSign: email do solicitante não encontrado.")
+            except Exception as e:
+                logger.error(f"Erro ao enviar documento para DocuSign: {e}")
+                messages.warning(request, f"Solicitação marcada como paga, mas houve erro ao enviar para DocuSign: {str(e)}")
+        elif data_pagamento:
+            # Programar data de pagamento
+            try:
+                from datetime import datetime, date
+                data_obj = datetime.strptime(data_pagamento, '%Y-%m-%d').date()
+                hoje = date.today()
+                
+                sol.data_pagamento_programada = data_obj
+                
+                # Se a data programada for hoje ou já passou, processar imediatamente
+                if data_obj <= hoje:
+                    # Processar como pago imediatamente
+                    sol.pago = True
+                    sol.pago_em = timezone.now()
+                    sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+                    sol.data_pagamento_programada = None  # Limpar data programada após processar
+                    sol.save()
+                    
+                    # Enviar documento para assinatura no DocuSign
+                    try:
+                        pdf_bytes = gerar_pdf(sol)
+                        
+                        try:
+                            perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+                            nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
+                            email_solicitante = sol.user.email
+                        except PerfilSolicitante.DoesNotExist:
+                            nome_solicitante = sol.user.get_full_name() or sol.user.email
+                            email_solicitante = sol.user.email
+                        
+                        email_gestor = None
+                        nome_gestor = sol.nome_gestor or None
+                        if nome_gestor:
+                            try:
+                                partes_nome = nome_gestor.split()
+                                if len(partes_nome) >= 2:
+                                    gestor_user = User.objects.filter(
+                                        first_name__iexact=partes_nome[0],
+                                        last_name__iexact=" ".join(partes_nome[1:])
+                                    ).first()
+                                else:
+                                    gestor_user = User.objects.filter(
+                                        Q(email__iexact=nome_gestor) | 
+                                        Q(first_name__iexact=nome_gestor) |
+                                        Q(last_name__iexact=nome_gestor)
+                                    ).first()
+                                
+                                if gestor_user:
+                                    email_gestor = gestor_user.email
+                                    nome_gestor = gestor_user.get_full_name() or nome_gestor
+                            except:
+                                pass
+                        
+                        if email_solicitante:
+                            resposta_docusign = enviar_documento_para_assinatura(
+                                pdf_bytes=pdf_bytes,
+                                email_solicitante=email_solicitante,
+                                nome_solicitante=nome_solicitante,
+                                email_gestor=email_gestor,
+                                nome_gestor=nome_gestor
+                            )
+                            envelope_id = resposta_docusign.get('envelopeId')
+                            status_envelope = resposta_docusign.get('status', 'sent')
+                            sol.envelope_id_docusign = envelope_id
+                            sol.status_docusign = status_envelope
+                            sol.save()
+                            logger.info(f"Pagamento programado processado imediatamente. Solicitação #{sol.pk} marcada como paga e enviada para DocuSign.")
+                            messages.success(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Como a data é hoje ou já passou, a solicitação foi marcada como paga e enviada para assinatura no DocuSign.")
+                        else:
+                            messages.success(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Solicitação marcada como paga, mas erro ao enviar para DocuSign: email do solicitante não encontrado.")
+                    except Exception as e:
+                        logger.error(f"Erro ao enviar documento para DocuSign ao processar pagamento programado imediatamente (Solicitação #{sol.pk}): {e}")
+                        messages.warning(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Solicitação marcada como paga, mas houve erro ao enviar para DocuSign.")
+                else:
+                    # Data futura - apenas programar
+                    sol.status = SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO
+                    sol.save()
+                    messages.success(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}.")
+            except ValueError:
+                messages.error(request, "Data de pagamento inválida.")
+        else:
+            messages.error(request, "Por favor, informe uma data de pagamento ou marque como pago.")
+        
+        return redirect("intra:aprovar_reembolsos")
+    
+    # Se não for POST, redirecionar
+    return redirect("intra:aprovar_reembolsos")
 
 
 @login_required
@@ -2568,7 +3083,9 @@ def reembolso(request):
             if key.startswith("valor_") and value:
                 try:
                     idx = key.replace("valor_", "")
-                    v = float(str(value).replace(",", "."))
+                    # Remover pontos (milhares) e substituir vírgula por ponto para parseFloat
+                    valor_limpo = str(value).replace(".", "").replace(",", ".")
+                    v = float(valor_limpo)
                     valor_total += v
                     tipo = request.POST.get(f"tipo_despesa_{idx}", "").strip()
                     cod_despesa = request.POST.get(f"cod_despesa_{idx}", "").strip()
@@ -2602,6 +3119,19 @@ def reembolso(request):
                     if sol.status_gestor != SolicitacaoReembolso.STATUS_REJEITADO and sol.status_gestor_admin != SolicitacaoReembolso.STATUS_REJEITADO:
                         messages.error(request, "Esta solicitação não pode ser editada.")
                         return redirect("intra:reembolso")
+                    # Guardar valores antigos para histórico
+                    valores_antigos = {
+                        'centro_custo': sol.centro_custo,
+                        'valor_total': sol.valor_total,
+                        'nome_gestor': sol.nome_gestor,
+                        'forma_pagamento': sol.forma_pagamento,
+                    }
+                    # Guardar itens antigos com seus anexos antes de deletar
+                    itens_antigos = list(sol.itens.all())
+                    anexos_existentes = {}
+                    for idx, item_antigo in enumerate(itens_antigos):
+                        if item_antigo.anexo:
+                            anexos_existentes[idx] = item_antigo.anexo
                     # Deletar itens antigos
                     sol.itens.all().delete()
                     # Resetar status para permitir nova aprovação
@@ -2620,6 +3150,8 @@ def reembolso(request):
                     sol.concluido_em = None
                     sol.envelope_id_docusign = ""
                     sol.status_docusign = ""
+                    # Atualizar data de envio para a data atual
+                    sol.criado_em = timezone.now()
                 except (SolicitacaoReembolso.DoesNotExist, ValueError):
                     messages.error(request, "Solicitação não encontrada.")
                     return redirect("intra:reembolso")
@@ -2638,6 +3170,16 @@ def reembolso(request):
             
             if sol:
                 # Atualizar solicitação existente
+                alteracoes = []
+                if sol.centro_custo != centro_custo:
+                    alteracoes.append(f"Centro de custo alterado de '{sol.centro_custo}' para '{centro_custo}'")
+                if float(sol.valor_total) != valor_total:
+                    alteracoes.append(f"Valor total alterado de R$ {sol.valor_total} para R$ {valor_total}")
+                if sol.nome_gestor != nome_gestor:
+                    alteracoes.append(f"Nome do gestor alterado de '{sol.nome_gestor or '—'}' para '{nome_gestor or '—'}'")
+                if sol.forma_pagamento != forma_pagamento:
+                    alteracoes.append(f"Forma de pagamento alterada de '{sol.forma_pagamento or '—'}' para '{forma_pagamento or '—'}'")
+                
                 sol.centro_custo = centro_custo
                 sol.cod_despesa = ""  # Não é mais obrigatório no nível da solicitação
                 sol.valor_total = valor_total
@@ -2651,6 +3193,17 @@ def reembolso(request):
                 sol.transf_conta_numero = transf_conta_numero if transf_conta_numero else None
                 sol.nome_gestor = nome_gestor if nome_gestor else None
                 sol.save()
+                
+                # Registrar no histórico
+                descricao_historico = "Solicitação editada e reenviada."
+                if alteracoes:
+                    descricao_historico += " Alterações: " + "; ".join(alteracoes)
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Solicitação editada",
+                    descricao=descricao_historico,
+                    usuario=request.user
+                )
             else:
                 # Criar nova solicitação
                 sol = SolicitacaoReembolso.objects.create(
@@ -2681,6 +3234,17 @@ def reembolso(request):
                         logger.info(f"[DEBUG S3] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
                         logger.info(f"[DEBUG S3] Storage configurado: {settings.DEFAULT_FILE_STORAGE}")
                         logger.info(f"[DEBUG S3] Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
+                    # Se não houver novo anexo e estiver editando, manter anexo existente
+                    elif editar_id and 'anexos_existentes' in locals():
+                        try:
+                            item_idx = int(item['idx'])
+                            if item_idx in anexos_existentes:
+                                # Manter o anexo existente copiando a referência
+                                anexo_existente = anexos_existentes[item_idx]
+                                # Usar o arquivo existente diretamente (já está no bucket)
+                                anexo = anexo_existente
+                        except (ValueError, KeyError):
+                            anexo = None
                     
                     # Debug antes de salvar
                     if anexo:
@@ -2752,6 +3316,13 @@ def reembolso(request):
                 sol.aprovado_por_gestor = request.user  # Auto-aprovado
                 sol.aprovado_em_gestor = timezone.now()
                 sol.save()
+                # Registrar no histórico
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Solicitação criada",
+                    descricao="Solicitação de reembolso criada e enviada para aprovação.",
+                    usuario=request.user
+                )
                 # Enviar e-mail aos gestores administrativos
                 _enviar_email_nova_solicitacao_gestor_admin(sol, request)
             else:
@@ -2767,6 +3338,7 @@ def reembolso(request):
             editar_id_final = request.POST.get("editar_id", "").strip()
             if editar_id_final:
                 messages.success(request, f"Solicitação de reembolso editada e reenviada com sucesso! ID da solicitação: #{sol.pk}")
+                return redirect("intra:meus_reembolsos")
             else:
                 messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
         return redirect("intra:reembolso")
@@ -2779,6 +3351,9 @@ def ultimos_reembolsos(request):
     if not _is_gestor(request.user):
         return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
     
+    # Processar pagamentos programados que já passaram da data
+    _processar_pagamentos_programados()
+    
     # Capturar filtros do GET
     data_inicio = request.GET.get('data_inicio', '')
     data_fim = request.GET.get('data_fim', '')
@@ -2786,283 +3361,161 @@ def ultimos_reembolsos(request):
     centro_custo_filtro = request.GET.get('centro_custo', '')
     tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
     id_filtro = request.GET.get('id', '').strip()
+    tabela_atual = request.GET.get('tabela_atual', 'em-processo')  # Tabela atual sendo visualizada
     
-    # Construir filtros base para diferentes status
-    filtros_aguardando_pagamento = Q(
-        status_gestor_admin=SolicitacaoReembolso.STATUS_APROVADO,
-        status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO,
+    # Construir filtros base para 3 categorias: Em Processo, Concluído, Rejeitado
+    # Em Processo: solicitações aprovadas pelo gestor que não são concluídas ou rejeitadas pelo gestor admin
+    # NÃO inclui: aguardando_gestor (status_gestor = PENDENTE) e rejeitado_gestor (status_gestor = REJEITADO)
+    filtros_em_processo = Q(
+        status_gestor=SolicitacaoReembolso.STATUS_APROVADO,  # Apenas aprovadas pelo gestor
         concluido=False
+    ) & ~Q(
+        status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
     )
-    filtros_pago_aguardando_assinaturas = Q(
-        status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
-        concluido=False
-    )
-    filtros_assinado_todas_partes = Q(
-        status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES,
-        concluido=False
-    )
+    
     filtros_rejeitados = Q(
         status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
     )
+    
     filtros_concluidos = Q(
         concluido=True
     )
     
-    # Filtro de ID
+    # Aplicar filtros comuns
     if id_filtro:
         try:
             id_valor = int(id_filtro)
-            filtros_aguardando_pagamento &= Q(pk=id_valor)
-            filtros_pago_aguardando_assinaturas &= Q(pk=id_valor)
-            filtros_assinado_todas_partes &= Q(pk=id_valor)
+            filtros_em_processo &= Q(pk=id_valor)
             filtros_rejeitados &= Q(pk=id_valor)
             filtros_concluidos &= Q(pk=id_valor)
         except ValueError:
             pass
     
-    # Filtro de data início (usar data de aprovação/rejeição)
     if data_inicio:
         try:
             data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-            filtros_aguardando_pagamento &= Q(aprovado_em_gestor_admin__date__gte=data_inicio_obj)
-            filtros_pago_aguardando_assinaturas &= Q(pago_em__date__gte=data_inicio_obj)
-            filtros_assinado_todas_partes &= Q(pago_em__date__gte=data_inicio_obj)
+            filtros_em_processo &= Q(criado_em__date__gte=data_inicio_obj)
             filtros_rejeitados &= Q(aprovado_em_gestor_admin__date__gte=data_inicio_obj)
             filtros_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
         except ValueError:
             pass
     
-    # Filtro de data fim (usar data de aprovação/rejeição)
     if data_fim:
         try:
             data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-            filtros_aguardando_pagamento &= Q(aprovado_em_gestor_admin__date__lte=data_fim_obj)
-            filtros_pago_aguardando_assinaturas &= Q(pago_em__date__lte=data_fim_obj)
-            filtros_assinado_todas_partes &= Q(pago_em__date__lte=data_fim_obj)
+            filtros_em_processo &= Q(criado_em__date__lte=data_fim_obj)
             filtros_rejeitados &= Q(aprovado_em_gestor_admin__date__lte=data_fim_obj)
             filtros_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
         except ValueError:
             pass
     
-    # Filtro de centro de custo
     if centro_custo_filtro:
-        filtros_aguardando_pagamento &= Q(centro_custo=centro_custo_filtro)
-        filtros_pago_aguardando_assinaturas &= Q(centro_custo=centro_custo_filtro)
-        filtros_assinado_todas_partes &= Q(centro_custo=centro_custo_filtro)
+        filtros_em_processo &= Q(centro_custo=centro_custo_filtro)
         filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
         filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
     
     # Filtro de tipo de despesa (via itens)
     if tipo_despesa_filtro:
-        # Construir filtros para itens considerando outros filtros já aplicados
-        filtros_itens_aguardando_pagamento = Q(tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_pago_aguardando_assinaturas = Q(tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_assinado_todas_partes = Q(tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_rejeitados = Q(tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_concluidos = Q(tipo_despesa=tipo_despesa_filtro)
+        # Obter IDs das solicitações que têm itens com esse tipo de despesa
+        filtros_itens = Q(tipo_despesa=tipo_despesa_filtro)
         
-        # Aplicar filtros de data via relacionamento
         if data_inicio:
             try:
                 data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-                filtros_itens_aguardando_pagamento &= Q(solicitacao__aprovado_em_gestor_admin__date__gte=data_inicio_obj)
-                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pago_em__date__gte=data_inicio_obj)
-                filtros_itens_assinado_todas_partes &= Q(solicitacao__pago_em__date__gte=data_inicio_obj)
-                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor_admin__date__gte=data_inicio_obj)
-                filtros_itens_concluidos &= Q(solicitacao__concluido_em__date__gte=data_inicio_obj)
+                filtros_itens &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
             except ValueError:
                 pass
         
         if data_fim:
             try:
                 data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-                filtros_itens_aguardando_pagamento &= Q(solicitacao__aprovado_em_gestor_admin__date__lte=data_fim_obj)
-                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pago_em__date__lte=data_fim_obj)
-                filtros_itens_assinado_todas_partes &= Q(solicitacao__pago_em__date__lte=data_fim_obj)
-                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor_admin__date__lte=data_fim_obj)
-                filtros_itens_concluidos &= Q(solicitacao__concluido_em__date__lte=data_fim_obj)
+                filtros_itens &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
             except ValueError:
                 pass
         
-        # Aplicar filtro de centro de custo via relacionamento
         if centro_custo_filtro:
-            filtros_itens_aguardando_pagamento &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_assinado_todas_partes &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_rejeitados &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_concluidos &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens &= Q(solicitacao__centro_custo=centro_custo_filtro)
         
-        # Aplicar filtro de ID via relacionamento
         if id_filtro:
             try:
                 id_valor = int(id_filtro)
-                filtros_itens_aguardando_pagamento &= Q(solicitacao__pk=id_valor)
-                filtros_itens_pago_aguardando_assinaturas &= Q(solicitacao__pk=id_valor)
-                filtros_itens_assinado_todas_partes &= Q(solicitacao__pk=id_valor)
-                filtros_itens_rejeitados &= Q(solicitacao__pk=id_valor)
-                filtros_itens_concluidos &= Q(solicitacao__pk=id_valor)
+                filtros_itens &= Q(solicitacao__pk=id_valor)
             except ValueError:
                 pass
         
-        # Obter IDs das solicitações que têm itens com esse tipo de despesa
-        solicitacoes_ids_aguardando_pagamento = ItemReembolso.objects.filter(
-            filtros_itens_aguardando_pagamento,
-            solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO,
-            solicitacao__concluido=False
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        solicitacoes_ids_pago_aguardando_assinaturas = ItemReembolso.objects.filter(
-            filtros_itens_pago_aguardando_assinaturas,
-            solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
-            solicitacao__concluido=False
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        solicitacoes_ids_assinado_todas_partes = ItemReembolso.objects.filter(
-            filtros_itens_assinado_todas_partes,
-            solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES,
-            solicitacao__concluido=False
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        solicitacoes_ids_rejeitados = ItemReembolso.objects.filter(
-            filtros_itens_rejeitados,
-            solicitacao__status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        solicitacoes_ids_concluidos = ItemReembolso.objects.filter(
-            filtros_itens_concluidos,
-            solicitacao__concluido=True
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        filtros_aguardando_pagamento &= Q(pk__in=solicitacoes_ids_aguardando_pagamento)
-        filtros_pago_aguardando_assinaturas &= Q(pk__in=solicitacoes_ids_pago_aguardando_assinaturas)
-        filtros_assinado_todas_partes &= Q(pk__in=solicitacoes_ids_assinado_todas_partes)
-        filtros_rejeitados &= Q(pk__in=solicitacoes_ids_rejeitados)
-        filtros_concluidos &= Q(pk__in=solicitacoes_ids_concluidos)
+        solicitacoes_ids = ItemReembolso.objects.filter(filtros_itens).values_list('solicitacao_id', flat=True).distinct()
+        filtros_em_processo &= Q(pk__in=solicitacoes_ids)
+        filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+        filtros_concluidos &= Q(pk__in=solicitacoes_ids)
     
-    # Últimos reembolsos aguardando pagamento
-    aguardando_pagamento = SolicitacaoReembolso.objects.select_related("user").filter(
-        filtros_aguardando_pagamento
-    ).order_by('-aprovado_em_gestor_admin')[:50]
+    # Buscar solicitações nas 3 categorias com prefetch_related para evitar N+1
+    em_processo = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
+        filtros_em_processo
+    ).order_by('-criado_em')[:50]
     
-    # Últimos reembolsos pago aguardando assinaturas
-    # Excluir as que já têm status ASSINADO_TODAS_PARTES para evitar duplicação
-    pago_aguardando_assinaturas = SolicitacaoReembolso.objects.select_related("user").filter(
-        filtros_pago_aguardando_assinaturas
-    ).exclude(
-        status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
-    ).order_by('-pago_em')[:50]
-    
-    # Últimos reembolsos assinado todas as partes (aguardando conclusão)
-    assinado_todas_partes = SolicitacaoReembolso.objects.select_related("user").filter(
-        filtros_assinado_todas_partes
-    ).order_by('-pago_em')[:50]
-    
-    # Últimos reembolsos rejeitados
-    rejeitados = SolicitacaoReembolso.objects.select_related("user").filter(
+    rejeitados = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
         filtros_rejeitados
     ).order_by('-aprovado_em_gestor_admin')[:50]
     
-    # Últimos reembolsos concluídos
-    concluidos = SolicitacaoReembolso.objects.select_related("user").filter(
+    concluidos = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
         filtros_concluidos
     ).order_by('-concluido_em')[:50]
     
-    # Preparar dados para exibição - Aguardando Pagamento
-    aguardando_pagamento_com_data = []
-    for sol in aguardando_pagamento:
+    # Consultar status DocuSign em paralelo para todas as solicitações em processo
+    em_processo_list = list(em_processo)
+    status_docusign_map = _get_status_assinatura_docusign_parallel(em_processo_list)
+    
+    # Preparar dados para exibição - Em Processo
+    em_processo_com_data = []
+    for sol in em_processo_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
-        sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
+        # Usar resultado do cache/paralelo
+        sol.status_docusign_info = status_docusign_map.get(sol.pk)
         sol.status_descritivo = _get_status_descritivo(sol)
-        aguardando_pagamento_com_data.append(sol)
+        em_processo_com_data.append(sol)
     
-    # Preparar dados para exibição - Pago Aguardando Assinaturas
-    pago_aguardando_assinaturas_com_data = []
-    assinadas_que_precisam_mover = []  # Solicitações que foram assinadas e precisam ir para outra tabela
-    for sol in pago_aguardando_assinaturas:
-        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
-        sol.pago_em_brasilia = localtime(sol.pago_em) if sol.pago_em else None
-        try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
-            sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
-            sol.nome_solicitante = ""
-        sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Consultar status DocuSign primeiro (para atualizar status)
-        sol.status_docusign_info = _get_status_assinatura_docusign(sol)
-        # Atualizar status_docusign no objeto se foi atualizado
-        if sol.status_docusign_info:
-            sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
-        # Recarregar do banco para pegar status atualizado
-        sol.refresh_from_db()
-        # Adicionar status descritivo (agora com status DocuSign atualizado)
-        sol.status_descritivo = _get_status_descritivo(sol)
-        # Se foi assinado por todas as partes, não adicionar aqui, será adicionado na lista correta
-        if sol.status == SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
-            assinadas_que_precisam_mover.append(sol)
-        else:
-            pago_aguardando_assinaturas_com_data.append(sol)
-    
-    # Preparar dados para exibição - Assinado Todas as Partes
-    assinado_todas_partes_com_data = []
-    for sol in assinado_todas_partes:
-        sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
-        sol.pago_em_brasilia = localtime(sol.pago_em) if sol.pago_em else None
-        try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
-            sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
-            sol.nome_solicitante = ""
-        sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Consultar status DocuSign primeiro (para atualizar status)
-        sol.status_docusign_info = _get_status_assinatura_docusign(sol)
-        # Atualizar status_docusign no objeto se foi atualizado
-        if sol.status_docusign_info:
-            sol.status_docusign = sol.status_docusign_info.get('status', sol.status_docusign)
-        # Recarregar do banco para pegar status atualizado
-        sol.refresh_from_db()
-        # Adicionar status descritivo (agora com status DocuSign atualizado)
-        sol.status_descritivo = _get_status_descritivo(sol)
-        assinado_todas_partes_com_data.append(sol)
-    
-    # Adicionar solicitações que foram assinadas durante o processamento
-    for sol in assinadas_que_precisam_mover:
-        # Recarregar do banco para garantir dados atualizados
-        sol.refresh_from_db()
-        sol.status_descritivo = _get_status_descritivo(sol)
-        assinado_todas_partes_com_data.append(sol)
-    
+    # Preparar dados para exibição - Rejeitados
+    rejeitados_list = list(rejeitados)
     rejeitados_com_data = []
-    for sol in rejeitados:
+    for sol in rejeitados_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
         sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Adicionar status descritivo
         sol.status_descritivo = _get_status_descritivo(sol)
         rejeitados_com_data.append(sol)
     
-    # Preparar dados dos concluídos
+    # Preparar dados para exibição - Concluídos
+    concluidos_list = list(concluidos)
     concluidos_com_data = []
-    for sol in concluidos:
+    for sol in concluidos_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
         sol.concluido_em_brasilia = localtime(sol.concluido_em) if sol.concluido_em else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Adicionar status descritivo
         sol.status_descritivo = _get_status_descritivo(sol)
         concluidos_com_data.append(sol)
     
@@ -3132,58 +3585,34 @@ def ultimos_reembolsos(request):
             'remove_url': get_url_without_filter('id')
         })
     
-    # Aplicar filtro de status descritivo
+    # Aplicar filtro de status se fornecido
     if status_filtro:
-        if status_filtro == 'aguardando_pagamento':
-            # Filtrar apenas aguardando pagamento
-            pago_aguardando_assinaturas_com_data = []
-            assinado_todas_partes_com_data = []
-            rejeitados_com_data = []
-            concluidos_com_data = []
-        elif status_filtro == 'pago_aguardando_assinaturas':
-            # Filtrar apenas pago aguardando assinaturas
-            aguardando_pagamento_com_data = []
-            assinado_todas_partes_com_data = []
-            rejeitados_com_data = []
-            concluidos_com_data = []
-        elif status_filtro == 'assinado_todas_partes':
-            # Filtrar apenas assinado todas as partes
-            aguardando_pagamento_com_data = []
-            pago_aguardando_assinaturas_com_data = []
+        if status_filtro == 'em_processo':
             rejeitados_com_data = []
             concluidos_com_data = []
         elif status_filtro == 'concluido':
-            # Filtrar apenas concluídos
-            aguardando_pagamento_com_data = []
-            pago_aguardando_assinaturas_com_data = []
-            assinado_todas_partes_com_data = []
+            em_processo_com_data = []
             rejeitados_com_data = []
-        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
-            # Filtrar apenas rejeitados
-            aguardando_pagamento_com_data = []
-            pago_aguardando_assinaturas_com_data = []
-            assinado_todas_partes_com_data = []
+        elif status_filtro == 'rejeitado':
+            em_processo_com_data = []
             concluidos_com_data = []
     
-    # Opções para status (adaptado para últimos reembolsos)
+    # Opções para status
     status_choices = [
         ('', 'Todos'),
-        ('aguardando_pagamento', 'Aguardando Pagamento'),
-        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
-        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
-        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ('em_processo', 'Em Processo'),
         ('concluido', 'Concluído'),
+        ('rejeitado', 'Rejeitado'),
     ]
     
     return render(
         request,
         "intra/ultimos_reembolsos.html",
         {
-            "aguardando_pagamento": aguardando_pagamento_com_data,
-            "pago_aguardando_assinaturas": pago_aguardando_assinaturas_com_data,
-            "assinado_todas_partes": assinado_todas_partes_com_data,
+            "em_processo": em_processo_com_data,
             "rejeitados": rejeitados_com_data,
             "concluidos": concluidos_com_data,
+            "tabela_atual": tabela_atual,
             "filtros": {
                 "data_inicio": data_inicio,
                 "data_fim": data_fim,
@@ -3214,188 +3643,157 @@ def ultimos_reembolsos_gestor(request):
     tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
     id_filtro = request.GET.get('id', '').strip()
     
-    # Construir filtros base
-    filtros_aprovados = Q(
-        status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
-        aprovado_por_gestor=request.user
+    # Construir filtros base para 3 categorias: Em Processo, Concluído, Rejeitado
+    # Em Processo: tudo que não é concluído ou rejeitado pelo gestor
+    filtros_em_processo = Q(
+        aprovado_por_gestor=request.user,
+        concluido=False
+    ) & ~Q(
+        status_gestor=SolicitacaoReembolso.STATUS_REJEITADO
     )
+    
     filtros_rejeitados = Q(
         status_gestor=SolicitacaoReembolso.STATUS_REJEITADO,
         aprovado_por_gestor=request.user
     )
     
-    # Filtro de ID
+    filtros_concluidos = Q(
+        concluido=True,
+        aprovado_por_gestor=request.user
+    )
+    
+    # Aplicar filtros comuns
     if id_filtro:
         try:
             id_valor = int(id_filtro)
-            filtros_aprovados &= Q(pk=id_valor)
+            filtros_em_processo &= Q(pk=id_valor)
             filtros_rejeitados &= Q(pk=id_valor)
+            filtros_concluidos &= Q(pk=id_valor)
         except ValueError:
             pass
     
-    # Filtro de data início (usar data de aprovação/rejeição pelo gestor)
     if data_inicio:
         try:
             data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-            filtros_aprovados &= Q(aprovado_em_gestor__date__gte=data_inicio_obj)
+            filtros_em_processo &= Q(criado_em__date__gte=data_inicio_obj)
             filtros_rejeitados &= Q(aprovado_em_gestor__date__gte=data_inicio_obj)
+            filtros_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
         except ValueError:
             pass
     
-    # Filtro de data fim (usar data de aprovação/rejeição pelo gestor)
     if data_fim:
         try:
             data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-            filtros_aprovados &= Q(aprovado_em_gestor__date__lte=data_fim_obj)
+            filtros_em_processo &= Q(criado_em__date__lte=data_fim_obj)
             filtros_rejeitados &= Q(aprovado_em_gestor__date__lte=data_fim_obj)
+            filtros_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
         except ValueError:
             pass
     
-    # Filtro de centro de custo
     if centro_custo_filtro:
-        filtros_aprovados &= Q(centro_custo=centro_custo_filtro)
+        filtros_em_processo &= Q(centro_custo=centro_custo_filtro)
         filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
+        filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
     
     # Filtro de tipo de despesa (via itens)
     if tipo_despesa_filtro:
-        # Construir filtros para itens considerando outros filtros já aplicados
-        filtros_itens_aprovados = Q(tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_rejeitados = Q(tipo_despesa=tipo_despesa_filtro)
+        filtros_itens = Q(tipo_despesa=tipo_despesa_filtro)
         
-        # Aplicar filtros de data via relacionamento
         if data_inicio:
             try:
                 data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-                filtros_itens_aprovados &= Q(solicitacao__aprovado_em_gestor__date__gte=data_inicio_obj)
-                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor__date__gte=data_inicio_obj)
+                filtros_itens &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
             except ValueError:
                 pass
         
         if data_fim:
             try:
                 data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-                filtros_itens_aprovados &= Q(solicitacao__aprovado_em_gestor__date__lte=data_fim_obj)
-                filtros_itens_rejeitados &= Q(solicitacao__aprovado_em_gestor__date__lte=data_fim_obj)
+                filtros_itens &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
             except ValueError:
                 pass
         
-        # Aplicar filtro de centro de custo via relacionamento
         if centro_custo_filtro:
-            filtros_itens_aprovados &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_rejeitados &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens &= Q(solicitacao__centro_custo=centro_custo_filtro)
         
-        # Aplicar filtro de ID via relacionamento
         if id_filtro:
             try:
                 id_valor = int(id_filtro)
-                filtros_itens_aprovados &= Q(solicitacao__pk=id_valor)
-                filtros_itens_rejeitados &= Q(solicitacao__pk=id_valor)
+                filtros_itens &= Q(solicitacao__pk=id_valor)
             except ValueError:
                 pass
         
-        # Obter IDs das solicitações que têm itens com esse tipo de despesa
-        solicitacoes_ids_aprovados = ItemReembolso.objects.filter(
-            filtros_itens_aprovados,
-            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
-            solicitacao__aprovado_por_gestor=request.user
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        solicitacoes_ids_rejeitados = ItemReembolso.objects.filter(
-            filtros_itens_rejeitados,
-            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_REJEITADO,
-            solicitacao__aprovado_por_gestor=request.user
-        ).values_list('solicitacao_id', flat=True).distinct()
-        
-        filtros_aprovados &= Q(pk__in=solicitacoes_ids_aprovados)
-        filtros_rejeitados &= Q(pk__in=solicitacoes_ids_rejeitados)
+        solicitacoes_ids = ItemReembolso.objects.filter(filtros_itens).values_list('solicitacao_id', flat=True).distinct()
+        filtros_em_processo &= Q(pk__in=solicitacoes_ids)
+        filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+        filtros_concluidos &= Q(pk__in=solicitacoes_ids)
     
-    # Últimos reembolsos aprovados pelo gestor
-    aprovados = SolicitacaoReembolso.objects.select_related("user").filter(
-        filtros_aprovados
-    ).order_by('-aprovado_em_gestor')[:50]
+    # Buscar solicitações nas 3 categorias com prefetch_related para evitar N+1
+    em_processo = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
+        filtros_em_processo
+    ).order_by('-criado_em')[:50]
     
-    # Últimos reembolsos rejeitados pelo gestor
-    rejeitados = SolicitacaoReembolso.objects.select_related("user").filter(
+    rejeitados = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
         filtros_rejeitados
     ).order_by('-aprovado_em_gestor')[:50]
     
-    # Últimos reembolsos concluídos pelo gestor (aprovados e concluídos)
-    filtros_concluidos = Q(
-        status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
-        aprovado_por_gestor=request.user,
-        concluido=True
-    )
-    if id_filtro:
-        try:
-            id_valor = int(id_filtro)
-            filtros_concluidos &= Q(pk=id_valor)
-        except ValueError:
-            pass
-    if data_inicio:
-        try:
-            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-            filtros_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
-        except ValueError:
-            pass
-    if data_fim:
-        try:
-            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-            filtros_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
-        except ValueError:
-            pass
-    if centro_custo_filtro:
-        filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
-    if tipo_despesa_filtro:
-        # Aplicar filtro de tipo de despesa via itens
-        solicitacoes_ids_concluidos = ItemReembolso.objects.filter(
-            tipo_despesa=tipo_despesa_filtro,
-            solicitacao__status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
-            solicitacao__aprovado_por_gestor=request.user,
-            solicitacao__concluido=True
-        ).values_list('solicitacao_id', flat=True).distinct()
-        filtros_concluidos &= Q(pk__in=solicitacoes_ids_concluidos)
-    
-    concluidos = SolicitacaoReembolso.objects.select_related("user").filter(
+    concluidos = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+        "user__perfil_solicitante"
+    ).filter(
         filtros_concluidos
     ).order_by('-concluido_em')[:50]
     
-    # Preparar dados para exibição
-    aprovados_com_data = []
-    for sol in aprovados:
+    # Consultar status DocuSign em paralelo para todas as solicitações
+    em_processo_list = list(em_processo)
+    status_docusign_map = _get_status_assinatura_docusign_parallel(em_processo_list)
+    
+    # Preparar dados para exibição - Em Processo
+    em_processo_com_data = []
+    for sol in em_processo_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
         sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor) if sol.aprovado_em_gestor else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
-        # Adicionar status descritivo
+        # Usar resultado do cache/paralelo
+        sol.status_docusign_info = status_docusign_map.get(sol.pk)
         sol.status_descritivo = _get_status_descritivo(sol)
-        aprovados_com_data.append(sol)
+        em_processo_com_data.append(sol)
     
+    rejeitados_list = list(rejeitados)
     rejeitados_com_data = []
-    for sol in rejeitados:
+    for sol in rejeitados_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
         sol.aprovado_em_brasilia = localtime(sol.aprovado_em_gestor) if sol.aprovado_em_gestor else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
         # Adicionar status descritivo
         sol.status_descritivo = _get_status_descritivo(sol)
         rejeitados_com_data.append(sol)
     
+    concluidos_list = list(concluidos)
     concluidos_com_data = []
-    for sol in concluidos:
+    for sol in concluidos_list:
         sol.criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
         sol.concluido_em_brasilia = localtime(sol.concluido_em) if sol.concluido_em else None
+        # Usar prefetch_related para evitar query adicional
         try:
-            perfil = PerfilSolicitante.objects.get(user=sol.user)
+            perfil = sol.user.perfil_solicitante
             sol.nome_solicitante = perfil.nome_solicitante or ""
-        except PerfilSolicitante.DoesNotExist:
+        except (PerfilSolicitante.DoesNotExist, AttributeError):
             sol.nome_solicitante = ""
         sol.email_solicitante = sol.user.email or sol.user.username or "—"
         # Adicionar status descritivo
@@ -3468,50 +3866,31 @@ def ultimos_reembolsos_gestor(request):
             'remove_url': get_url_without_filter('id')
         })
     
-    # Aplicar filtro de status descritivo
+    # Aplicar filtro de status se fornecido
     if status_filtro:
-        if status_filtro == 'aguardando_assinatura':
-            # Filtrar apenas aprovados que estão aguardando assinatura
-            aprovados_filtrados = []
-            for sol in aprovados_com_data:
-                if sol.status_descritivo == 'aguardando_assinatura':
-                    aprovados_filtrados.append(sol)
-            aprovados_com_data = aprovados_filtrados
-            # Limpar rejeitados quando filtrar por aguardando assinatura
+        if status_filtro == 'em_processo':
             rejeitados_com_data = []
-        elif status_filtro == SolicitacaoReembolso.STATUS_APROVADO:
-            # Filtrar apenas aprovados (não aguardando assinatura)
-            aprovados_filtrados = []
-            for sol in aprovados_com_data:
-                if sol.status_descritivo == 'aprovado' or sol.status_descritivo == 'aguardando_gestor_admin':
-                    aprovados_filtrados.append(sol)
-            aprovados_com_data = aprovados_filtrados
-            # Limpar rejeitados
-            rejeitados_com_data = []
-        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
-            # Filtrar apenas rejeitados
-            # Limpar aprovados
-            aprovados_com_data = []
+            concluidos_com_data = []
         elif status_filtro == 'concluido':
-            # Filtrar apenas concluídos
-            # Limpar aprovados e rejeitados
-            aprovados_com_data = []
+            em_processo_com_data = []
             rejeitados_com_data = []
+        elif status_filtro == 'rejeitado':
+            em_processo_com_data = []
+            concluidos_com_data = []
     
-    # Opções para status (adaptado para últimos reembolsos)
+    # Opções para status
     status_choices = [
         ('', 'Todos'),
-        (SolicitacaoReembolso.STATUS_APROVADO, 'Aprovado'),
-        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-        ('aguardando_assinatura', 'Aguardando Assinaturas'),
+        ('em_processo', 'Em Processo'),
         ('concluido', 'Concluído'),
+        ('rejeitado', 'Rejeitado'),
     ]
     
     return render(
         request,
         "intra/ultimos_reembolsos_gestor.html",
         {
-            "aprovados": aprovados_com_data,
+            "em_processo": em_processo_com_data,
             "rejeitados": rejeitados_com_data,
             "concluidos": concluidos_com_data,
             "filtros": {

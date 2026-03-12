@@ -149,6 +149,61 @@
         font-weight: 600;
         font-size: 0.9rem;
     }
+    .status-aguardando-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fef3c7;
+        color: #d97706;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-rejeitado-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-rejeitado-gestor-admin {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-pago-aguardando-assinaturas {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-assinado-todas-partes {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #c6f6d5;
+        color: #38a169;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-aguardando-pagamento {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #bee3f8;
+        color: #2b6cb0;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
     .status-concluido {
         display: inline-block;
         padding: 0.5rem 1rem;
@@ -518,43 +573,61 @@
     {% endif %}
 </div>
 
-    <!-- Últimos Reembolsos Aprovados -->
+    <!-- Reembolsos Em Processo -->
     <div class="card">
         <div style="padding: 1.5rem 1.5rem 0;">
-            <h2 class="section-title">Últimos Reembolsos Aprovados</h2>
+            <h2 class="section-title">Reembolsos Em Processo</h2>
         </div>
-        {% if aprovados %}
+        {% if em_processo %}
         <div style="padding: 0 1.5rem 1.5rem;">
         <table class="tabela-reembolsos">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Solicitante</th>
-                    <th>Data de Aprovação</th>
+                    <th>Data de Criação</th>
                     <th class="valor">Valor total</th>
                     <th>Status</th>
                     <th>Status do contrato</th>
                 </tr>
             </thead>
             <tbody>
-                {% for s in aprovados %}
+                {% for s in em_processo %}
                 <tr>
                     <td><a href="#" class="id-clicavel" data-pk="{{ s.pk }}"><strong>#{{ s.pk }}</strong></a></td>
                     <td>
                         <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a><br>
                         <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
                     </td>
-                    <td>{{ s.aprovado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
+                    <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
                     <td>
                         {% if s.status_descritivo == 'aguardando_gestor_admin' %}
                             <span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>
-                        {% elif s.status_descritivo == 'aguardando_assinatura' %}
+                        {% elif s.status_descritivo == 'aguardando_pagamento' %}
+                            <span class="status-aguardando-pagamento">Aguardando pagamento</span>
+                        {% elif s.status_descritivo == 'pago_aguardando_assinaturas' %}
                             <span class="status-aguardando-assinatura">⏳ Aguardando assinaturas</span>
-                        {% elif s.status_descritivo == 'aprovado' %}
-                            <span class="status-aprovado">Aprovado</span>
+                            {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                                <br><span style="display: inline-block; margin-top: 6px; padding: 6px 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 0.9em; font-weight: 600; color: #856404;">
+                                    Aguardando assinatura de: 
+                                    {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                        {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </span>
+                            {% endif %}
+                        {% elif s.status_descritivo == 'assinado_todas_partes' %}
+                            <span class="status-assinado-todas-partes">Assinado por todas as partes</span>
+                        {% elif s.status_descritivo == 'aguardando_gestor' %}
+                            <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor' %}
+                            <span class="status-rejeitado-gestor">Rejeitado pelo gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor_admin' %}
+                            <span class="status-rejeitado-gestor-admin">Rejeitado pelo gestor administrativo</span>
+                        {% elif s.status_descritivo == 'aguardando_pagamento' %}
+                            <span class="status-aguardando-pagamento">Aguardando pagamento</span>
                         {% else %}
-                            <span class="status-aprovado">Aprovado</span>
+                            <span class="status-aprovado">{{ s.status_descritivo|title }}</span>
                         {% endif %}
                     </td>
                     <td class="acoes">
@@ -567,7 +640,7 @@
         </div>
         {% else %}
         <div class="card-empty">
-            <p>Nenhum reembolso aprovado encontrado.</p>
+            <p>Nenhum reembolso em processo encontrado.</p>
         </div>
         {% endif %}
     </div>
@@ -750,6 +823,7 @@
                     html += '<div class="detalhe-solicitacao">';
                     html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
+                    html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
                     
                     // Código de despesa
                     html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
@@ -847,12 +921,6 @@
                 var html = '<div class="detalhe-solicitacao">';
                 html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + escapeHtml(solicitante.nome || solicitante.email || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + escapeHtml(solicitante.email || '—') + '</span></div>';
-                
-                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
-                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados do Gestor</h4>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Nome do gestor</strong><span>' + escapeHtml(solicitante.nome_gestor || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>E-mail do gestor</strong><span>' + escapeHtml(solicitante.email_gestor || '—') + '</span></div>';
-                html += '</div>';
                 
                 html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
                 html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários (Cadastro)</h4>';

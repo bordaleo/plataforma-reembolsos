@@ -123,6 +123,25 @@
         text-decoration: none;
         color: #ffffff;
     }
+    .btn-marcar-pago {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .btn-marcar-pago:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        text-decoration: none;
+        color: #ffffff;
+    }
     .section-title {
         font-size: 1.5rem;
         font-weight: 700;
@@ -201,6 +220,42 @@
         padding: 0.5rem 1rem;
         background-color: #c6f6d5;
         color: #38a169;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-aguardando-gestor-admin {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #bee3f8;
+        color: #3182ce;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-aguardando-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fef3c7;
+        color: #d97706;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-rejeitado-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .status-rejeitado-gestor-admin {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.9rem;
@@ -488,6 +543,97 @@
         color: #ffffff;
         transform: scale(1.1);
     }
+    .btn-tabela {
+        background: #ffffff;
+        color: #34495e;
+        border: 2px solid #e1e8ed;
+        padding: 1.25rem 1.5rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        font-family: inherit;
+        flex: 1;
+        min-width: 0;
+        position: relative;
+    }
+    .btn-tabela:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        border-color: #bdc3c7;
+        background: #f8f9fa;
+    }
+    .btn-tabela.ativo {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border-color: #34495e;
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .btn-tabela.ativo:hover {
+        background: linear-gradient(135deg, #2c3e50 0%, #1a252f 50%, #0f1419 100%);
+    }
+    .btn-tabela.ativo .badge-contador {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .badge-contador {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        padding: 0.5rem 0.875rem;
+        border-radius: 20px;
+        font-size: 1rem;
+        font-weight: 700;
+        min-width: 40px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(52, 73, 94, 0.3);
+        transition: all 0.3s;
+    }
+    .badge-em-processo {
+        background: #ffc107 !important;
+        box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2) !important;
+    }
+    .badge-concluidos {
+        background: #28a745 !important;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2) !important;
+    }
+    .badge-rejeitados {
+        background: #dc3545 !important;
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2) !important;
+    }
+    .btn-tabela.ativo .badge-em-processo {
+        background: #ffc107 !important;
+        box-shadow: 0 2px 4px rgba(255, 193, 7, 0.25) !important;
+    }
+    .btn-tabela.ativo .badge-concluidos {
+        background: #28a745 !important;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.25) !important;
+    }
+    .btn-tabela.ativo .badge-rejeitados {
+        background: #dc3545 !important;
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.25) !important;
+    }
+    .tabela-container {
+        display: none;
+        animation: fadeIn 0.3s ease-in;
+    }
+    .tabela-container.ativa {
+        display: block;
+    }
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -495,10 +641,50 @@
 <h1 class="page-title">Últimos Reembolsos</h1>
 <p class="page-intro">Visualize os últimos reembolsos aprovados, rejeitados e concluídos pelo gestor administrativo.</p>
 
+<!-- Botões para mostrar/esconder tabelas -->
+<div style="margin-bottom: 2.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0; font-size: 1.3rem; font-weight: 700; color: #34495e;">Categorias</h2>
+        <a href="{% url 'intra:ultimos_reembolsos' %}" class="btn btn-secondary" onclick="limparFiltros(); return false;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s; border: none; cursor: pointer;">
+            <span style="font-size: 1.1rem;">⌫</span>
+            <span>Limpar Filtros</span>
+        </a>
+    </div>
+    <div style="display: flex; gap: 1rem; flex-wrap: nowrap; justify-content: space-between; padding: 1.5rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border: 1px solid #e1e8ed;">
+        <button id="btn-em-processo" class="btn-tabela" data-tabela="em-processo">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; width: 100%; text-align: center;">
+                <span style="font-size: 1.5rem; line-height: 1;"></span>
+                <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Em Processo ⏳</span>
+                <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações em andamento</span>
+                <span class="badge-contador badge-em-processo">{{ em_processo|length }}</span>
+            </div>
+        </button>
+        <button id="btn-concluidos" class="btn-tabela" data-tabela="concluidos">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; width: 100%; text-align: center;">
+                <span style="font-size: 1.5rem; line-height: 1;"></span>
+                <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Concluídos ✅ </span>
+                <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações finalizadas</span>
+                <span class="badge-contador badge-concluidos">{{ concluidos|length }}</span>
+            </div>
+        </button>
+        <button id="btn-rejeitados" class="btn-tabela" data-tabela="rejeitados">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; width: 100%; text-align: center;">
+                <span style="font-size: 1.5rem; line-height: 1;"></span>
+                <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Rejeitados ❌</span>
+                <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações recusadas</span>
+                <span class="badge-contador badge-rejeitados">{{ rejeitados|length }}</span>
+            </div>
+        </button>
+    </div>
+</div>
+
 <!-- Formulário de Filtros -->
-<div class="filters-card">
+<div class="filters-card" id="filters-card" style="display: none;">
     <h2 class="filters-title">Filtros</h2>
-    <form method="get" action="{% url 'intra:ultimos_reembolsos' %}" class="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+    <form method="get" action="{% url 'intra:ultimos_reembolsos' %}" class="filters-form" id="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+        {% if tabela_atual %}
+        <input type="hidden" name="tabela_atual" value="{{ tabela_atual }}">
+        {% endif %}
         <div class="filters-grid">
             <div class="filter-group">
                 <label for="data_inicio">Data Início</label>
@@ -547,7 +733,7 @@
         
         <div class="filters-actions">
             <button type="submit" class="btn btn-primary">Filtrar</button>
-            <a href="{% url 'intra:ultimos_reembolsos' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...');">Limpar</a>
+            <a href="{% url 'intra:ultimos_reembolsos' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...'); return true;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);">⌫ Limpar</a>
         </div>
     </form>
     
@@ -565,19 +751,20 @@
     {% endif %}
 </div>
 
-    <!-- Reembolsos Aguardando Pagamento -->
+    <!-- Reembolsos Em Processo -->
+    <div id="tabela-em-processo" class="tabela-container">
     <div class="card">
         <div style="padding: 1.5rem 1.5rem 0;">
-            <h2 class="section-title">Reembolsos Aguardando Pagamento</h2>
+            <h2 class="section-title">Reembolsos Em Processo</h2>
         </div>
-        {% if aguardando_pagamento %}
+        {% if em_processo %}
         <div style="padding: 0 1.5rem 1.5rem;">
         <table class="tabela-reembolsos">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Solicitante</th>
-                    <th>Data de Aprovação</th>
+                    <th>Data de Criação</th>
                     <th class="valor">Valor total</th>
                     <th>Status</th>
                     <th>Status do contrato</th>
@@ -585,79 +772,58 @@
                 </tr>
             </thead>
             <tbody>
-                {% for s in aguardando_pagamento %}
+                {% for s in em_processo %}
                 <tr>
                     <td><a href="#" class="id-clicavel" data-pk="{{ s.pk }}"><strong>#{{ s.pk }}</strong></a></td>
                     <td>
                         <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a><br>
                         <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
                     </td>
-                    <td>{{ s.aprovado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
-                    <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
-                    <td><span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span></td>
-                    <td class="acoes">
-                        <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
-                    </td>
-                    <td class="acoes">
-                        <form method="post" action="{% url 'intra:reembolso_marcar_pago' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja marcar esta solicitação como paga?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-concluir">Marcar como Pago</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        {% else %}
-        <div class="card-empty">
-            <p>Nenhum reembolso aguardando pagamento encontrado.</p>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Reembolsos Pago - Aguardando Assinaturas -->
-    <div class="card">
-        <div style="padding: 1.5rem 1.5rem 0;">
-            <h2 class="section-title">Reembolsos Pago - Aguardando Assinaturas</h2>
-        </div>
-        {% if pago_aguardando_assinaturas %}
-        <div style="padding: 0 1.5rem 1.5rem;">
-        <table class="tabela-reembolsos">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Solicitante</th>
-                    <th>Data do Pagamento</th>
-                    <th class="valor">Valor total</th>
-                    <th>Status</th>
-                    <th>Status do contrato</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in pago_aguardando_assinaturas %}
-                <tr>
-                    <td><a href="#" class="id-clicavel" data-pk="{{ s.pk }}"><strong>#{{ s.pk }}</strong></a></td>
-                    <td>
-                        <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a><br>
-                        <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
-                    </td>
-                    <td>{{ s.pago_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
+                    <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
                     <td>
-                        <span class="status-pago-aguardando-assinaturas">Pago - Aguardando assinaturas</span>
-                        {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
-                            <br><span style="display: inline-block; margin-top: 6px; padding: 6px 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 0.9em; font-weight: 600; color: #856404;">
-                                Aguardando assinatura de: 
-                                {% for signer in s.status_docusign_info.aguardando_assinatura %}
-                                    {{ signer.nome }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </span>
+                        {% if s.status_descritivo == 'aguardando_pagamento' %}
+                            <span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>
+                        {% elif s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                            <span class="status-pago-aguardando-assinaturas">Pago - Aguardando assinaturas</span>
+                            {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                                <br><span style="display: inline-block; margin-top: 6px; padding: 6px 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 0.9em; font-weight: 600; color: #856404;">
+                                    Aguardando assinatura de: 
+                                    {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                        {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </span>
+                            {% endif %}
+                        {% elif s.status_descritivo == 'assinado_todas_partes' %}
+                            <span class="status-assinado-todas-partes">Assinado por todas as partes</span>
+                        {% elif s.status_descritivo == 'aguardando_gestor_admin' %}
+                            <span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>
+                        {% elif s.status_descritivo == 'aguardando_gestor' %}
+                            <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor' %}
+                            <span class="status-rejeitado-gestor">Rejeitado pelo gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor_admin' %}
+                            <span class="status-rejeitado-gestor-admin">Rejeitado pelo gestor administrativo</span>
+                        {% else %}
+                            <span class="status-aguardando-pagamento">{{ s.status_descritivo|title }}</span>
                         {% endif %}
                     </td>
                     <td class="acoes">
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                     </td>
+                    <td class="acoes">
+                        {% if s.status_descritivo == 'assinado_todas_partes' %}
+                            <form method="post" action="{% url 'intra:reembolso_concluir' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja concluir esta solicitação?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-concluir">Concluir</button>
+                            </form>
+                        {% elif s.status_descritivo == 'aguardando_pagamento' %}
+                            <form method="post" action="{% url 'intra:reembolso_marcar_pago' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja marcar esta solicitação como paga?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-marcar-pago">Marcar como Pago</button>
+                            </form>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -665,63 +831,14 @@
         </div>
         {% else %}
         <div class="card-empty">
-            <p>Nenhum reembolso pago aguardando assinaturas encontrado.</p>
+            <p>Nenhum reembolso em processo encontrado.</p>
         </div>
         {% endif %}
     </div>
-
-    <!-- Reembolsos Assinado - Aguardando Conclusão -->
-    <div class="card">
-        <div style="padding: 1.5rem 1.5rem 0;">
-            <h2 class="section-title">Reembolsos Assinado - Aguardando Conclusão</h2>
-        </div>
-        {% if assinado_todas_partes %}
-        <div style="padding: 0 1.5rem 1.5rem;">
-        <table class="tabela-reembolsos">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Solicitante</th>
-                    <th>Data do Pagamento</th>
-                    <th class="valor">Valor total</th>
-                    <th>Status</th>
-                    <th>Status do contrato</th>
-                    <th>Concluir</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for s in assinado_todas_partes %}
-                <tr>
-                    <td><a href="#" class="id-clicavel" data-pk="{{ s.pk }}"><strong>#{{ s.pk }}</strong></a></td>
-                    <td>
-                        <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a><br>
-                        <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
-                    </td>
-                    <td>{{ s.pago_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
-                    <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
-                    <td><span class="status-assinado-todas-partes">Assinado por todas as partes</span></td>
-                    <td class="acoes">
-                        <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
-                    </td>
-                    <td class="acoes">
-                        <form method="post" action="{% url 'intra:reembolso_concluir' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja concluir esta solicitação?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-concluir">Concluir</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        {% else %}
-        <div class="card-empty">
-            <p>Nenhum reembolso assinado aguardando conclusão encontrado.</p>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Últimos Reembolsos Rejeitados -->
+    <div id="tabela-rejeitados" class="tabela-container">
     <div class="card">
         <div style="padding: 1.5rem 1.5rem 0;">
             <h2 class="section-title">Últimos Reembolsos Rejeitados</h2>
@@ -766,8 +883,10 @@
         </div>
         {% endif %}
     </div>
+    </div>
 
     <!-- Últimos Reembolsos Concluídos -->
+    <div id="tabela-concluidos" class="tabela-container">
     <div class="card">
         <div style="padding: 1.5rem 1.5rem 0;">
             <h2 class="section-title">Últimos Reembolsos Concluídos</h2>
@@ -811,6 +930,7 @@
             <p>Nenhum reembolso concluído encontrado.</p>
         </div>
         {% endif %}
+    </div>
     </div>
 
 <!-- Modal Ver Solicitação -->
@@ -875,6 +995,115 @@
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 
+    // Controle de exibição das tabelas
+    function mostrarTabela(tabelaId) {
+        // Esconder todas as tabelas
+        document.querySelectorAll('.tabela-container').forEach(function(tabela) {
+            tabela.classList.remove('ativa');
+        });
+        // Remover classe ativo de todos os botões
+        document.querySelectorAll('.btn-tabela').forEach(function(btn) {
+            btn.classList.remove('ativo');
+        });
+        // Mostrar tabela selecionada
+        var tabela = document.getElementById('tabela-' + tabelaId);
+        if (tabela) {
+            tabela.classList.add('ativa');
+        }
+        // Adicionar classe ativo ao botão correspondente
+        var btn = document.getElementById('btn-' + tabelaId);
+        if (btn) {
+            btn.classList.add('ativo');
+        }
+        
+        // Mostrar formulário de filtros quando uma tabela é selecionada
+        var filtersCard = document.getElementById('filters-card');
+        if (filtersCard) {
+            filtersCard.style.display = 'block';
+        }
+        
+        // Atualizar o formulário de filtros para incluir a tabela atual
+        var formFiltros = document.getElementById('filters-form');
+        if (formFiltros) {
+            // Adicionar campo hidden com a tabela atual
+            var inputTabela = formFiltros.querySelector('input[name="tabela_atual"]');
+            if (inputTabela) {
+                inputTabela.value = tabelaId;
+            } else {
+                var hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'tabela_atual';
+                hiddenInput.value = tabelaId;
+                formFiltros.appendChild(hiddenInput);
+            }
+        }
+    }
+    
+    // Função para limpar filtros
+    function limparFiltros() {
+        showLoading('Limpando filtros...');
+        window.location.href = "{% url 'intra:ultimos_reembolsos' %}";
+    }
+    
+    // Mostrar primeira tabela por padrão ao carregar a página (se não houver tabela_atual na URL)
+    var urlParams = new URLSearchParams(window.location.search);
+    var tabelaAtual = urlParams.get('tabela_atual');
+    var temFiltros = urlParams.has('data_inicio') || urlParams.has('data_fim') || urlParams.has('status') || 
+                     urlParams.has('centro_custo') || urlParams.has('tipo_despesa') || urlParams.has('id');
+    
+    if (!tabelaAtual && !temFiltros) {
+        // Se não houver tabela_atual na URL e não houver filtros, não mostrar nenhuma tabela
+        // Esconder todas as tabelas
+        document.querySelectorAll('.tabela-container').forEach(function(tabela) {
+            tabela.classList.remove('ativa');
+        });
+        // Remover classe ativo de todos os botões
+        document.querySelectorAll('.btn-tabela').forEach(function(btn) {
+            btn.classList.remove('ativo');
+        });
+        // Esconder formulário de filtros
+        var filtersCard = document.getElementById('filters-card');
+        if (filtersCard) {
+            filtersCard.style.display = 'none';
+        }
+    } else if (tabelaAtual) {
+        mostrarTabela(tabelaAtual);
+    } else if (temFiltros) {
+        // Se houver filtros mas não tabela_atual, mostrar a primeira tabela que tiver dados
+        var emProcessoCount = {{ em_processo|length }};
+        var concluidosCount = {{ concluidos|length }};
+        var rejeitadosCount = {{ rejeitados|length }};
+        
+        if (emProcessoCount > 0) {
+            mostrarTabela('em-processo');
+        } else if (concluidosCount > 0) {
+            mostrarTabela('concluidos');
+        } else if (rejeitadosCount > 0) {
+            mostrarTabela('rejeitados');
+        }
+    }
+    
+    // Adicionar listeners aos botões
+    var btnEmProcesso = document.getElementById('btn-em-processo');
+    var btnConcluidos = document.getElementById('btn-concluidos');
+    var btnRejeitados = document.getElementById('btn-rejeitados');
+    
+    if (btnEmProcesso) {
+        btnEmProcesso.addEventListener('click', function() {
+            mostrarTabela('em-processo');
+        });
+    }
+    if (btnConcluidos) {
+        btnConcluidos.addEventListener('click', function() {
+            mostrarTabela('concluidos');
+        });
+    }
+    if (btnRejeitados) {
+        btnRejeitados.addEventListener('click', function() {
+            mostrarTabela('rejeitados');
+        });
+    }
+
     // Modal Ver Solicitação
     var modalVerSolicitacao = document.getElementById('modal-ver-solicitacao');
     var solicitacaoContent = document.getElementById('solicitacao-content');
@@ -901,6 +1130,7 @@
                     html += '<div class="detalhe-solicitacao">';
                     html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
+                    html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
                     
                     // Código de despesa
                     html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
@@ -1023,12 +1253,6 @@
                 var html = '<div class="detalhe-solicitacao">';
                 html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + escapeHtml(solicitante.nome || solicitante.email || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + escapeHtml(solicitante.email || '—') + '</span></div>';
-                
-                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
-                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados do Gestor</h4>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Nome do gestor</strong><span>' + escapeHtml(solicitante.nome_gestor || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>E-mail do gestor</strong><span>' + escapeHtml(solicitante.email_gestor || '—') + '</span></div>';
-                html += '</div>';
                 
                 html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
                 html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários (Cadastro)</h4>';

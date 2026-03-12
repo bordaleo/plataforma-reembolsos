@@ -194,6 +194,13 @@ class SolicitacaoReembolso(models.Model):
         help_text="Marcado quando o gestor administrativo marca como pago"
     )
     pago_em = models.DateTimeField("Data do pagamento", null=True, blank=True)
+    # Campo para data de pagamento programada
+    data_pagamento_programada = models.DateField(
+        "Data de pagamento programada",
+        null=True,
+        blank=True,
+        help_text="Data programada para o pagamento pelo gestor administrativo"
+    )
     # Campos DocuSign
     envelope_id_docusign = models.CharField(
         "ID do Envelope DocuSign",
@@ -304,3 +311,31 @@ class CentroCusto(models.Model):
 
     def __str__(self):
         return f"{self.CODIGO} - {self.DESCRICAO}"
+
+
+class HistoricoReembolso(models.Model):
+    """Histórico de alterações de uma solicitação de reembolso."""
+    
+    solicitacao = models.ForeignKey(
+        SolicitacaoReembolso,
+        on_delete=models.CASCADE,
+        related_name="historico",
+    )
+    acao = models.CharField("Ação", max_length=100)
+    descricao = models.TextField("Descrição", blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="historico_reembolsos",
+    )
+    criado_em = models.DateTimeField("Data", auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Histórico de reembolso"
+        verbose_name_plural = "Históricos de reembolsos"
+        ordering = ["-criado_em"]
+    
+    def __str__(self):
+        return f"{self.solicitacao.pk} - {self.acao} - {self.criado_em}"

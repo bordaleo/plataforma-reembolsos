@@ -63,8 +63,13 @@
         font-weight: 700;
     }
     .tabela-reembolsos .acoes {
-        white-space: nowrap;
         text-align: center;
+    }
+    .acoes-vertical {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: center;
     }
     .email-clicavel:hover {
         color: #2c3e50 !important;
@@ -108,8 +113,9 @@
         font-size: 0.85rem;
         font-weight: 600;
         transition: all 0.2s;
-        margin-right: 0.5rem;
         white-space: nowrap;
+        width: 100%;
+        min-width: 100px;
     }
     .btn-aprovar:hover {
         background: #2f855a;
@@ -127,13 +133,15 @@
         font-weight: 600;
         transition: all 0.2s;
         white-space: nowrap;
+        width: 100%;
+        min-width: 100px;
     }
     .btn-rejeitar:hover {
         background: #c53030;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
     }
-    .btn-marcar-pago {
+    .btn-programar-pagamento {
         background: #3182ce;
         color: #fff;
         border: none;
@@ -143,10 +151,18 @@
         font-size: 0.85rem;
         font-weight: 600;
         transition: all 0.2s;
-        margin-right: 0.5rem;
-        white-space: nowrap;
+        min-width: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.2;
     }
-    .btn-marcar-pago:hover {
+    .btn-programar-pagamento span {
+        display: block;
+        line-height: 1.3;
+    }
+    .btn-programar-pagamento:hover {
         background: #2c5aa0;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
@@ -686,17 +702,19 @@
                 </td>
                 <td class="acoes">
                     {% if s.pode_decidir %}
-                        <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
-                            {% csrf_token %}
-                            <input type="hidden" name="acao" value="aprovar">
-                            <button type="submit" class="btn-aprovar" style="margin-right: 0.5rem;">Aprovar</button>
-                        </form>
-                        <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                        <div class="acoes-vertical">
+                            <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="aprovar">
+                                <button type="submit" class="btn-aprovar">Aprovar</button>
+                            </form>
+                            <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                        </div>
                     {% elif s.pode_marcar_pago %}
-                        <form method="post" action="/reembolso/{{ s.pk }}/marcar-pago/" style="display: inline-block;" onsubmit="showLoading('Marcando como pago...'); return true;">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-marcar-pago">Marcar como pago</button>
-                        </form>
+                        <button type="button" class="btn-programar-pagamento" data-pk="{{ s.pk }}">
+                            <span>Programar</span>
+                            <span>Pagamento</span>
+                        </button>
                     {% elif s.pode_concluir %}
                         <form method="post" action="/reembolso/{{ s.pk }}/concluir/" style="display: inline-block;" onsubmit="showLoading('Concluindo solicitação...'); return true;">
                             {% csrf_token %}
@@ -811,6 +829,95 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Programar Pagamento -->
+<div id="modal-programar-pagamento" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 550px;">
+        <div class="modal-header">
+            <h2 style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+                <span style="font-size: 1.75rem; line-height: 1;">📅</span>
+                <span>Programar Pagamento</span>
+            </h2>
+            <button type="button" class="modal-fechar" id="modal-programar-pagamento-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form method="post" id="form-programar-pagamento" action="" onsubmit="showLoading('Programando pagamento...'); return true;">
+            {% csrf_token %}
+            <div style="padding: 2.5rem 2rem;">
+                <!-- Opção 1: Programar Data -->
+                <div style="margin-bottom: 2.5rem;">
+                    <label for="data_pagamento" style="display: block; font-weight: 700; color: #34495e; margin-bottom: 1rem; font-size: 1rem; letter-spacing: 0.2px;">
+                        <span style="display: flex; align-items: center; gap: 0.625rem;">
+                            <span style="font-size: 1.5rem; line-height: 1;">📆</span>
+                            <span>Data de Pagamento Programada</span>
+                        </span>
+                    </label>
+                    <input 
+                        type="date" 
+                        name="data_pagamento" 
+                        id="data_pagamento" 
+                        class="form-control"
+                        style="width: 100%; padding: 1rem 1.25rem; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 1.05rem; color: #2c3e50; background: #ffffff; transition: all 0.3s; font-family: inherit; box-sizing: border-box;"
+                        onfocus="this.style.borderColor='#3182ce'; this.style.boxShadow='0 0 0 3px rgba(49, 130, 206, 0.1)';"
+                        onblur="this.style.borderColor='#e1e8ed'; this.style.boxShadow='none';"
+                    >
+                </div>
+                
+                <!-- Divisor -->
+                <div style="display: flex; align-items: center; margin: 2.5rem 0; gap: 1.25rem;">
+                    <div style="flex: 1; height: 2px; background: linear-gradient(to right, transparent, #e1e8ed);"></div>
+                    <span style="color: #95a5a6; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 0 0.75rem;">ou</span>
+                    <div style="flex: 1; height: 2px; background: linear-gradient(to left, transparent, #e1e8ed);"></div>
+                </div>
+                
+                <!-- Opção 2: Marcar como Pago -->
+                <div style="margin-bottom: 2.5rem;">
+                    <label 
+                        for="marcar_como_pago" 
+                        id="label-marcar-pago"
+                        style="display: flex; align-items: flex-start; gap: 1rem; cursor: pointer; padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 2px solid #e1e8ed; border-radius: 12px; transition: all 0.3s; position: relative; overflow: hidden;"
+                    >
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(49, 130, 206, 0.05) 0%, rgba(49, 130, 206, 0.02) 100%); opacity: 0; transition: opacity 0.3s;" id="hover-overlay"></div>
+                        <input 
+                            type="checkbox" 
+                            name="marcar_como_pago" 
+                            id="marcar_como_pago" 
+                            style="width: 22px; height: 22px; cursor: pointer; margin-top: 3px; flex-shrink: 0; accent-color: #3182ce; z-index: 1; position: relative;"
+                        >
+                        <div style="flex: 1; z-index: 1; position: relative;">
+                            <div style="display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.5rem; line-height: 1; color: #38a169;">✓</span>
+                                <span style="font-weight: 700; color: #34495e; font-size: 1rem; letter-spacing: 0.2px;">Marcar como pago imediatamente</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- Botões -->
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 2rem; border-top: 2px solid #e1e8ed; margin-top: 2.5rem;">
+                    <button 
+                        type="button" 
+                        class="btn-secondary" 
+                        id="btn-cancelar-programar"
+                        style="padding: 1rem 2.25rem; font-size: 1rem; font-weight: 600; border-radius: 10px; transition: all 0.3s; background: #e1e8ed; color: #34495e; border: 2px solid #e1e8ed; cursor: pointer;"
+                        onmouseover="this.style.background='#d1d9e0'; this.style.borderColor='#d1d9e0'; this.style.transform='translateY(-2px)';"
+                        onmouseout="this.style.background='#e1e8ed'; this.style.borderColor='#e1e8ed'; this.style.transform='translateY(0)';"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn-primary"
+                        style="padding: 1rem 2.25rem; font-size: 1rem; font-weight: 700; border-radius: 10px; transition: all 0.3s; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); color: #ffffff; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(49, 130, 206, 0.3); letter-spacing: 0.3px;"
+                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(49, 130, 206, 0.4)';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(49, 130, 206, 0.3)';"
+                    >
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -873,10 +980,11 @@
                     html += '</div>';
                      
                     html += '<div class="detalhe-solicitacao">';
+                    // 1. ID da Solicitação
                     html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
+                    // 2. Centro de custo
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
-                    
-                    // Código de despesa
+                    // 3. Código de despesa
                     html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
                     if (data.cod_despesa_com_descricao && data.cod_despesa_com_descricao.length > 0) {
                         html += '<span>' + data.cod_despesa_com_descricao.join(', ') + '</span>';
@@ -886,10 +994,54 @@
                         html += '<span>—</span>';
                     }
                     html += '</div>';
-                    
+                    // 4. Descrição
+                    html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
+                    html += '<div class="detalhe-itens-lista">';
+                    if (data.itens && data.itens.length > 0) {
+                        var temDescricao = false;
+                        data.itens.forEach(function(item) {
+                            if (item.descricao && item.descricao.trim()) {
+                                temDescricao = true;
+                                html += '<div class="detalhe-item">';
+                                html += '<p style="margin: 0; color: #2c3e50; font-size: 1rem; line-height: 1.6;">' + escapeHtml(item.descricao) + '</p>';
+                                html += '</div>';
+                            }
+                        });
+                        if (!temDescricao) {
+                            html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
+                        }
+                    } else {
+                        html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
+                    }
+                    html += '</div></div>';
+                    // 5. Anexos
+                    html += '<div class="detalhe-solicitacao-item"><strong>Anexos</strong>';
+                    html += '<div class="anexos-lista">';
+                    if (data.anexos && data.anexos.length > 0) {
+                        var temAnexo = false;
+                        data.anexos.forEach(function(anexo) {
+                            if (anexo.url) {
+                                temAnexo = true;
+                                html += '<div class="anexo-item">';
+                                html += '<a href="' + escapeHtml(anexo.url) + '" target="_blank" rel="noopener">📎 ' + escapeHtml(anexo.nome || 'Ver anexo') + '</a>';
+                                if (anexo.tipo_despesa) {
+                                    html += '<span style="display: block; color: #7f8c8d; font-size: 0.9rem; margin-top: 0.25rem;">Item: ' + escapeHtml(anexo.tipo_despesa) + '</span>';
+                                }
+                                html += '</div>';
+                            }
+                        });
+                        if (!temAnexo) {
+                            html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
+                        }
+                    } else {
+                        html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
+                    }
+                    html += '</div></div>';
+                    // 6. Valor total
                     html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
-                    
-                    // Dados de pagamento
+                    // 7. Nome do Gestor
+                    html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
+                    // 8. Forma de Pagamento
                     if (data.forma_pagamento) {
                         html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong>';
                         if (data.forma_pagamento === 'PIX') {
@@ -913,54 +1065,8 @@
                         }
                         html += '</div>';
                     }
-                    
-                    // Descrição (apenas a descrição dos itens) - ANTES de anexos
-                    html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
-                    html += '<div class="detalhe-itens-lista">';
-                    if (data.itens && data.itens.length > 0) {
-                        var temDescricao = false;
-                        data.itens.forEach(function(item) {
-                            if (item.descricao && item.descricao.trim()) {
-                                temDescricao = true;
-                                html += '<div class="detalhe-item">';
-                                html += '<p style="margin: 0; color: #2c3e50; font-size: 1rem; line-height: 1.6;">' + item.descricao + '</p>';
-                                html += '</div>';
-                            }
-                        });
-                        if (!temDescricao) {
-                            html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
-                        }
-                    } else {
-                        html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
-                    }
-                    html += '</div></div>';
-                    
-                    // Anexos
-                    html += '<div class="detalhe-solicitacao-item"><strong>Anexos</strong>';
-                    html += '<div class="anexos-lista">';
-                    if (data.anexos && data.anexos.length > 0) {
-                        var temAnexo = false;
-                        data.anexos.forEach(function(anexo) {
-                            if (anexo.url) {
-                                temAnexo = true;
-                                html += '<div class="anexo-item">';
-                                html += '<a href="' + anexo.url + '" target="_blank">📎 ' + (anexo.nome || 'Ver anexo') + '</a>';
-                                if (anexo.tipo_despesa) {
-                                    html += '<span style="display: block; color: #7f8c8d; font-size: 0.9rem; margin-top: 0.25rem;">Item: ' + anexo.tipo_despesa + '</span>';
-                                }
-                                html += '</div>';
-                            }
-                        });
-                        if (!temAnexo) {
-                            html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
-                        }
-                    } else {
-                        html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
-                    }
-                    html += '</div></div>';
-                    
-                    // Status atual da solicitação
-                    html += '<div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 3px solid #e1e8ed;">';
+                    // 9. Status da Solicitação
+                    html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;" id="status-section">';
                     html += '<h3 style="color: #34495e; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Status da Solicitação</h3>';
                     
                     var statusLabel = '';
@@ -981,66 +1087,111 @@
                         statusBg = '#bee3f8';
                         statusColor = '#3182ce';
                         statusIcon = '⏳';
-                    } else if (data.status_descritivo === 'aprovado') {
+                    } else if (data.status_descritivo === 'aprovado' || data.status_descritivo === 'aguardando_pagamento') {
                         statusLabel = 'Aprovado';
                         statusClass = 'status-aprovado';
                         statusBg = '#c6f6d5';
                         statusColor = '#38a169';
                         statusIcon = '✓';
-                    } else if (data.status_descritivo === 'rejeitado') {
+                    } else if (data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') {
                         statusLabel = 'Rejeitado';
                         statusClass = 'status-rejeitado';
                         statusBg = '#fed7d7';
                         statusColor = '#e53e3e';
                         statusIcon = '✗';
+                    } else if (data.status_descritivo === 'pago_aguardando_assinaturas') {
+                        statusLabel = 'Pago - Aguardando assinaturas';
+                        statusClass = 'status-pago-aguardando';
+                        statusBg = '#e6f3ff';
+                        statusColor = '#3182ce';
+                        statusIcon = '📝';
+                    } else if (data.status_descritivo === 'assinado_todas_partes') {
+                        statusLabel = 'Assinado por todas as partes';
+                        statusClass = 'status-assinado';
+                        statusBg = '#c6f6d5';
+                        statusColor = '#38a169';
+                        statusIcon = '✓';
+                    } else if (data.status_descritivo === 'concluido') {
+                        statusLabel = 'Concluído';
+                        statusClass = 'status-concluido';
+                        statusBg = '#d5f4e6';
+                        statusColor = '#1e8449';
+                        statusIcon = '✓';
                     }
                     
-                    html += '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
-                    html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
-                    html += '<span style="font-size: 1.5rem;">' + statusIcon + '</span>';
-                    html += '<strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong>';
+                    if (statusLabel) {
+                        html += '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
+                        html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
+                        html += '<span style="font-size: 1.5rem;">' + statusIcon + '</span>';
+                        html += '<strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong>';
+                        html += '</div>';
+                        
+                        // Adicionar informações de assinatura DocuSign se aguardando assinatura
+                        if (data.status_descritivo === 'pago_aguardando_assinaturas' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
+                            var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
+                            html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + escapeHtml(nomesAguardando) + '</small></div>';
+                        }
+                        
+                        // Se aprovado, mostrar informações de aprovação
+                        if ((data.status_descritivo === 'aprovado' || data.status_descritivo === 'aguardando_pagamento') && data.aprovacao_gestor_admin && Object.keys(data.aprovacao_gestor_admin).length > 0) {
+                            if (data.aprovacao_gestor_admin.aprovado_por_nome || data.aprovacao_gestor_admin.aprovado_por_email) {
+                                html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                                html += '<strong>Aprovado por:</strong> ';
+                                if (data.aprovacao_gestor_admin.aprovado_por_nome) {
+                                    html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_nome);
+                                    if (data.aprovacao_gestor_admin.aprovado_por_email) {
+                                        html += ' (' + escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email) + ')';
+                                    }
+                                } else {
+                                    html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email);
+                                }
+                                html += '</p>';
+                            }
+                            if (data.aprovacao_gestor_admin.aprovado_em) {
+                                html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                                html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao_gestor_admin.aprovado_em);
+                                html += '</p>';
+                            }
+                        }
+                        
+                        // Se rejeitado, mostrar motivo
+                        if ((data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') && data.motivo_rejeicao) {
+                            html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid ' + statusColor + ';">';
+                            html += '<p style="margin: 0 0 0.5rem; color: ' + statusColor + '; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
+                            html += '<p style="margin: 0; color: ' + statusColor + '; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.motivo_rejeicao) + '</p>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>';
+                    }
+                    
+                    // Fechar div de status
                     html += '</div>';
                     
-                    // Adicionar informações de assinatura DocuSign se aguardando assinatura
-                    if (data.status_descritivo === 'aguardando_assinatura' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
-                        var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
-                        html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + nomesAguardando + '</small></div>';
-                    }
-                    
-                    // Se aprovado, mostrar informações de aprovação
-                    if (data.status_descritivo === 'aprovado' && data.aprovacao_gestor_admin && Object.keys(data.aprovacao_gestor_admin).length > 0) {
-                        if (data.aprovacao_gestor_admin.aprovado_por_nome || data.aprovacao_gestor_admin.aprovado_por_email) {
-                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
-                            html += '<strong>Aprovado por:</strong> ';
-                            if (data.aprovacao_gestor_admin.aprovado_por_nome) {
-                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_nome);
-                                if (data.aprovacao_gestor_admin.aprovado_por_email) {
-                                    html += ' (' + escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email) + ')';
-                                }
-                            } else {
-                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email);
+                    // Mostrar histórico de alterações se houver (sempre que houver histórico, não apenas quando rejeitada)
+                    if (data.historico && data.historico.length > 0) {
+                        html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                        html += '<h3 style="margin: 0 0 1rem; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">Histórico de Alterações</h3>';
+                        html += '<div style="background: #f8f9fa; border-radius: 6px; padding: 1rem;">';
+                        data.historico.forEach(function(hist) {
+                            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e1e8ed;">';
+                            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+                            html += '<strong style="color: #34495e; font-size: 0.95rem;">' + escapeHtml(hist.acao) + '</strong>';
+                            html += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + escapeHtml(hist.data) + '</span>';
+                            html += '</div>';
+                            if (hist.descricao) {
+                                html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(hist.descricao) + '</p>';
                             }
-                            html += '</p>';
-                        }
-                        if (data.aprovacao_gestor_admin.aprovado_em) {
-                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
-                            html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao_gestor_admin.aprovado_em);
-                            html += '</p>';
-                        }
-                    }
-                    
-                    // Se rejeitado, mostrar motivo
-                    if (data.status_descritivo === 'rejeitado' && data.motivo_rejeicao) {
-                        html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid ' + statusColor + ';">';
-                        html += '<p style="margin: 0 0 0.5rem; color: ' + statusColor + '; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
-                        html += '<p style="margin: 0; color: ' + statusColor + '; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.motivo_rejeicao) + '</p>';
+                            html += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + escapeHtml(hist.usuario) + '</p>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
                         html += '</div>';
                     }
                     
                     html += '</div>';
                     html += '</div>';
                     
-                    html += '</div>';
                     solicitacaoContent.innerHTML = html;
                     
                 })
@@ -1088,12 +1239,6 @@
                 var html = '<div class="detalhe-solicitacao">';
                 html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + (solicitante.nome || solicitante.email || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + (solicitante.email || '—') + '</span></div>';
-                
-                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
-                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados do Gestor</h4>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Nome do gestor</strong><span>' + (solicitante.nome_gestor || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>E-mail do gestor</strong><span>' + (solicitante.email_gestor || '—') + '</span></div>';
-                html += '</div>';
                 
                 html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
                 html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários (Cadastro)</h4>';
@@ -1201,6 +1346,74 @@
         if (e.target === modalRejeitar) {
             modalRejeitar.classList.remove('aberto');
             modalRejeitar.setAttribute('aria-hidden', 'true');
+        }
+    });
+    
+    // Modal Programar Pagamento
+    var modalProgramarPagamento = document.getElementById('modal-programar-pagamento');
+    var formProgramarPagamento = document.getElementById('form-programar-pagamento');
+    var btnCancelarProgramar = document.getElementById('btn-cancelar-programar');
+    var btnFecharProgramar = document.getElementById('modal-programar-pagamento-fechar');
+    var checkMarcarComoPago = document.getElementById('marcar_como_pago');
+    var inputDataPagamento = document.getElementById('data_pagamento');
+    
+    // Abrir modal ao clicar no botão
+    document.querySelectorAll('.btn-programar-pagamento').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var pk = this.getAttribute('data-pk');
+            formProgramarPagamento.action = '/reembolso/' + pk + '/programar-pagamento/';
+            inputDataPagamento.value = '';
+            checkMarcarComoPago.checked = false;
+            // Resetar hover overlay
+            var hoverOverlay = document.getElementById('hover-overlay');
+            if (hoverOverlay) hoverOverlay.style.opacity = '0';
+            modalProgramarPagamento.classList.add('aberto');
+            modalProgramarPagamento.setAttribute('aria-hidden', 'false');
+        });
+    });
+    
+    // Efeito hover no label do checkbox
+    var labelMarcarPago = document.getElementById('label-marcar-pago');
+    var hoverOverlay = document.getElementById('hover-overlay');
+    if (labelMarcarPago && hoverOverlay) {
+        labelMarcarPago.addEventListener('mouseenter', function() {
+            this.style.borderColor = '#3182ce';
+            this.style.boxShadow = '0 4px 12px rgba(49, 130, 206, 0.15)';
+            hoverOverlay.style.opacity = '1';
+        });
+        labelMarcarPago.addEventListener('mouseleave', function() {
+            this.style.borderColor = '#e1e8ed';
+            this.style.boxShadow = 'none';
+            hoverOverlay.style.opacity = '0';
+        });
+    }
+    
+    // Fechar modal
+    function fecharModalProgramar() {
+        modalProgramarPagamento.classList.remove('aberto');
+        modalProgramarPagamento.setAttribute('aria-hidden', 'true');
+    }
+    
+    if (btnCancelarProgramar) {
+        btnCancelarProgramar.addEventListener('click', fecharModalProgramar);
+    }
+    
+    if (btnFecharProgramar) {
+        btnFecharProgramar.addEventListener('click', fecharModalProgramar);
+    }
+    
+    modalProgramarPagamento.addEventListener('click', function(e) {
+        if (e.target === modalProgramarPagamento) {
+            fecharModalProgramar();
+        }
+    });
+    
+    // Validar formulário antes de enviar
+    formProgramarPagamento.addEventListener('submit', function(e) {
+        if (!checkMarcarComoPago.checked && !inputDataPagamento.value) {
+            e.preventDefault();
+            alert('Por favor, informe uma data de pagamento ou marque como pago imediatamente.');
+            return false;
         }
     });
 })();

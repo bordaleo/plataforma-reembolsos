@@ -1,4 +1,5 @@
 {% extends "intra/base.html" %}
+{% load static %}
 {% block title %}Meu Perfil - Intranet Parceiros{% endblock %}
 {% block extra_css %}
 <style>
@@ -8,6 +9,10 @@
         font-size: 1rem;
     }
     .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
         margin-bottom: 1.5rem;
     }
     .card-header {
@@ -15,6 +20,7 @@
         padding: 1.25rem 1.5rem;
         background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px 8px 0 0;
     }
     .card-header h2 {
         margin: 0;
@@ -51,11 +57,257 @@
     .perfil-lista dd:last-of-type {
         border-bottom: none;
     }
+    .form-section {
+        margin-bottom: 1.25rem;
+    }
+    .section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #34495e;
+        margin: 0 0 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    .section-description {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        margin: 0 0 1rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        overflow: visible;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 0.9rem;
+    }
+    .form-group label .required {
+        color: #c53030;
+        margin-left: 3px;
+    }
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    .form-group input:focus, .form-group select:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        margin-top: 0.75rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #fff;
+        transition: all 0.2s;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+    }
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0 0;
+        color: #c53030;
+        font-size: 0.85rem;
+    }
+    .errorlist li {
+        margin-bottom: 0.25rem;
+    }
+    .banco-input-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        max-width: 100%;
+    }
+    .banco-input-wrapper input {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 1.25rem;
+        flex: 1;
+    }
+    .banco-toggle-btn {
+        position: absolute;
+        right: 0.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #34495e;
+        transition: transform 0.2s;
+        z-index: 10;
+        pointer-events: auto;
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+    }
+    .banco-toggle-btn:hover {
+        color: #2c3e50;
+    }
+    .banco-toggle-btn.active {
+        transform: translateY(-50%) rotate(180deg);
+    }
+    .banco-toggle-btn svg {
+        width: 100%;
+        height: 100%;
+    }
+    .banco-toggle-btn:hover {
+        color: #2c3e50;
+    }
+    .banco-toggle-btn.active {
+        transform: rotate(180deg);
+    }
+    .banco-toggle-btn svg {
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        max-width: 100%;
+        background: #fff;
+        border: 2px solid #d1d9e0;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 250px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-top: -2px;
+        box-sizing: border-box;
+    }
+    .autocomplete-dropdown.show {
+        display: block;
+    }
+    .banco-item {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #e1e8ed;
+        transition: background 0.2s;
+        margin: 0;
+    }
+    .banco-item:hover,
+    .banco-item.selected {
+        background: #f0f4f8;
+    }
+    .banco-item:last-child {
+        border-bottom: none;
+    }
+    .messages {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 1.5rem;
+    }
+    .messages li {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .messages .success {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+    .messages .error {
+        background: #fed7d7;
+        color: #c53030;
+    }
+    .edit-mode {
+        display: none;
+    }
+    .edit-mode.active {
+        display: block;
+    }
+    .view-mode {
+        display: block;
+    }
+    .view-mode.hidden {
+        display: none;
+    }
+    .btn-edit {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 700;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #fff;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
+        letter-spacing: 0.3px;
+    }
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.4);
+    }
+    .btn-cancel {
+        background: #95a5a6;
+        color: #fff;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        flex: 1;
+        min-width: 150px;
+    }
+    .btn-cancel:hover {
+        background: #7f8c8d;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
+    }
+    .btn-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    .btn-actions .btn {
+        flex: 1;
+        min-width: 150px;
+        margin-top: 0;
+    }
 </style>
 {% endblock %}
 {% block content %}
 <h1 class="page-title">Meu Perfil</h1>
-<p class="page-intro">Suas informações cadastrais (somente consulta).</p>
+<p class="page-intro">Gerencie suas informações de acesso e dados de pagamento.</p>
+
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
 
 <div class="card">
     <div class="card-header">
@@ -70,32 +322,274 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h2>Dados do Gestor</h2>
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Dados de Pagamento</h2>
+        <button type="button" id="btn-editar" class="btn-edit">✏️ Editar</button>
     </div>
-    <dl class="perfil-lista">
-        <dt>Nome do gestor</dt>
-        <dd>{{ perfil.nome_gestor|default:"—" }}</dd>
-        <dt>E-mail do gestor</dt>
-        <dd>{{ perfil.email_gestor|default:"—" }}</dd>
-    </dl>
+    
+    <!-- Modo Visualização -->
+    <div id="view-mode" class="view-mode">
+        <dl class="perfil-lista">
+            <dt>Forma de Pagamento</dt>
+            <dd>{{ perfil.get_forma_pagamento_display|default:"—" }}</dd>
+            {% if perfil.forma_pagamento == 'PIX' %}
+            <dt>Banco (PIX)</dt>
+            <dd>{{ perfil.banco_pix|default:"—" }}</dd>
+            <dt>Chave PIX</dt>
+            <dd>{{ perfil.chave_pix|default:"—" }}</dd>
+            <dt>CPF (PIX)</dt>
+            <dd>{{ perfil.cpf_pix|default:"—" }}</dd>
+            {% elif perfil.forma_pagamento == 'TRANSFERENCIA' %}
+            <dt>Banco</dt>
+            <dd>{{ perfil.banco|default:"—" }}</dd>
+            <dt>Agência</dt>
+            <dd>{{ perfil.agencia|default:"—" }}</dd>
+            <dt>Tipo de Conta</dt>
+            <dd>{{ perfil.get_conta_tipo_display|default:"—" }}</dd>
+            <dt>Conta</dt>
+            <dd>{{ perfil.conta_numero|default:"—" }}</dd>
+            <dt>CPF (Transferência)</dt>
+            <dd>{{ perfil.cpf_transferencia|default:"—" }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+    
+    <!-- Modo Edição -->
+    <form method="post" action="{% url 'intra:meu_perfil' %}" id="edit-mode" class="edit-mode">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <p class="section-description">Escolha a forma de pagamento desejada</p>
+            
+            <div class="form-group">
+                <label for="id_forma_pagamento">
+                    {{ form.forma_pagamento.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ form.forma_pagamento }}
+                {% if form.forma_pagamento.errors %}<ul class="errorlist">{{ form.forma_pagamento.errors }}</ul>{% endif %}
+            </div>
+
+            <!-- Campos para PIX -->
+            <div id="pix-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="id_banco_pix_select">
+                        Banco
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.banco_pix_select }}
+                    {{ form.banco_pix }}
+                    {% if form.banco_pix_select.errors or form.banco_pix.errors %}<ul class="errorlist">{{ form.banco_pix_select.errors }}{{ form.banco_pix.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_chave_pix">
+                        {{ form.chave_pix.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.chave_pix }}
+                    {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_cpf_pix">
+                        {{ form.cpf_pix.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.cpf_pix }}
+                    {% if form.cpf_pix.errors %}<ul class="errorlist">{{ form.cpf_pix.errors }}</ul>{% endif %}
+                </div>
+            </div>
+
+            <!-- Campos para Transferência Bancária -->
+            <div id="transferencia-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="id_banco_transf_select">
+                        Banco
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.banco_transf_select }}
+                    {{ form.banco }}
+                    {% if form.banco_transf_select.errors or form.banco.errors %}<ul class="errorlist">{{ form.banco_transf_select.errors }}{{ form.banco.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_agencia">
+                        {{ form.agencia.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.agencia }}
+                    {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_conta_tipo">
+                        {{ form.conta_tipo.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.conta_tipo }}
+                    {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_conta_numero">
+                        {{ form.conta_numero.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.conta_numero }}
+                    {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_cpf_transferencia">
+                        {{ form.cpf_transferencia.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.cpf_transferencia }}
+                    {% if form.cpf_transferencia.errors %}<ul class="errorlist">{{ form.cpf_transferencia.errors }}</ul>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-actions">
+            <button type="button" id="btn-cancelar" class="btn-cancel">Cancelar</button>
+            <button type="submit" class="btn">Salvar Alterações</button>
+        </div>
+    </form>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h2>Dados de Pagamento</h2>
-    </div>
-    <dl class="perfil-lista">
-        <dt>Banco</dt>
-        <dd>{{ perfil.banco|default:"—" }}</dd>
-        <dt>Agência</dt>
-        <dd>{{ perfil.agencia|default:"—" }}</dd>
-        <dt>Tipo de conta</dt>
-        <dd>{{ perfil.get_conta_tipo_display|default:"—" }}</dd>
-        <dt>Conta Corrente ou Poupança</dt>
-        <dd>{{ perfil.conta_numero|default:"—" }}</dd>
-        <dt>Chave PIX</dt>
-        <dd>{{ perfil.chave_pix|default:"—" }}</dd>
-    </dl>
-</div>
+<script>
+    // Controle de modo edição/visualização
+    (function() {
+        const btnEditar = document.getElementById('btn-editar');
+        const btnCancelar = document.getElementById('btn-cancelar');
+        const viewMode = document.getElementById('view-mode');
+        const editMode = document.getElementById('edit-mode');
+        
+        // Verificar se há mensagens de sucesso (formulário foi salvo)
+        const messages = document.querySelector('.messages');
+        const hasSuccess = messages && messages.querySelector('.success');
+        
+        // Se houver sucesso ou se estiver em modo de edição inicial, mostrar visualização
+        if (hasSuccess || !editMode.classList.contains('active')) {
+            if (viewMode) viewMode.classList.remove('hidden');
+            if (editMode) editMode.classList.remove('active');
+            if (btnEditar) btnEditar.style.display = 'block';
+        } else {
+            // Se não houver sucesso e não estiver ativo, esconder edição
+            if (viewMode) viewMode.classList.add('hidden');
+            if (editMode) editMode.classList.add('active');
+            if (btnEditar) btnEditar.style.display = 'none';
+        }
+        
+        if (btnEditar && btnCancelar && viewMode && editMode) {
+            btnEditar.addEventListener('click', function() {
+                viewMode.classList.add('hidden');
+                editMode.classList.add('active');
+                btnEditar.style.display = 'none';
+            });
+            
+            btnCancelar.addEventListener('click', function() {
+                viewMode.classList.remove('hidden');
+                editMode.classList.remove('active');
+                btnEditar.style.display = 'block';
+            });
+        }
+    })();
+    
+    // Controle de exibição dos campos baseado na forma de pagamento
+    (function() {
+        const formaPagamento = document.getElementById('id_forma_pagamento');
+        const pixFields = document.getElementById('pix-fields');
+        const transferenciaFields = document.getElementById('transferencia-fields');
+
+        function atualizarCampos() {
+            const forma = formaPagamento.value;
+            if (forma === 'PIX') {
+                pixFields.style.display = 'block';
+                transferenciaFields.style.display = 'none';
+            } else if (forma === 'TRANSFERENCIA') {
+                pixFields.style.display = 'none';
+                transferenciaFields.style.display = 'block';
+            } else {
+                pixFields.style.display = 'none';
+                transferenciaFields.style.display = 'none';
+            }
+        }
+
+        if (formaPagamento) {
+            formaPagamento.addEventListener('change', atualizarCampos);
+            // Inicializar ao carregar
+            atualizarCampos();
+        }
+    })();
+
+    // Máscara para CPF
+    (function() {
+        function aplicarMascaraCPF(value) {
+            let numeros = value.replace(/\D/g, '');
+            if (numeros.length > 11) {
+                numeros = numeros.substring(0, 11);
+            }
+            if (numeros.length <= 3) {
+                return numeros;
+            } else if (numeros.length <= 6) {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3);
+            } else if (numeros.length <= 9) {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+            } else {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9);
+            }
+        }
+
+        const cpfPix = document.getElementById('id_cpf_pix');
+        const cpfTransf = document.getElementById('id_cpf_transferencia');
+        
+        if (cpfPix) {
+            cpfPix.addEventListener('input', function(e) {
+                e.target.value = aplicarMascaraCPF(e.target.value);
+            });
+        }
+        
+        if (cpfTransf) {
+            cpfTransf.addEventListener('input', function(e) {
+                e.target.value = aplicarMascaraCPF(e.target.value);
+            });
+        }
+    })();
+
+    // Atualizar campos hidden quando selecionar banco
+    (function() {
+        const bancoPixSelect = document.getElementById('id_banco_pix_select');
+        const bancoPixHidden = document.getElementById('id_banco_pix');
+        const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+        const bancoTransfHidden = document.getElementById('id_banco');
+        
+        if (bancoPixSelect && bancoPixHidden) {
+            bancoPixSelect.addEventListener('change', function() {
+                bancoPixHidden.value = this.value;
+            });
+        }
+        
+        if (bancoTransfSelect && bancoTransfHidden) {
+            bancoTransfSelect.addEventListener('change', function() {
+                bancoTransfHidden.value = this.value;
+            });
+        }
+    })();
+    
+    // Código antigo de autocomplete removido - agora usamos select simples
+    (function() {
+        const bancoPixSelect = document.getElementById('id_banco_pix_select');
+        const bancoPixHidden = document.getElementById('id_banco_pix');
+        const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+        const bancoTransfHidden = document.getElementById('id_banco');
+        
+        if (bancoPixSelect && bancoPixHidden) {
+            bancoPixSelect.addEventListener('change', function() {
+                bancoPixHidden.value = this.value;
+            });
+        }
+        
+        if (bancoTransfSelect && bancoTransfHidden) {
+            bancoTransfSelect.addEventListener('change', function() {
+                bancoTransfHidden.value = this.value;
+            });
+        }
+    })();
+</script>
 {% endblock %}

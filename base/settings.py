@@ -155,6 +155,15 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Cache configuration
+# Usando cache em memória para melhor performance
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
 # Login / Logout
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"

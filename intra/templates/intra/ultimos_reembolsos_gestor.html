@@ -730,9 +730,11 @@
 <!-- Formulário de Filtros -->
 <div class="filters-card" id="filters-card" style="display: none;">
     <h2 class="filters-title">Filtros</h2>
-    <form method="get" action="{% url 'intra:ultimos_reembolsos_gestor' %}" class="filters-form" id="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+    <form method="get" action="{% url 'intra:ultimos_reembolsos_gestor' %}" class="filters-form" id="filters-form" onsubmit="return aplicarFiltrosComTabela(this);">
         {% if tabela_atual %}
-        <input type="hidden" name="tabela_atual" value="{{ tabela_atual }}">
+        <input type="hidden" name="tabela_atual" value="{{ tabela_atual }}" id="tabela_atual_input">
+        {% else %}
+        <input type="hidden" name="tabela_atual" value="em-processo" id="tabela_atual_input">
         {% endif %}
         <div class="filters-grid">
             <div class="filter-group">
@@ -748,6 +750,7 @@
             <div class="filter-group">
                 <label for="status">Status</label>
                 <select id="status" name="status" class="form-control">
+                    <option value="">Todos</option>
                     {% for value, label in status_choices %}
                         <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
@@ -1120,7 +1123,7 @@
     }
 
     // Controle de exibição das tabelas
-    function mostrarTabela(tabelaId) {
+    function mostrarTabela(tabelaId, recarregar) {
         // Esconder todas as tabelas
         document.querySelectorAll('.tabela-container').forEach(function(tabela) {
             tabela.classList.remove('ativa');
@@ -1161,6 +1164,117 @@
                 formFiltros.appendChild(hiddenInput);
             }
         }
+        
+        // Atualizar o select de status baseado na tabela atual
+        atualizarStatusSelect(tabelaId);
+        
+        // Apenas recarregar se explicitamente solicitado (ao clicar no botão) e se a tabela mudou
+        if (recarregar !== false) {
+            var urlParams = new URLSearchParams(window.location.search);
+            var tabelaAtualUrl = urlParams.get('tabela_atual');
+            var statusAtual = urlParams.get('status');
+            
+            // Só recarregar se a tabela mudou ou se há filtro de status que precisa ser removido
+            if (tabelaAtualUrl !== tabelaId || statusAtual) {
+                // Mostrar mensagem de carregamento
+                showLoading('Carregando tabela...');
+                
+                urlParams.set('tabela_atual', tabelaId);
+                urlParams.delete('status'); // Remover filtro de status ao trocar de tabela
+                // Manter outros filtros (data_inicio, data_fim, centro_custo, tipo_despesa, id)
+                window.location.href = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                return; // Parar execução aqui para evitar atualizar o select
+            }
+        }
+    }
+    
+    // Função para atualizar o select de status baseado na tabela atual
+    function atualizarStatusSelect(tabelaId) {
+        var statusSelect = document.getElementById('status');
+        if (!statusSelect) return;
+        
+        // Limpar opções atuais (exceto "Todos")
+        while (statusSelect.options.length > 1) {
+            statusSelect.remove(1);
+        }
+        
+        // Adicionar opções baseadas na tabela
+        var opcoes = [];
+        if (tabelaId === 'concluidos') {
+            opcoes = [['CONCLUIDO', 'Concluído']];
+        } else if (tabelaId === 'rejeitados') {
+            opcoes = [['REJEITADO', 'Rejeitado']];
+        } else { // em-processo
+            opcoes = [
+                ['AGUARDANDO_PAGAMENTO', 'Aprovado - Aguardando pagamento'],
+                ['PAGAMENTO_AGENDADO', 'Solicitação aprovada - Pagamento agendado'],
+                ['PAGO_AGUARDANDO_ASSINATURAS', 'Pago - Aguardando assinaturas'],
+                ['ASSINADO_TODAS_PARTES', 'Assinado por todas as partes']
+            ];
+        }
+        
+        // Adicionar opções ao select
+        opcoes.forEach(function(opcao) {
+            var option = document.createElement('option');
+            option.value = opcao[0];
+            option.text = opcao[1];
+            statusSelect.appendChild(option);
+        });
+        
+        // Limpar seleção e remover o valor da URL
+        statusSelect.value = '';
+        
+        // Remover o filtro de status da URL se existir
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('status')) {
+            urlParams.delete('status');
+            var newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.pushState({}, '', newUrl);
+        }
+    }
+    
+    // Função para aplicar filtros e determinar a tabela correta
+    function aplicarFiltrosComTabela(form) {
+        showLoading('Aplicando filtros...');
+        
+        // Obter o status selecionado
+        var statusSelect = form.querySelector('#status');
+        var statusValue = statusSelect ? statusSelect.value : '';
+        
+        // Se o status estiver vazio (Todos), remover o campo do formulário para não enviar na URL
+        if (!statusValue || statusValue === '') {
+            var statusInput = form.querySelector('input[name="status"]');
+            if (statusInput) {
+                statusInput.remove();
+            }
+            // Remover também do select para garantir
+            statusSelect.value = '';
+        } else {
+            // Se houver status selecionado, determinar a tabela correta
+            var tabelaId;
+            // Mapear status do modelo para tabela
+            // CONCLUIDO -> concluidos
+            // REJEITADO -> rejeitados
+            // Todos os outros -> em-processo
+            if (statusValue === 'CONCLUIDO') {
+                tabelaId = 'concluidos';
+            } else if (statusValue === 'REJEITADO') {
+                tabelaId = 'rejeitados';
+            } else {
+                // AGUARDANDO_PAGAMENTO, PAGAMENTO_AGENDADO, 
+                // PAGO_AGUARDANDO_ASSINATURAS, ASSINADO_TODAS_PARTES -> em-processo
+                tabelaId = 'em-processo';
+            }
+            
+            // Atualizar o campo hidden da tabela
+            var tabelaAtualInput = form.querySelector('#tabela_atual_input');
+            if (tabelaAtualInput) {
+                tabelaAtualInput.value = tabelaId;
+            }
+        }
+        
+        // Permitir o submit normal do formulário
+        return true;
     }
     
     // Função para limpar filtros
@@ -1191,7 +1305,7 @@
             filtersCard.style.display = 'none';
         }
     } else if (tabelaAtual) {
-        mostrarTabela(tabelaAtual);
+        mostrarTabela(tabelaAtual, false); // Não recarregar na inicialização
     } else if (temFiltros) {
         // Se houver filtros mas não tabela_atual, mostrar a primeira tabela que tiver dados
         var emProcessoCount = {{ em_processo|length }};
@@ -1199,11 +1313,11 @@
         var rejeitadosCount = {{ rejeitados|length }};
         
         if (emProcessoCount > 0) {
-            mostrarTabela('em-processo');
+            mostrarTabela('em-processo', false); // Não recarregar na inicialização
         } else if (concluidosCount > 0) {
-            mostrarTabela('concluidos');
+            mostrarTabela('concluidos', false); // Não recarregar na inicialização
         } else if (rejeitadosCount > 0) {
-            mostrarTabela('rejeitados');
+            mostrarTabela('rejeitados', false); // Não recarregar na inicialização
         }
     }
     
@@ -1214,17 +1328,17 @@
     
     if (btnEmProcesso) {
         btnEmProcesso.addEventListener('click', function() {
-            mostrarTabela('em-processo');
+            mostrarTabela('em-processo', true); // Recarregar ao clicar
         });
     }
     if (btnConcluidos) {
         btnConcluidos.addEventListener('click', function() {
-            mostrarTabela('concluidos');
+            mostrarTabela('concluidos', true); // Recarregar ao clicar
         });
     }
     if (btnRejeitados) {
         btnRejeitados.addEventListener('click', function() {
-            mostrarTabela('rejeitados');
+            mostrarTabela('rejeitados', true); // Recarregar ao clicar
         });
     }
 

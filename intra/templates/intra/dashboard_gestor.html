@@ -1,4 +1,5 @@
 {% extends "intra/base.html" %}
+{% load currency_filters %}
 {% block title %}Dashboard - Intranet Parceiros{% endblock %}
 {% block extra_css %}
 <style>
@@ -15,14 +16,14 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border-left: 4px solid #34495e;
     }
-    .stat-card.aprovado {
+    .stat-card.concluido {
         border-left-color: #38a169;
+    }
+    .stat-card.em-processo {
+        border-left-color: #3182ce;
     }
     .stat-card.rejeitado {
         border-left-color: #e53e3e;
-    }
-    .stat-card.pendente {
-        border-left-color: #d69e2e;
     }
     .stat-card h3 {
         margin: 0 0 0.5rem;
@@ -409,22 +410,22 @@
 </div>
 
 <div class="dashboard-grid">
-    <div class="stat-card aprovado">
-        <h3>Total Aprovado</h3>
-        <p class="valor">R$ {{ total_aprovado|floatformat:2 }}</p>
-        <p class="count">{{ count_aprovado }} reembolso{{ count_aprovado|pluralize }}</p>
+    <div class="stat-card concluido">
+        <h3>Total Concluído</h3>
+        <p class="valor">R$ {{ total_concluido|currency_br }}</p>
+        <p class="count">{{ count_concluido }} reembolso{{ count_concluido|pluralize }}</p>
+    </div>
+    
+    <div class="stat-card em-processo">
+        <h3>Total Em Processo</h3>
+        <p class="valor">R$ {{ total_em_processo|currency_br }}</p>
+        <p class="count">{{ count_em_processo }} reembolso{{ count_em_processo|pluralize }}</p>
     </div>
     
     <div class="stat-card rejeitado">
         <h3>Total Rejeitado</h3>
-        <p class="valor">R$ {{ total_rejeitado|floatformat:2 }}</p>
+        <p class="valor">R$ {{ total_rejeitado|currency_br }}</p>
         <p class="count">{{ count_rejeitado }} reembolso{{ count_rejeitado|pluralize }}</p>
-    </div>
-    
-    <div class="stat-card pendente">
-        <h3>Total Pendente</h3>
-        <p class="valor">R$ {{ total_pendente|floatformat:2 }}</p>
-        <p class="count">{{ count_pendente }} reembolso{{ count_pendente|pluralize }}</p>
     </div>
 </div>
 
@@ -436,7 +437,7 @@
         {% for item in gastos_por_tipo %}
         <li class="chart-item">
             <span class="chart-item-label">{{ item.tipo }}</span>
-            <span class="chart-item-value">R$ {{ item.valor|floatformat:2 }}</span>
+            <span class="chart-item-value">R$ {{ item.valor|currency_br }}</span>
         </li>
         {% endfor %}
     </ul>
@@ -452,10 +453,36 @@
         {% for item in gastos_por_centro %}
         <li class="chart-item">
             <span class="chart-item-label">{{ item.centro }}</span>
-            <span class="chart-item-value">R$ {{ item.valor|floatformat:2 }}</span>
+            <span class="chart-item-value">R$ {{ item.valor|currency_br }}</span>
         </li>
         {% endfor %}
     </ul>
+    {% else %}
+    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
+    {% endif %}
+</div>
+
+<div class="chart-card">
+    <h2>Reembolsos Pagos por Área</h2>
+    {% if pagos_por_area %}
+    <table class="table-chart">
+        <thead>
+            <tr>
+                <th>Área (Centro de Custo)</th>
+                <th>Quantidade</th>
+                <th>Valor Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in pagos_por_area %}
+            <tr>
+                <td>{{ item.centro }}</td>
+                <td>{{ item.count }} reembolso{{ item.count|pluralize }}</td>
+                <td>R$ {{ item.valor|currency_br }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
     <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
     {% endif %}
@@ -469,9 +496,9 @@
             <tr>
                 <th>Mês</th>
                 <th>Quantidade</th>
-                <th>Valor Aprovado</th>
+                <th>Valor Concluído</th>
+                <th>Valor Em Processo</th>
                 <th>Valor Rejeitado</th>
-                <th>Valor Pendente</th>
             </tr>
         </thead>
         <tbody>
@@ -479,9 +506,9 @@
             <tr>
                 <td>{{ item.mes }}</td>
                 <td>{{ item.total }}</td>
-                <td>R$ {{ item.valor_aprovado|floatformat:2 }}</td>
-                <td>R$ {{ item.valor_rejeitado|floatformat:2 }}</td>
-                <td>R$ {{ item.valor_pendente|floatformat:2 }}</td>
+                <td>R$ {{ item.valor_concluido|currency_br }}</td>
+                <td>R$ {{ item.valor_em_processo|currency_br }}</td>
+                <td>R$ {{ item.valor_rejeitado|currency_br }}</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -3,191 +3,207 @@
 {% block title %}Início - Intranet Parceiros da Educação{% endblock %}
 {% block extra_css %}
 <style>
-    .welcome-section {
-        margin-bottom: 2rem;
+    .home-container {
+        max-width: 1200px;
+        margin: 0 auto;
     }
-    .welcome-card {
+    .welcome-hero {
         background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         color: #ffffff;
-        padding: 2rem;
-        border-radius: 6px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 3rem 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        text-align: center;
+        margin-bottom: 2rem;
         position: relative;
     }
     .welcome-logo {
-        text-align: center;
         margin-bottom: 1.5rem;
     }
     .welcome-logo img {
-        max-width: 180px;
+        max-width: 150px;
         height: auto;
+        filter: brightness(0) invert(1);
     }
-    .welcome-card h2 {
-        margin: 0 0 0.5rem;
-        font-size: 1.75rem;
-        font-weight: 600;
+    .welcome-hero h1 {
+        margin: 0 0 0.75rem;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
     }
-    .welcome-card p {
-        margin: 0;
-        font-size: 1rem;
+    .welcome-hero .welcome-subtitle {
+        margin: 0 0 1rem;
+        font-size: 1.1rem;
+        color: #ffffff;
         opacity: 0.95;
+        font-weight: 400;
+    }
+    .welcome-hero .user-role-badge {
+        display: inline-block;
+        padding: 0.5rem 1.25rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #ffffff;
+        backdrop-filter: blur(10px);
     }
     .quick-actions {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.75rem;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
     .action-card {
         background: #ffffff;
         border-radius: 8px;
-        padding: 2.5rem;
+        padding: 1.5rem;
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        border: 3px solid #34495e;
+        border: 2px solid #e1e8ed;
+        border-left: 4px solid #34495e;
         text-decoration: none;
         color: inherit;
-        display: block;
-        transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.2s;
     }
     .action-card:hover {
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.25);
-        border-color: #2c3e50;
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.2);
+        border-left-color: #2c3e50;
         text-decoration: none;
         color: inherit;
         transform: translateY(-2px);
     }
+    .action-card-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        display: block;
+    }
     .action-card h3 {
-        margin: 0 0 1rem;
-        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
         font-weight: 700;
         color: #34495e;
-        letter-spacing: 0.3px;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e1e8ed;
     }
     .action-card p {
         margin: 0;
-        padding-top: 1rem;
         color: #7f8c8d;
-        font-size: 1rem;
-        line-height: 1.6;
+        font-size: 0.85rem;
+        line-height: 1.5;
     }
-    .info-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.25rem;
-    }
-    .info-card {
-        background: #ffffff;
+    .info-banner {
+        background: #f8f9fa;
+        border-left: 4px solid #34495e;
+        padding: 1rem 1.25rem;
         border-radius: 6px;
-        padding: 1.25rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border: 1px solid #e1e8ed;
-        border-left: 4px solid;
+        margin-top: 1.5rem;
     }
-    .info-card.primary {
-        border-left-color: #34495e;
-    }
-    .info-card.success {
-        border-left-color: #27ae60;
-    }
-    .info-card.warning {
-        border-left-color: #f39c12;
-    }
-    .info-card h4 {
-        margin: 0 0 0.5rem;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #2c3e50;
-    }
-    .info-card p {
+    .info-banner p {
         margin: 0;
-        color: #7f8c8d;
-        font-size: 0.875rem;
-        line-height: 1.6;
+        color: #2c3e50;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+    .info-banner strong {
+        color: #34495e;
     }
     @media (max-width: 768px) {
-        .welcome-card {
-            padding: 1.5rem;
+        .welcome-hero {
+            padding: 2rem 1.5rem;
         }
-        .welcome-card h2 {
+        .welcome-hero h1 {
             font-size: 1.5rem;
         }
-        .quick-actions {
-            grid-template-columns: 1fr;
+        .welcome-hero .welcome-subtitle {
+            font-size: 1rem;
         }
-        .info-section {
+        .quick-actions {
             grid-template-columns: 1fr;
         }
     }
 </style>
 {% endblock %}
 {% block content %}
-<div class="welcome-section">
-    <div class="welcome-logo">
-        <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
+<div class="home-container">
+    <div class="welcome-hero">
+        <div class="welcome-logo">
+            <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
+        </div>
+        <h1>Olá, {{ user_display_name }}! 👋</h1>
+        <p class="welcome-subtitle">Bem-vindo à Intranet Parceiros da Educação</p>
+        <div class="user-role-badge">
+            {% if is_gestor_admin %}
+                👑 Gestor Administrativo
+            {% elif is_gestor_simples %}
+                ⚡ Gestor
+            {% else %}
+                👤 Solicitante
+            {% endif %}
+        </div>
     </div>
-    <div class="welcome-card">
-        <h2>Bem-vindo à Intranet</h2>
-        <p>Parceiros da Educação - Sistema de Gestão Interna</p>
-    </div>
-</div>
 
-<div class="quick-actions">
-    {% if is_gestor_admin %}
-    <a href="/aprovar-reembolsos/" class="action-card">
-        <h3>Aprovar Reembolsos</h3>
-        <p>Visualize e gerencie todas as solicitações de reembolso pendentes de aprovação.</p>
-    </a>
-    <a href="{% url 'intra:dashboard_gestor' %}" class="action-card">
-        <h3>Dashboard</h3>
-        <p>Visualize estatísticas e relatórios de reembolsos.</p>
-    </a>
-    {% elif is_gestor_simples %}
-    <a href="/aprovar-reembolsos/" class="action-card">
-        <h3>Aprovar Reembolsos</h3>
-        <p>Visualize e gerencie as solicitações de reembolso dos seus solicitantes.</p>
-    </a>
-    <a href="{% url 'intra:reembolso' %}" class="action-card">
-        <h3>Solicitar Reembolso</h3>
-        <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
-    </a>
-    <a href="/meus-reembolsos/" class="action-card">
-        <h3>Meus Reembolsos</h3>
-        <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
-    </a>
-    <a href="/meu-perfil/" class="action-card">
-        <h3>Meu Perfil</h3>
-        <p>Visualize e gerencie suas informações pessoais e dados bancários.</p>
-    </a>
-    {% else %}
-    <a href="{% url 'intra:reembolso' %}" class="action-card">
-        <h3>Solicitar Reembolso</h3>
-        <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
-    </a>
-    <a href="/meus-reembolsos/" class="action-card">
-        <h3>Meus Reembolsos</h3>
-        <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
-    </a>
-    <a href="/meu-perfil/" class="action-card">
-        <h3>Meu Perfil</h3>
-        <p>Visualize e gerencie suas informações pessoais e dados bancários.</p>
-    </a>
-    {% endif %}
-</div>
+    <div class="quick-actions">
+        {% if is_gestor_admin %}
+        <a href="{% url 'intra:dashboard_gestor' %}" class="action-card">
+            <span class="action-card-icon">📊</span>
+            <h3>Dashboard</h3>
+            <p>Visualize estatísticas e relatórios de reembolsos.</p>
+        </a>
+        <a href="/aprovar-reembolsos/" class="action-card">
+            <span class="action-card-icon">✅</span>
+            <h3>Aprovar Reembolsos</h3>
+            <p>Visualize e gerencie todas as solicitações de reembolso pendentes de aprovação.</p>
+        </a>
+        <a href="{% url 'intra:ultimos_reembolsos' %}" class="action-card">
+            <span class="action-card-icon">📋</span>
+            <h3>Últimos Reembolsos</h3>
+            <p>Acompanhe o histórico completo de todas as solicitações de reembolso.</p>
+        </a>
+        {% elif is_gestor_simples %}
+        <a href="{% url 'intra:reembolso' %}" class="action-card">
+            <span class="action-card-icon">➕</span>
+            <h3>Reembolso</h3>
+            <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
+        </a>
+        <a href="/meus-reembolsos/" class="action-card">
+            <span class="action-card-icon">📄</span>
+            <h3>Meus Reembolsos</h3>
+            <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
+        </a>
+        <a href="/aprovar-reembolsos/" class="action-card">
+            <span class="action-card-icon">✅</span>
+            <h3>Aprovar Reembolsos</h3>
+            <p>Visualize e gerencie as solicitações de reembolso dos seus solicitantes.</p>
+        </a>
+        <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="action-card">
+            <span class="action-card-icon">📋</span>
+            <h3>Últimos Reembolsos</h3>
+            <p>Acompanhe todas as solicitações relacionadas à sua gestão.</p>
+        </a>
+        {% else %}
+        <a href="{% url 'intra:reembolso' %}" class="action-card">
+            <span class="action-card-icon">➕</span>
+            <h3>Solicitar Reembolso</h3>
+            <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
+        </a>
+        <a href="/meus-reembolsos/" class="action-card">
+            <span class="action-card-icon">📄</span>
+            <h3>Meus Reembolsos</h3>
+            <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
+        </a>
+        {% endif %}
+    </div>
 
-<div class="info-section">
-    <div class="info-card primary">
-        <h4>Informações Importantes</h4>
-        <p>Mantenha seus dados bancários atualizados para garantir o recebimento dos reembolsos aprovados.</p>
-    </div>
-    <div class="info-card success">
-        <h4>Processo Simplificado</h4>
-        <p>Nossa plataforma facilita o processo de solicitação e aprovação de reembolsos.</p>
-    </div>
-    <div class="info-card warning">
-        <h4>Atenção</h4>
-        <p>Certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso.</p>
+    <div class="info-banner">
+        <p><strong>💡 Dica:</strong> 
+        {% if is_gestor_admin %}
+            Como gestor administrativo, você tem acesso completo a todas as funcionalidades do sistema. Use o Dashboard para acompanhar métricas e estatísticas importantes.
+        {% elif is_gestor_simples %}
+            Como gestor, você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar.
+        {% else %}
+            Mantenha seus dados bancários atualizados e certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso.
+        {% endif %}
+        </p>
     </div>
 </div>
 {% endblock %}

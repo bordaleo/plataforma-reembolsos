@@ -464,9 +464,11 @@
     document.querySelectorAll('.btn-ver').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var pk = this.getAttribute('data-pk');
+            showLoading('Carregando detalhes da solicitação...');
             fetch('/reembolso/' + pk + '/detalhe/')
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
+                    hideLoading();
                     if (data.error) return;
                     titulo.textContent = 'Solicitação de Reembolso #' + pk + ' - ' + data.criado_em;
                     detalheId.textContent = '#' + pk;
@@ -667,7 +669,9 @@
                     if (btnNotificar) btnNotificar.setAttribute('data-pk', pk);
                     abrirModal();
                 })
-                .catch(function() {});
+                .catch(function() {
+                    hideLoading();
+                });
         });
     });
 

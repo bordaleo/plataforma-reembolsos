@@ -72,8 +72,164 @@
         .main {
             flex: 1;
             padding: 2rem;
+            padding-top: 5rem;
             overflow: auto;
             background: #f5f7fa;
+            position: relative;
+        }
+        .user-indicator {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 50px;
+            padding: 0.5rem 0.9rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            max-width: fit-content;
+            white-space: nowrap;
+        }
+        .user-indicator:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+            border-color: #34495e;
+        }
+        body.home-page .user-indicator {
+            padding: 0.6rem 1.1rem;
+            border: 2px solid #34495e;
+            box-shadow: 0 4px 16px rgba(52, 73, 94, 0.3);
+        }
+        body.home-page .user-indicator-avatar {
+            width: 36px;
+            height: 36px;
+            font-size: 0.9rem;
+        }
+        body.home-page .user-indicator-name {
+            font-size: 0.9rem;
+        }
+        body.home-page .user-indicator-role {
+            font-size: 0.75rem;
+        }
+        body.home-page .user-indicator-menu-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 0.8rem;
+        }
+        body.home-page .user-indicator:hover {
+            box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+            transform: translateY(-2px);
+        }
+        .user-indicator-menu-icon {
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8c8d;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+            margin-left: 0.25rem;
+        }
+        .user-indicator.active .user-indicator-menu-icon {
+            transform: rotate(180deg);
+        }
+        .user-indicator-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 180px;
+            display: none;
+            overflow: hidden;
+            z-index: 1001;
+        }
+        .user-indicator-dropdown.active {
+            display: block;
+        }
+        .user-indicator-dropdown-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #2c3e50;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .user-indicator-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .user-indicator-dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: #34495e;
+        }
+        .user-indicator-dropdown-item.logout {
+            color: #e53e3e;
+        }
+        .user-indicator-dropdown-item.logout:hover {
+            background-color: #fee;
+            color: #c53030;
+        }
+        .user-indicator-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .user-indicator-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .user-indicator-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.85rem;
+            line-height: 1.2;
+        }
+        .user-indicator-role {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            line-height: 1.2;
+        }
+        .user-indicator-role.gestor-admin {
+            color: #3182ce;
+            font-weight: 600;
+        }
+        .user-indicator-role.gestor {
+            color: #d69e2e;
+            font-weight: 600;
+        }
+        .user-indicator-role.solicitante {
+            color: #38a169;
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .user-indicator {
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+            }
+            .user-indicator-info {
+                display: none;
+            }
         }
         .page-title {
             margin: 0 0 1.5rem;
@@ -295,7 +451,7 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body {% if request.resolver_match.url_name == 'home' %}class="home-page"{% endif %}>
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-box">
@@ -326,21 +482,47 @@
                 <li><a href="{% url 'intra:dashboard_gestor' %}" {% if request.resolver_match.url_name == 'dashboard_gestor' %}class="active"{% endif %}>Dashboard</a></li>
                 <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
                 <li><a href="{% url 'intra:ultimos_reembolsos' %}" {% if request.resolver_match.url_name == 'ultimos_reembolsos' %}class="active"{% endif %}>Últimos Reembolsos</a></li>
+                <li><a href="{% url 'intra:logout' %}">Sair</a></li>
                 {% elif is_gestor_simples %}
                 <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
                 <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>
                 <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
                 <li><a href="{% url 'intra:ultimos_reembolsos_gestor' %}" {% if request.resolver_match.url_name == 'ultimos_reembolsos_gestor' %}class="active"{% endif %}>Últimos Reembolsos</a></li>
-                <li><a href="/meu-perfil/" {% if request.resolver_match.url_name == 'meu_perfil' %}class="active"{% endif %}>Meu Perfil</a></li>
+                <li><a href="{% url 'intra:logout' %}">Sair</a></li>
                 {% else %}
                 <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>
                 <li><a href="/meus-reembolsos/" {% if request.resolver_match.url_name == 'meus_reembolsos' %}class="active"{% endif %}>Meus Reembolsos</a></li>
-                <li><a href="/meu-perfil/" {% if request.resolver_match.url_name == 'meu_perfil' %}class="active"{% endif %}>Meu Perfil</a></li>
-                {% endif %}
                 <li><a href="{% url 'intra:logout' %}">Sair</a></li>
+                {% endif %}
             </ul>
         </aside>
         <main class="main">
+            {% if user.is_authenticated %}
+            <div class="user-indicator" id="user-indicator">
+                <div class="user-indicator-avatar">
+                    {{ user_display_name|first|upper }}
+                </div>
+                <div class="user-indicator-info">
+                    <div class="user-indicator-name">
+                        {{ user_display_name }}
+                    </div>
+                    <div class="user-indicator-role {% if is_gestor_admin %}gestor-admin{% elif is_gestor_simples %}gestor{% else %}solicitante{% endif %}">
+                        {% if is_gestor_admin %}
+                            Gestor Administrativo
+                        {% elif is_gestor_simples %}
+                             Gestor
+                        {% else %}
+                             Solicitante
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="user-indicator-menu-icon">▼</div>
+                <div class="user-indicator-dropdown" id="user-indicator-dropdown">
+                    <a href="{% url 'intra:meu_perfil' %}" class="user-indicator-dropdown-item">Meu Perfil</a>
+                    <a href="{% url 'intra:logout' %}" class="user-indicator-dropdown-item logout">Sair</a>
+                </div>
+            </div>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -394,6 +576,44 @@
         
         // Tornar função acessível globalmente
         window.hideSuccess = hideSuccess;
+        
+        // Controlar dropdown do indicador de usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            const userIndicator = document.getElementById('user-indicator');
+            const userDropdown = document.getElementById('user-indicator-dropdown');
+            
+            if (userIndicator && userDropdown) {
+                // Abrir/fechar dropdown ao clicar no indicador
+                userIndicator.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isActive = userDropdown.classList.contains('active');
+                    if (isActive) {
+                        userDropdown.classList.remove('active');
+                        userIndicator.classList.remove('active');
+                    } else {
+                        userDropdown.classList.add('active');
+                        userIndicator.classList.add('active');
+                    }
+                });
+                
+                // Fechar dropdown ao clicar fora
+                document.addEventListener('click', function(e) {
+                    if (!userIndicator.contains(e.target)) {
+                        userDropdown.classList.remove('active');
+                        userIndicator.classList.remove('active');
+                    }
+                });
+                
+                // Fechar dropdown ao clicar em um item
+                const dropdownItems = userDropdown.querySelectorAll('.user-indicator-dropdown-item');
+                dropdownItems.forEach(function(item) {
+                    item.addEventListener('click', function() {
+                        userDropdown.classList.remove('active');
+                        userIndicator.classList.remove('active');
+                    });
+                });
+            }
+        });
         
         // Interceptar todos os formulários
         document.addEventListener('DOMContentLoaded', function() {

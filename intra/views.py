@@ -2630,127 +2630,246 @@ def dashboard_gestor(request):
     if centro_custo_filtro:
         filtros_solicitacao &= Q(centro_custo=centro_custo_filtro)
     
-    # Estatísticas gerais com filtros - apenas reembolsos concluídos no dashboard
-    # Mas se o filtro for "concluido", mostrar apenas concluídos
-    # Se for outro status, aplicar o filtro normalmente
-    if status_filtro == 'concluido':
-        # Filtrar por status CONCLUIDO ou campo concluido=True (para compatibilidade com dados antigos)
-        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
-    elif status_filtro == 'aguardando_assinatura':
-        # Aguardando assinatura: pagos mas não concluídos e com envelope_id
-        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, concluido=False, envelope_id_docusign__isnull=False)
-    elif status_filtro == 'aguardando_pagamento':
-        # Aguardando pagamento: aprovados pelo gestor admin mas não pagos
-        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, concluido=False)
-    elif status_filtro == 'assinado_todas_partes':
-        # Assinado por todas as partes: pagos, assinados mas não concluídos
-        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, concluido=False)
-    elif status_filtro and status_filtro != 'TODOS':
-        # Outros status: aplicar filtro normal mas ainda mostrar apenas concluídos por padrão
-        # Se não for status especial, manter apenas concluídos
-        if status_filtro in [SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, SolicitacaoReembolso.STATUS_REJEITADO, SolicitacaoReembolso.STATUS_PENDENTE]:
-            filtros_solicitacao &= Q(status=status_filtro, concluido=True)
-        elif status_filtro == SolicitacaoReembolso.STATUS_CONCLUIDO:
-            filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
-        else:
-            filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
-    else:
-        # Sem filtro de status: mostrar apenas concluídos
-        filtros_solicitacao &= Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
-    queryset_base = SolicitacaoReembolso.objects.filter(filtros_solicitacao)
+    # Construir filtros base para as três categorias: Concluído, Em Processo, Rejeitado
+    # Aplicar filtros comuns primeiro (data, centro_custo, tipo_despesa, id)
+    filtros_comuns = Q()
     
-    # Se houver filtro de tipo de despesa, calcular totais baseados nos itens
+    # Filtro de data início
+    if data_inicio:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            filtros_comuns &= Q(criado_em__date__gte=data_inicio_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de data fim
+    if data_fim:
+        try:
+            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            filtros_comuns &= Q(criado_em__date__lte=data_fim_obj)
+        except ValueError:
+            pass
+    
+    # Filtro de centro de custo
+    if centro_custo_filtro:
+        filtros_comuns &= Q(centro_custo=centro_custo_filtro)
+    
+    # Filtro de ID
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_comuns &= Q(pk=id_valor)
+        except ValueError:
+            pass
+    
+    # Filtros específicos para cada categoria
+    # Concluído: status=CONCLUIDO ou concluido=True
+    filtros_concluidos = filtros_comuns & (
+        Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
+    )
+    
+    # Em Processo: aprovadas pelo gestor que não são concluídas ou rejeitadas pelo gestor admin
+    filtros_em_processo = filtros_comuns & (
+        (
+            Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False) &
+            ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+        ) | Q(
+            status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+            pago=False,
+            concluido=False
+        )
+    )
+    
+    # Rejeitados: status_gestor_admin=REJEITADO
+    filtros_rejeitados = filtros_comuns & Q(
+        status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+    )
+    
+    # Aplicar filtro de status se especificado
+    if status_filtro:
+        if status_filtro == 'concluido' or status_filtro == SolicitacaoReembolso.STATUS_CONCLUIDO:
+            # Mostrar apenas concluídos
+            filtros_em_processo = Q(pk__in=[])
+            filtros_rejeitados = Q(pk__in=[])
+        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+            # Mostrar apenas rejeitados
+            filtros_concluidos = Q(pk__in=[])
+            filtros_em_processo = Q(pk__in=[])
+        elif status_filtro in [SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 
+                               SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+                               SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
+                               SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES]:
+            # Mostrar apenas em processo com esse status específico
+            filtros_em_processo = filtros_comuns & Q(status=status_filtro, concluido=False)
+            filtros_concluidos = Q(pk__in=[])
+            filtros_rejeitados = Q(pk__in=[])
+    
+    # Querysets base para cada categoria
+    queryset_concluidos = SolicitacaoReembolso.objects.filter(filtros_concluidos)
+    queryset_em_processo = SolicitacaoReembolso.objects.filter(filtros_em_processo)
+    queryset_rejeitados = SolicitacaoReembolso.objects.filter(filtros_rejeitados)
+    
+    # Para compatibilidade com código existente, manter queryset_base
+    queryset_base = queryset_concluidos
+    
+    # Calcular totais e contagens para cada categoria
+    # Se houver filtro de tipo de despesa, calcular baseado nos itens
     if tipo_despesa_filtro:
         # Construir filtros para itens considerando tipo de despesa
-        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
-        filtros_itens_aprovado = Q(
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES),
-            tipo_despesa=tipo_despesa_filtro
-        )
-        filtros_itens_rejeitado = Q(solicitacao__status=SolicitacaoReembolso.STATUS_REJEITADO, tipo_despesa=tipo_despesa_filtro)
-        filtros_itens_pendente = Q(solicitacao__status=SolicitacaoReembolso.STATUS_PENDENTE, tipo_despesa=tipo_despesa_filtro)
+        filtros_itens_comuns = Q(tipo_despesa=tipo_despesa_filtro)
         
         # Aplicar filtros de data
         if data_inicio:
             try:
                 data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
-                filtros_itens_aprovado &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
-                filtros_itens_rejeitado &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
-                filtros_itens_pendente &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
+                filtros_itens_comuns &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
             except ValueError:
                 pass
         
         if data_fim:
             try:
                 data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
-                filtros_itens_aprovado &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
-                filtros_itens_rejeitado &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
-                filtros_itens_pendente &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
+                filtros_itens_comuns &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
             except ValueError:
                 pass
         
         # Aplicar filtro de centro de custo
         if centro_custo_filtro:
-            filtros_itens_aprovado &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_rejeitado &= Q(solicitacao__centro_custo=centro_custo_filtro)
-            filtros_itens_pendente &= Q(solicitacao__centro_custo=centro_custo_filtro)
+            filtros_itens_comuns &= Q(solicitacao__centro_custo=centro_custo_filtro)
         
         # Aplicar filtro de ID
         if id_filtro:
             try:
                 id_valor = int(id_filtro)
-                filtros_itens_aprovado &= Q(solicitacao__pk=id_valor)
-                filtros_itens_rejeitado &= Q(solicitacao__pk=id_valor)
-                filtros_itens_pendente &= Q(solicitacao__pk=id_valor)
+                filtros_itens_comuns &= Q(solicitacao__pk=id_valor)
             except ValueError:
                 pass
         
+        # Filtros específicos para cada categoria
+        filtros_itens_concluidos = filtros_itens_comuns & (
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(solicitacao__concluido=True)
+        )
+        
+        filtros_itens_em_processo = filtros_itens_comuns & (
+            (
+                Q(solicitacao__status_gestor=SolicitacaoReembolso.STATUS_APROVADO, solicitacao__concluido=False) &
+                ~Q(solicitacao__status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+            ) | Q(
+                solicitacao__status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+                solicitacao__pago=False,
+                solicitacao__concluido=False
+            )
+        )
+        
+        filtros_itens_rejeitados = filtros_itens_comuns & Q(
+            solicitacao__status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+        )
+        
         # Calcular totais baseados nos itens
-        total_aprovado = ItemReembolso.objects.filter(filtros_itens_aprovado).aggregate(
+        total_concluido = ItemReembolso.objects.filter(filtros_itens_concluidos).aggregate(
             total=Sum('valor')
         )['total'] or 0
         
-        total_rejeitado = ItemReembolso.objects.filter(filtros_itens_rejeitado).aggregate(
+        total_em_processo = ItemReembolso.objects.filter(filtros_itens_em_processo).aggregate(
             total=Sum('valor')
         )['total'] or 0
         
-        total_pendente = ItemReembolso.objects.filter(filtros_itens_pendente).aggregate(
+        total_rejeitado = ItemReembolso.objects.filter(filtros_itens_rejeitados).aggregate(
             total=Sum('valor')
         )['total'] or 0
         
-        # Contagem de solicitações distintas por status (não itens)
-        count_aprovado = ItemReembolso.objects.filter(filtros_itens_aprovado).values('solicitacao').distinct().count()
-        count_rejeitado = ItemReembolso.objects.filter(filtros_itens_rejeitado).values('solicitacao').distinct().count()
-        count_pendente = ItemReembolso.objects.filter(filtros_itens_pendente).values('solicitacao').distinct().count()
+        # Contagem de solicitações distintas por categoria (não itens)
+        count_concluido = ItemReembolso.objects.filter(filtros_itens_concluidos).values('solicitacao').distinct().count()
+        count_em_processo = ItemReembolso.objects.filter(filtros_itens_em_processo).values('solicitacao').distinct().count()
+        count_rejeitado = ItemReembolso.objects.filter(filtros_itens_rejeitados).values('solicitacao').distinct().count()
     else:
         # Comportamento padrão: calcular baseado nas solicitações
-        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
-        total_aprovado = queryset_base.filter(
-            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
-        ).aggregate(
+        total_concluido = queryset_concluidos.aggregate(
             total=Sum('valor_total')
         )['total'] or 0
         
-        total_rejeitado = queryset_base.filter(status=SolicitacaoReembolso.STATUS_REJEITADO).aggregate(
+        total_em_processo = queryset_em_processo.aggregate(
             total=Sum('valor_total')
         )['total'] or 0
         
-        total_pendente = queryset_base.filter(status=SolicitacaoReembolso.STATUS_PENDENTE).aggregate(
+        total_rejeitado = queryset_rejeitados.aggregate(
             total=Sum('valor_total')
         )['total'] or 0
         
-        # Contagem por status
-        count_aprovado = queryset_base.filter(
-            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
-        ).count()
-        count_rejeitado = queryset_base.filter(status=SolicitacaoReembolso.STATUS_REJEITADO).count()
-        count_pendente = queryset_base.filter(status=SolicitacaoReembolso.STATUS_PENDENTE).count()
+        # Contagem por categoria
+        count_concluido = queryset_concluidos.count()
+        count_em_processo = queryset_em_processo.count()
+        count_rejeitado = queryset_rejeitados.count()
+    
+    # Calcular quantos foram pagos por área (centro de custo)
+    # Considerar apenas reembolsos concluídos que foram pagos (pago=True)
+    filtros_pagos_por_area = filtros_comuns & Q(
+        pago=True,
+        status=SolicitacaoReembolso.STATUS_CONCLUIDO
+    ) | Q(
+        pago=True,
+        concluido=True
+    )
+    
+    if tipo_despesa_filtro:
+        # Se houver filtro de tipo de despesa, usar itens
+        filtros_itens_pagos = Q(
+            solicitacao__pago=True,
+            tipo_despesa=tipo_despesa_filtro
+        ) & (
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_CONCLUIDO) |
+            Q(solicitacao__concluido=True)
+        )
+        
+        if data_inicio:
+            try:
+                data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                filtros_itens_pagos &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
+            except ValueError:
+                pass
+        
+        if data_fim:
+            try:
+                data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                filtros_itens_pagos &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
+            except ValueError:
+                pass
+        
+        if centro_custo_filtro:
+            filtros_itens_pagos &= Q(solicitacao__centro_custo=centro_custo_filtro)
+        
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens_pagos &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
+        
+        pagos_por_area = ItemReembolso.objects.filter(
+            filtros_itens_pagos
+        ).values('solicitacao__centro_custo').annotate(
+            total=Sum('valor'),
+            count=Count('solicitacao', distinct=True)
+        ).order_by('-total')
+    else:
+        pagos_por_area = SolicitacaoReembolso.objects.filter(
+            filtros_pagos_por_area
+        ).values('centro_custo').annotate(
+            total=Sum('valor_total'),
+            count=Count('id')
+        ).order_by('-total')
+    
+    pagos_por_area_formatado = []
+    for item in pagos_por_area:
+        centro_label = dict(CENTROS_CUSTO).get(
+            item.get('centro_custo') or item.get('solicitacao__centro_custo'), 
+            item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        )
+        pagos_por_area_formatado.append({
+            'centro': centro_label,
+            'valor': float(item['total']),
+            'count': item['count']
+        })
     
     # Gastos por tipo de despesa (usando itens)
     # Construir filtros para ItemReembolso usando relacionamento solicitacao__
@@ -2771,16 +2890,14 @@ def dashboard_gestor(request):
         except ValueError:
             pass
     
-    # Filtro de status - se não especificado, mostrar apenas aprovados (comportamento original)
+    # Filtro de status - se não especificado, mostrar apenas concluídos (comportamento padrão)
     if status_filtro and status_filtro != 'TODOS':
         filtros_itens_tipo &= Q(solicitacao__status=status_filtro)
     else:
-        # Comportamento padrão: mostrar apenas aprovados para gastos por tipo
-        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+        # Comportamento padrão: mostrar apenas concluídos para gastos por tipo
         filtros_itens_tipo &= (
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+            Q(solicitacao__status=SolicitacaoReembolso.STATUS_CONCLUIDO) |
+            Q(solicitacao__concluido=True)
         )
     
     # Filtro de centro de custo via relacionamento
@@ -2838,11 +2955,10 @@ def dashboard_gestor(request):
         if status_filtro and status_filtro != 'TODOS':
             filtros_itens_centro &= Q(solicitacao__status=status_filtro)
         else:
-            # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
+            # Comportamento padrão: mostrar apenas concluídos para gastos por centro
             filtros_itens_centro &= (
-                Q(solicitacao__status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-                Q(solicitacao__status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-                Q(solicitacao__status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+                Q(solicitacao__status=SolicitacaoReembolso.STATUS_CONCLUIDO) |
+                Q(solicitacao__concluido=True)
             )
         
         # Filtro de centro de custo via relacionamento
@@ -2875,13 +2991,8 @@ def dashboard_gestor(request):
                 'valor': float(item['total'])
             })
     else:
-        # Comportamento padrão: calcular baseado nas solicitações
-        # Aprovado = aguardando pagamento OU pago aguardando assinaturas OU assinado todas partes
-        gastos_por_centro = queryset_base.filter(
-            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
-        ).values('centro_custo').annotate(
+        # Comportamento padrão: calcular baseado nas solicitações concluídas
+        gastos_por_centro = queryset_concluidos.values('centro_custo').annotate(
             total=Sum('valor_total')
         ).order_by('-total')
         
@@ -2903,19 +3014,23 @@ def dashboard_gestor(request):
     else:
         doze_meses_atras = timezone.now() - timedelta(days=365)
     
-    reembolsos_por_mes = queryset_base.filter(
-        criado_em__gte=doze_meses_atras
+    # Reembolsos por mês - combinar todas as categorias
+    from django.db.models import F
+    reembolsos_por_mes = SolicitacaoReembolso.objects.filter(
+        Q(criado_em__gte=doze_meses_atras) & filtros_comuns
     ).annotate(
         mes=TruncMonth('criado_em')
     ).values('mes').annotate(
         total=Count('id'),
-        valor_aprovado=Sum('valor_total', filter=(
-            Q(status=SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO) |
-            Q(status=SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS) |
-            Q(status=SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES)
+        valor_concluido=Sum('valor_total', filter=(
+            Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
         )),
-        valor_rejeitado=Sum('valor_total', filter=Q(status=SolicitacaoReembolso.STATUS_REJEITADO)),
-        valor_pendente=Sum('valor_total', filter=Q(status=SolicitacaoReembolso.STATUS_PENDENTE))
+        valor_em_processo=Sum('valor_total', filter=(
+            (Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False) &
+             ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)) |
+            Q(status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, pago=False, concluido=False)
+        )),
+        valor_rejeitado=Sum('valor_total', filter=Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO))
     ).order_by('mes')
     
     reembolsos_por_mes_formatado = []
@@ -2924,9 +3039,9 @@ def dashboard_gestor(request):
         reembolsos_por_mes_formatado.append({
             'mes': mes_brasil,
             'total': item['total'],
-            'valor_aprovado': float(item['valor_aprovado'] or 0),
-            'valor_rejeitado': float(item['valor_rejeitado'] or 0),
-            'valor_pendente': float(item['valor_pendente'] or 0)
+            'valor_concluido': float(item['valor_concluido'] or 0),
+            'valor_em_processo': float(item['valor_em_processo'] or 0),
+            'valor_rejeitado': float(item['valor_rejeitado'] or 0)
         })
     
     # Paginação para Reembolsos por Mês (5 por página)
@@ -2955,15 +3070,8 @@ def dashboard_gestor(request):
         query_string.update(params)
         return '?' + query_string.urlencode() if params else ''
     
-    # Labels para os filtros
-    status_labels = dict([
-        ('', 'Todos'),
-        ('aguardando_pagamento', 'Aguardando Pagamento'),
-        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
-        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
-        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-        ('concluido', 'Concluído'),
-    ])
+    # Labels para os filtros - usar os nomes do STATUS_CHOICES
+    status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
     tipo_labels = dict(TIPOS_DESPESA)
     
@@ -3083,12 +3191,13 @@ def dashboard_gestor(request):
         })
     
     context = {
-        'total_aprovado': float(total_aprovado),
+        'total_concluido': float(total_concluido),
+        'total_em_processo': float(total_em_processo),
         'total_rejeitado': float(total_rejeitado),
-        'total_pendente': float(total_pendente),
-        'count_aprovado': count_aprovado,
+        'count_concluido': count_concluido,
+        'count_em_processo': count_em_processo,
         'count_rejeitado': count_rejeitado,
-        'count_pendente': count_pendente,
+        'pagos_por_area': pagos_por_area_formatado,
         'gastos_por_tipo': gastos_por_tipo_formatado,
         'gastos_por_centro': gastos_por_centro_formatado,
         'reembolsos_por_mes': page_obj_mes,
@@ -3117,11 +3226,12 @@ def dashboard_gestor(request):
         'tipos_despesa': TIPOS_DESPESA,
         'status_choices': [
             ('', 'Todos'),
-            (SolicitacaoReembolso.STATUS_APROVADO, 'Aprovado'),
-            (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-            (SolicitacaoReembolso.STATUS_PENDENTE, 'Pendente'),
-            ('aguardando_assinatura', 'Aguardando Assinaturas'),
             ('concluido', 'Concluído'),
+            ('em_processo', 'Em Processo'),
+            (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+            (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aguardando Pagamento'),
+            (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando Assinaturas'),
+            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
         ],
     }
     
@@ -3578,6 +3688,78 @@ def ultimos_reembolsos(request):
         filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
         filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
     
+    # Filtro de status - aplicar apenas na tabela atual
+    # IMPORTANTE: Este filtro deve ser aplicado DEPOIS dos outros filtros comuns
+    # para garantir que apenas a tabela atual seja filtrada
+    if status_filtro:
+        if tabela_atual == 'concluidos':
+            # Para concluídos, filtrar por status CONCLUIDO
+            if status_filtro == SolicitacaoReembolso.STATUS_CONCLUIDO:
+                # Aplicar filtro de status: mostrar APENAS os que têm status=CONCLUIDO
+                # Substituir o filtro base para garantir que mostra apenas status=CONCLUIDO
+                # Manter os outros filtros já aplicados (id, data, centro_custo, etc)
+                filtros_base_concluidos = Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO)
+                # Reaplicar filtros comuns que já foram aplicados
+                if id_filtro:
+                    try:
+                        id_valor = int(id_filtro)
+                        filtros_base_concluidos &= Q(pk=id_valor)
+                    except ValueError:
+                        pass
+                if data_inicio:
+                    try:
+                        data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                        filtros_base_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
+                    except ValueError:
+                        pass
+                if data_fim:
+                    try:
+                        data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                        filtros_base_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
+                    except ValueError:
+                        pass
+                if centro_custo_filtro:
+                    filtros_base_concluidos &= Q(centro_custo=centro_custo_filtro)
+                filtros_concluidos = filtros_base_concluidos
+            else:
+                filtros_concluidos = Q(pk__in=[])  # Nenhum resultado se o status não for CONCLUIDO
+        elif tabela_atual == 'rejeitados':
+            # Para rejeitados, verificar status_gestor_admin
+            if status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+                # O filtro base já inclui status_gestor_admin=REJEITADO, então apenas manter
+                # Mas vamos garantir que também verifica o campo status
+                filtros_rejeitados = filtros_rejeitados & (Q(status=SolicitacaoReembolso.STATUS_REJEITADO) | Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO))
+            else:
+                filtros_rejeitados = Q(pk__in=[])  # Nenhum resultado se o status não for REJEITADO
+        else:  # em-processo
+            # Para em-processo, aplicar filtro de status específico
+            # Substituir o filtro base para garantir que mostra APENAS o status selecionado
+            # O filtro base de em-processo inclui várias condições, mas quando há filtro de status,
+            # devemos mostrar APENAS o status selecionado
+            filtros_base_em_processo = Q(status=status_filtro, concluido=False) & ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+            # Reaplicar filtros comuns que já foram aplicados
+            if id_filtro:
+                try:
+                    id_valor = int(id_filtro)
+                    filtros_base_em_processo &= Q(pk=id_valor)
+                except ValueError:
+                    pass
+            if data_inicio:
+                try:
+                    data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                    filtros_base_em_processo &= Q(criado_em__date__gte=data_inicio_obj)
+                except ValueError:
+                    pass
+            if data_fim:
+                try:
+                    data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                    filtros_base_em_processo &= Q(criado_em__date__lte=data_fim_obj)
+                except ValueError:
+                    pass
+            if centro_custo_filtro:
+                filtros_base_em_processo &= Q(centro_custo=centro_custo_filtro)
+            filtros_em_processo = filtros_base_em_processo
+    
     # Filtro de tipo de despesa (via itens)
     if tipo_despesa_filtro:
         # Obter IDs das solicitações que têm itens com esse tipo de despesa
@@ -3607,10 +3789,24 @@ def ultimos_reembolsos(request):
             except ValueError:
                 pass
         
+        # Se houver filtro de status, aplicar também no filtro de itens
+        if status_filtro:
+            filtros_itens &= Q(solicitacao__status=status_filtro)
+        
         solicitacoes_ids = ItemReembolso.objects.filter(filtros_itens).values_list('solicitacao_id', flat=True).distinct()
-        filtros_em_processo &= Q(pk__in=solicitacoes_ids)
-        filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
-        filtros_concluidos &= Q(pk__in=solicitacoes_ids)
+        # Aplicar apenas na tabela atual se houver filtro de status
+        if status_filtro:
+            if tabela_atual == 'concluidos':
+                filtros_concluidos &= Q(pk__in=solicitacoes_ids)
+            elif tabela_atual == 'rejeitados':
+                filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+            else:  # em-processo
+                # Garantir que o filtro de status não seja sobrescrito
+                filtros_em_processo = filtros_em_processo & Q(pk__in=solicitacoes_ids)
+        else:
+            filtros_em_processo &= Q(pk__in=solicitacoes_ids)
+            filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+            filtros_concluidos &= Q(pk__in=solicitacoes_ids)
     
     # Buscar solicitações nas 3 categorias com prefetch_related para evitar N+1
     em_processo_queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
@@ -3719,15 +3915,8 @@ def ultimos_reembolsos(request):
         query_string.update(params)
         return '?' + query_string.urlencode() if params else ''
     
-    # Labels para os filtros
-    status_labels = dict([
-        ('', 'Todos'),
-        ('aguardando_pagamento', 'Aguardando Pagamento'),
-        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
-        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
-        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-        ('concluido', 'Concluído'),
-    ])
+    # Labels para os filtros - usar os nomes do STATUS_CHOICES
+    status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
     tipo_labels = dict(TIPOS_DESPESA)
     
@@ -3764,25 +3953,25 @@ def ultimos_reembolsos(request):
             'remove_url': get_url_without_filter('id')
         })
     
-    # Aplicar filtro de status se fornecido
-    if status_filtro:
-        if status_filtro == 'em_processo':
-            rejeitados_com_data = []
-            concluidos_com_data = []
-        elif status_filtro == 'concluido':
-            em_processo_com_data = []
-            rejeitados_com_data = []
-        elif status_filtro == 'rejeitado':
-            em_processo_com_data = []
-            concluidos_com_data = []
-    
-    # Opções para status
-    status_choices = [
-        ('', 'Todos'),
-        ('em_processo', 'Em Processo'),
-        ('concluido', 'Concluído'),
-        ('rejeitado', 'Rejeitado'),
-    ]
+    # Opções para status baseado na tabela atual
+    # Em Processo: apenas status que aparecem nessa tabela
+    # Concluídos: apenas CONCLUIDO
+    # Rejeitados: apenas REJEITADO
+    if tabela_atual == 'concluidos':
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_CONCLUIDO, 'Concluído'),
+        ]
+    elif tabela_atual == 'rejeitados':
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ]
+    else:  # em-processo
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aprovado - Aguardando pagamento'),
+            (SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, 'Solicitação aprovada - Pagamento agendado'),
+            (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando assinaturas'),
+            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
+        ]
     
     return render(
         request,
@@ -3878,6 +4067,78 @@ def ultimos_reembolsos_gestor(request):
         filtros_rejeitados &= Q(centro_custo=centro_custo_filtro)
         filtros_concluidos &= Q(centro_custo=centro_custo_filtro)
     
+    # Filtro de status - aplicar apenas na tabela atual
+    # IMPORTANTE: Este filtro deve ser aplicado DEPOIS dos outros filtros comuns
+    # para garantir que apenas a tabela atual seja filtrada
+    if status_filtro:
+        if tabela_atual == 'concluidos':
+            # Para concluídos, filtrar por status CONCLUIDO
+            if status_filtro == SolicitacaoReembolso.STATUS_CONCLUIDO:
+                # Aplicar filtro de status: mostrar APENAS os que têm status=CONCLUIDO
+                # Substituir o filtro base para garantir que mostra apenas status=CONCLUIDO
+                # Manter os outros filtros já aplicados (id, data, centro_custo, etc)
+                filtros_base_concluidos = Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO, aprovado_por_gestor=request.user)
+                # Reaplicar filtros comuns que já foram aplicados
+                if id_filtro:
+                    try:
+                        id_valor = int(id_filtro)
+                        filtros_base_concluidos &= Q(pk=id_valor)
+                    except ValueError:
+                        pass
+                if data_inicio:
+                    try:
+                        data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                        filtros_base_concluidos &= Q(concluido_em__date__gte=data_inicio_obj)
+                    except ValueError:
+                        pass
+                if data_fim:
+                    try:
+                        data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                        filtros_base_concluidos &= Q(concluido_em__date__lte=data_fim_obj)
+                    except ValueError:
+                        pass
+                if centro_custo_filtro:
+                    filtros_base_concluidos &= Q(centro_custo=centro_custo_filtro)
+                filtros_concluidos = filtros_base_concluidos
+            else:
+                filtros_concluidos = Q(pk__in=[])  # Nenhum resultado se o status não for CONCLUIDO
+        elif tabela_atual == 'rejeitados':
+            # Para rejeitados, verificar status_gestor
+            if status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+                # O filtro base já inclui status_gestor=REJEITADO, então apenas manter
+                # Mas vamos garantir que também verifica o campo status
+                filtros_rejeitados = filtros_rejeitados & (Q(status=SolicitacaoReembolso.STATUS_REJEITADO) | Q(status_gestor=SolicitacaoReembolso.STATUS_REJEITADO))
+            else:
+                filtros_rejeitados = Q(pk__in=[])  # Nenhum resultado se o status não for REJEITADO
+        else:  # em-processo
+            # Para em-processo, aplicar filtro de status específico
+            # Substituir o filtro base para garantir que mostra APENAS o status selecionado
+            # O filtro base de em-processo inclui várias condições, mas quando há filtro de status,
+            # devemos mostrar APENAS o status selecionado
+            filtros_base_em_processo = Q(status=status_filtro, aprovado_por_gestor=request.user, concluido=False) & ~Q(status_gestor=SolicitacaoReembolso.STATUS_REJEITADO)
+            # Reaplicar filtros comuns que já foram aplicados
+            if id_filtro:
+                try:
+                    id_valor = int(id_filtro)
+                    filtros_base_em_processo &= Q(pk=id_valor)
+                except ValueError:
+                    pass
+            if data_inicio:
+                try:
+                    data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                    filtros_base_em_processo &= Q(criado_em__date__gte=data_inicio_obj)
+                except ValueError:
+                    pass
+            if data_fim:
+                try:
+                    data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                    filtros_base_em_processo &= Q(criado_em__date__lte=data_fim_obj)
+                except ValueError:
+                    pass
+            if centro_custo_filtro:
+                filtros_base_em_processo &= Q(centro_custo=centro_custo_filtro)
+            filtros_em_processo = filtros_base_em_processo
+    
     # Filtro de tipo de despesa (via itens)
     if tipo_despesa_filtro:
         filtros_itens = Q(tipo_despesa=tipo_despesa_filtro)
@@ -3906,10 +4167,24 @@ def ultimos_reembolsos_gestor(request):
             except ValueError:
                 pass
         
+        # Se houver filtro de status, aplicar também no filtro de itens
+        if status_filtro:
+            filtros_itens &= Q(solicitacao__status=status_filtro)
+        
         solicitacoes_ids = ItemReembolso.objects.filter(filtros_itens).values_list('solicitacao_id', flat=True).distinct()
-        filtros_em_processo &= Q(pk__in=solicitacoes_ids)
-        filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
-        filtros_concluidos &= Q(pk__in=solicitacoes_ids)
+        # Aplicar apenas na tabela atual se houver filtro de status
+        if status_filtro:
+            if tabela_atual == 'concluidos':
+                filtros_concluidos &= Q(pk__in=solicitacoes_ids)
+            elif tabela_atual == 'rejeitados':
+                filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+            else:  # em-processo
+                # Garantir que o filtro de status não seja sobrescrito
+                filtros_em_processo = filtros_em_processo & Q(pk__in=solicitacoes_ids)
+        else:
+            filtros_em_processo &= Q(pk__in=solicitacoes_ids)
+            filtros_rejeitados &= Q(pk__in=solicitacoes_ids)
+            filtros_concluidos &= Q(pk__in=solicitacoes_ids)
     
     # Buscar solicitações nas 3 categorias com prefetch_related para evitar N+1
     em_processo_queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
@@ -4017,15 +4292,8 @@ def ultimos_reembolsos_gestor(request):
         query_string.update(params)
         return '?' + query_string.urlencode() if params else ''
     
-    # Labels para os filtros
-    status_labels = dict([
-        ('', 'Todos'),
-        ('aguardando_pagamento', 'Aguardando Pagamento'),
-        ('pago_aguardando_assinaturas', 'Pago - Aguardando Assinaturas'),
-        ('assinado_todas_partes', 'Assinado - Aguardando Conclusão'),
-        (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
-        ('concluido', 'Concluído'),
-    ])
+    # Labels para os filtros - usar os nomes do STATUS_CHOICES
+    status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
     tipo_labels = dict(TIPOS_DESPESA)
     
@@ -4062,25 +4330,25 @@ def ultimos_reembolsos_gestor(request):
             'remove_url': get_url_without_filter('id')
         })
     
-    # Aplicar filtro de status se fornecido
-    if status_filtro:
-        if status_filtro == 'em_processo':
-            rejeitados_com_data = []
-            concluidos_com_data = []
-        elif status_filtro == 'concluido':
-            em_processo_com_data = []
-            rejeitados_com_data = []
-        elif status_filtro == 'rejeitado':
-            em_processo_com_data = []
-            concluidos_com_data = []
-    
-    # Opções para status
-    status_choices = [
-        ('', 'Todos'),
-        ('em_processo', 'Em Processo'),
-        ('concluido', 'Concluído'),
-        ('rejeitado', 'Rejeitado'),
-    ]
+    # Opções para status baseado na tabela atual
+    # Em Processo: apenas status que aparecem nessa tabela
+    # Concluídos: apenas CONCLUIDO
+    # Rejeitados: apenas REJEITADO
+    if tabela_atual == 'concluidos':
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_CONCLUIDO, 'Concluído'),
+        ]
+    elif tabela_atual == 'rejeitados':
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
+        ]
+    else:  # em-processo
+        status_choices = [
+            (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aprovado - Aguardando pagamento'),
+            (SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, 'Solicitação aprovada - Pagamento agendado'),
+            (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando assinaturas'),
+            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
+        ]
     
     return render(
         request,

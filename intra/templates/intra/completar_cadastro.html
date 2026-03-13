@@ -273,6 +273,55 @@
         .banco-item:last-child {
             border-bottom: none;
         }
+        @media (max-width: 768px) {
+            body {
+                padding: 0.75rem;
+            }
+            .box {
+                padding: 1.25rem;
+                max-width: 100%;
+            }
+            .box h1 {
+                font-size: 1.15rem;
+            }
+            .box .subtitle {
+                font-size: 0.85rem;
+            }
+            .form-group {
+                margin-bottom: 0.875rem;
+            }
+            .form-group input,
+            .form-group select {
+                padding: 0.625rem 0.75rem;
+                font-size: 0.9rem;
+            }
+            .section-title {
+                font-size: 0.9rem;
+            }
+            .section-description {
+                font-size: 0.8rem;
+            }
+            .btn {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+            .autocomplete-dropdown {
+                max-height: 200px;
+            }
+        }
+        @media (max-width: 480px) {
+            .box {
+                padding: 1rem;
+            }
+            .box h1 {
+                font-size: 1.05rem;
+            }
+            .form-group input,
+            .form-group select {
+                padding: 0.5rem 0.625rem;
+                font-size: 0.85rem;
+            }
+        }
     </style>
 </head>
 <body>

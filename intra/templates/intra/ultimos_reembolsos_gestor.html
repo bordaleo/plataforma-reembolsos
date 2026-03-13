@@ -683,6 +683,171 @@
         justify-content: center;
         box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
     }
+    .tabela-reembolsos-mobile {
+        display: none;
+    }
+    @media (max-width: 768px) {
+        .tabela-reembolsos {
+            display: none;
+        }
+        .tabela-reembolsos-mobile {
+            display: block;
+        }
+        .reembolso-card-mobile {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e1e8ed;
+        }
+        .reembolso-card-mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e1e8ed;
+        }
+        .reembolso-card-mobile-id {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #34495e;
+        }
+        .reembolso-card-mobile-field {
+            margin-bottom: 0.75rem;
+        }
+        .reembolso-card-mobile-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .reembolso-card-mobile-value {
+            font-size: 0.95rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .reembolso-card-mobile-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .reembolso-card-mobile-actions .btn-ver-solicitacao,
+        .reembolso-card-mobile-actions .btn-pdf {
+            width: 100%;
+            padding: 0.75rem 1rem;
+        }
+        .categorias-buttons {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .btn-tabela {
+            flex-direction: column;
+            padding: 1rem;
+            min-width: 0;
+            width: 100%;
+        }
+        .btn-tabela > div {
+            width: 100%;
+        }
+        .btn-tabela > div > span:first-of-type {
+            font-size: 1.25rem !important;
+        }
+        .btn-tabela > div > span:nth-of-type(2) {
+            font-size: 1rem !important;
+        }
+        .btn-tabela > div > span:nth-of-type(3) {
+            font-size: 0.75rem !important;
+        }
+        .filters-card {
+            padding: 1.5rem;
+        }
+        .filters-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .filters-actions {
+            flex-direction: column;
+        }
+        .filters-actions .btn {
+            width: 100%;
+        }
+        .pagination-wrapper {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem !important;
+        }
+        .pagination-info {
+            text-align: center;
+            width: 100%;
+        }
+        .pagination-controls {
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .pagination-btn {
+            min-width: 90px;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .pagination-current {
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+        .modal-box {
+            max-width: 95%;
+            margin: 1rem;
+        }
+        .modal-header {
+            padding: 1rem 1.25rem;
+        }
+        .modal-header h2 {
+            font-size: 1rem;
+        }
+        .modal-body {
+            padding: 1.25rem;
+            max-height: calc(100vh - 120px);
+        }
+        .page-intro {
+            font-size: 0.85rem;
+        }
+        .section-title {
+            font-size: 1.25rem;
+        }
+        .categorias-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+        }
+        .categorias-header .btn-secondary {
+            width: 100%;
+        }
+        .categorias-header h2 {
+            font-size: 1.1rem;
+        }
+    }
+    @media (min-width: 769px) {
+        .tabela-reembolsos-mobile {
+            display: none;
+        }
+    }
+    @media (max-width: 480px) {
+        .reembolso-card-mobile {
+            padding: 1rem;
+        }
+        .btn-tabela {
+            padding: 0.875rem;
+        }
+        .filters-card {
+            padding: 1.25rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -692,14 +857,14 @@
 
 <!-- Botões para mostrar/esconder tabelas -->
 <div style="margin-bottom: 2.5rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="categorias-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0; font-size: 1.3rem; font-weight: 700; color: #34495e;">Categorias</h2>
         <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="btn btn-secondary" onclick="limparFiltros(); return false;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s; border: none; cursor: pointer;">
             <span style="font-size: 1.1rem;">⌫</span>
             <span>Limpar Filtros</span>
         </a>
     </div>
-    <div style="display: flex; gap: 1rem; flex-wrap: nowrap; justify-content: space-between; padding: 1.5rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border: 1px solid #e1e8ed;">
+    <div style="display: flex; gap: 1rem; flex-wrap: nowrap; justify-content: space-between; padding: 1.5rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border: 1px solid #e1e8ed;" class="categorias-buttons">
         <button id="btn-em-processo" class="btn-tabela" data-tabela="em-processo">
             <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem; width: 100%; text-align: center;">
                 <span style="font-size: 1.5rem; line-height: 1;"></span>
@@ -873,6 +1038,67 @@
         </table>
         </div>
         
+        <!-- Mobile Cards - Em Processo -->
+        <div class="tabela-reembolsos-mobile" style="padding: 0 1.5rem 1.5rem;">
+            {% for s in em_processo %}
+            <div class="reembolso-card-mobile">
+                <div class="reembolso-card-mobile-header">
+                    <a href="#" class="id-clicavel reembolso-card-mobile-id" data-pk="{{ s.pk }}">#{{ s.pk }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Solicitante</span>
+                    <a href="#" class="solicitante-clicavel reembolso-card-mobile-value" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Data de Criação</span>
+                    <span class="reembolso-card-mobile-value">{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Valor Total</span>
+                    <span class="reembolso-card-mobile-value" style="font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ {{ s.valor_total|floatformat:2 }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Status</span>
+                    <div class="reembolso-card-mobile-value">
+                        {% if s.status_descritivo == 'aguardando_gestor_admin' %}
+                            <span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>
+                        {% elif s.status_descritivo == 'aguardando_pagamento' %}
+                            <span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>
+                        {% elif s.status_descritivo == 'pagamento_agendado' %}
+                            <span class="status-aguardando-pagamento">Solicitação aprovada - Pagamento agendado</span>
+                        {% elif s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                            <span class="status-pago-aguardando-assinaturas">Pago - Aguardando assinaturas</span>
+                            {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
+                                <div style="margin-top: 6px;">
+                                    <span style="display: inline-block; padding: 6px 12px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 0.85em; font-weight: 600; color: #856404;">
+                                        Aguardando assinatura de: 
+                                        {% for signer in s.status_docusign_info.aguardando_assinatura %}
+                                            {{ signer.nome }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        {% elif s.status_descritivo == 'assinado_todas_partes' %}
+                            <span class="status-assinado-todas-partes">Assinado por todas as partes</span>
+                        {% elif s.status_descritivo == 'aguardando_gestor' %}
+                            <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor' %}
+                            <span class="status-rejeitado-gestor">Rejeitado pelo gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor_admin' %}
+                            <span class="status-rejeitado-gestor-admin">Rejeitado pelo gestor administrativo</span>
+                        {% else %}
+                            <span class="status-aprovado">{{ s.status_descritivo|title }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="reembolso-card-mobile-actions">
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
         <!-- Paginação Em Processo -->
         {% if page_obj_em_processo.has_other_pages %}
         <div class="pagination-wrapper" style="padding: 0 1.5rem 1.5rem;">
@@ -950,6 +1176,43 @@
         </table>
         </div>
         
+        <!-- Mobile Cards - Rejeitados -->
+        <div class="tabela-reembolsos-mobile" style="padding: 0 1.5rem 1.5rem;">
+            {% for s in rejeitados %}
+            <div class="reembolso-card-mobile">
+                <div class="reembolso-card-mobile-header">
+                    <a href="#" class="id-clicavel reembolso-card-mobile-id" data-pk="{{ s.pk }}">#{{ s.pk }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Solicitante</span>
+                    <a href="#" class="solicitante-clicavel reembolso-card-mobile-value" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Data de Rejeição</span>
+                    <span class="reembolso-card-mobile-value">{{ s.aprovado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Centro de Custo</span>
+                    <span class="reembolso-card-mobile-value">{{ s.centro_custo }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Valor Total</span>
+                    <span class="reembolso-card-mobile-value" style="font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ {{ s.valor_total|floatformat:2 }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Status</span>
+                    <div class="reembolso-card-mobile-value">
+                        <span class="status-rejeitado">Rejeitado</span>
+                    </div>
+                </div>
+                <div class="reembolso-card-mobile-actions">
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
         <!-- Paginação Rejeitados -->
         {% if page_obj_rejeitados.has_other_pages %}
         <div class="pagination-wrapper" style="padding: 0 1.5rem 1.5rem;">
@@ -1025,6 +1288,43 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
+        
+        <!-- Mobile Cards - Concluídos -->
+        <div class="tabela-reembolsos-mobile" style="padding: 0 1.5rem 1.5rem;">
+            {% for s in concluidos %}
+            <div class="reembolso-card-mobile">
+                <div class="reembolso-card-mobile-header">
+                    <a href="#" class="id-clicavel reembolso-card-mobile-id" data-pk="{{ s.pk }}">#{{ s.pk }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Solicitante</span>
+                    <a href="#" class="solicitante-clicavel reembolso-card-mobile-value" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Data de Conclusão</span>
+                    <span class="reembolso-card-mobile-value">{{ s.concluido_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Centro de Custo</span>
+                    <span class="reembolso-card-mobile-value">{{ s.centro_custo }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Valor Total</span>
+                    <span class="reembolso-card-mobile-value" style="font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ {{ s.valor_total|floatformat:2 }}</span>
+                </div>
+                <div class="reembolso-card-mobile-field">
+                    <span class="reembolso-card-mobile-label">Status</span>
+                    <div class="reembolso-card-mobile-value">
+                        <span class="status-concluido">Concluído</span>
+                    </div>
+                </div>
+                <div class="reembolso-card-mobile-actions">
+                    <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                    <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         
         <!-- Paginação Concluídos -->

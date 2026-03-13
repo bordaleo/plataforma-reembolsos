@@ -1,175 +1,211 @@
 {% extends "intra/base.html" %}
 {% load currency_filters %}
-{% block title %}Dashboard - Intranet Parceiros{% endblock %}
+{% block title %}Dashboard Executivo - Intranet Parceiros{% endblock %}
 {% block extra_css %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
-    .dashboard-grid {
+    .dashboard-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .dashboard-header {
+        margin-bottom: 2.5rem;
+        text-align: center;
+        padding: 2rem 0;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        border-radius: 12px;
+        color: #ffffff;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #ffffff;
+    }
+    
+    .dashboard-header p {
+        color: #ecf0f1;
+        font-size: 1.1rem;
+        margin: 0;
+    }
+    
+    .kpi-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 1.5rem;
-        margin-bottom: 2rem;
+        margin-bottom: 2.5rem;
     }
-    .stat-card {
-        background: #ffffff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-left: 4px solid #34495e;
+    
+    .kpi-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-left: 6px solid #34495e;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
-    .stat-card.concluido {
+    
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(0,0,0,0.05) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    
+    .kpi-card.concluido {
         border-left-color: #38a169;
     }
-    .stat-card.em-processo {
+    
+    .kpi-card.em-processo {
         border-left-color: #3182ce;
     }
-    .stat-card.rejeitado {
+    
+    .kpi-card.rejeitado {
         border-left-color: #e53e3e;
     }
-    .stat-card h3 {
-        margin: 0 0 0.5rem;
+    
+    .kpi-card.total {
+        border-left-color: #805ad5;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+    }
+    
+    .kpi-card h3 {
+        margin: 0 0 1rem;
         font-size: 0.9rem;
         font-weight: 600;
         color: #7f8c8d;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1.2px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    .stat-card .valor {
-        font-size: 2rem;
+    
+    .kpi-card .valor {
+        font-size: 2.5rem;
         font-weight: 700;
         color: #2c3e50;
-        margin: 0;
+        margin: 0.75rem 0;
+        line-height: 1.2;
     }
-    .stat-card .count {
+    
+    .kpi-card .count {
         font-size: 1.1rem;
         color: #7f8c8d;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .kpi-card .percentual {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
         margin-top: 0.5rem;
     }
-    .chart-card {
-        background: #ffffff;
-        border-radius: 8px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 1.5rem;
+    
+    .kpi-card.concluido .percentual {
+        background: #c6f6d5;
+        color: #22543d;
     }
-    .chart-card h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #34495e;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e1e8ed;
+    
+    .kpi-card.rejeitado .percentual {
+        background: #fed7d7;
+        color: #742a2a;
     }
-    .chart-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+    
+    .kpi-card.em-processo .percentual {
+        background: #bee3f8;
+        color: #2c5282;
     }
-    .chart-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #e1e8ed;
-    }
-    .chart-item:last-child {
-        border-bottom: none;
-    }
-    .chart-item-label {
-        font-weight: 500;
-        color: #2c3e50;
-    }
-    .chart-item-value {
-        font-weight: 700;
-        color: #34495e;
-    }
-    .table-chart {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .table-chart th {
-        background: #f8f9fa;
-        padding: 0.75rem;
-        text-align: left;
-        font-weight: 600;
-        color: #34495e;
-        font-size: 0.9rem;
-        border-bottom: 2px solid #e1e8ed;
-    }
-    .table-chart td {
-        padding: 0.75rem;
-        border-bottom: 1px solid #e1e8ed;
-        color: #2c3e50;
-    }
-    .table-chart tr:hover {
-        background: #f8f9fa;
-    }
+    
     .filters-card {
         background: #ffffff;
-        border-radius: 12px;
+        border-radius: 16px;
         padding: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 2.5rem;
         border: 1px solid #e1e8ed;
     }
+    
     .filters-title {
         margin: 0 0 1.75rem;
-        font-size: 1.3rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #34495e;
         padding-bottom: 1rem;
-        border-bottom: 2px solid #e1e8ed;
-        letter-spacing: 0.3px;
+        border-bottom: 3px solid #e1e8ed;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
-    .filters-form {
-        margin-top: 0;
-    }
+    
     .filters-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 1.25rem;
         margin-bottom: 1.75rem;
     }
+    
     .filter-group {
         display: flex;
         flex-direction: column;
     }
+    
     .filter-group label {
         font-weight: 600;
         color: #34495e;
         margin-bottom: 0.625rem;
         font-size: 0.9rem;
-        letter-spacing: 0.3px;
     }
+    
     .form-control {
-        padding: 0.75rem 1rem;
+        padding: 0.875rem 1rem;
         border: 2px solid #e1e8ed;
-        border-radius: 8px;
-        font-size: 0.9rem;
+        border-radius: 10px;
+        font-size: 0.95rem;
         color: #2c3e50;
         background: #ffffff;
         transition: all 0.2s;
-        font-family: inherit;
     }
+    
     .form-control:focus {
         outline: none;
         border-color: #34495e;
-        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
-        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(52, 73, 94, 0.1);
     }
-    .form-control:hover {
-        border-color: #bdc3c7;
-    }
+    
     .filters-actions {
         display: flex;
         gap: 0.75rem;
         flex-wrap: wrap;
-        align-items: center;
     }
+    
     .btn {
-        padding: 0.75rem 1.5rem;
+        padding: 0.875rem 1.75rem;
         border: none;
-        border-radius: 8px;
-        font-size: 0.9rem;
+        border-radius: 10px;
+        font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
         text-decoration: none;
@@ -177,28 +213,30 @@
         align-items: center;
         justify-content: center;
         transition: all 0.2s;
-        font-family: inherit;
-        min-width: 120px;
-        height: 42px;
-        box-sizing: border-box;
+        min-width: 140px;
+        gap: 0.5rem;
     }
+    
     .btn-primary {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
         color: #ffffff;
     }
+    
     .btn-primary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        box-shadow: 0 6px 16px rgba(52, 73, 94, 0.3);
     }
+    
     .btn-secondary {
         background: #95a5a6;
         color: #ffffff;
     }
+    
     .btn-secondary:hover {
         background: #7f8c8d;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
     }
+    
     .active-filters {
         margin-top: 1.75rem;
         padding-top: 1.75rem;
@@ -208,359 +246,944 @@
         gap: 0.75rem;
         align-items: center;
     }
-    .active-filters strong {
-        color: #34495e;
-        font-size: 0.95rem;
-        font-weight: 600;
-    }
+    
     .filter-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
         background: linear-gradient(135deg, #ecf0f1 0%, #d5dbdb 100%);
         color: #2c3e50;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 25px;
+        font-size: 0.9rem;
         font-weight: 500;
         border: 1px solid #bdc3c7;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
+    
     .badge-remove {
         color: #e74c3c;
         text-decoration: none;
         font-weight: bold;
-        font-size: 1.2rem;
-        line-height: 1;
-        margin-left: 0.375rem;
-        padding: 0 0.375rem;
+        font-size: 1.3rem;
+        margin-left: 0.5rem;
+        padding: 0 0.5rem;
         border-radius: 50%;
         transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
+        line-height: 1;
     }
+    
     .badge-remove:hover {
         background: #e74c3c;
         color: #ffffff;
-        transform: scale(1.1);
     }
-    .pagination-wrapper {
+    
+    .charts-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2.5rem;
+    }
+    
+    .chart-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border: 1px solid #e1e8ed;
+    }
+    
+    .chart-card.full-width {
+        grid-column: 1 / -1;
+    }
+    
+    .chart-card h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #34495e;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #e1e8ed;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
         margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 2px solid #e1e8ed;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
     }
-    .pagination-info {
+    
+    .chart-container.medium {
+        height: 350px;
+    }
+    
+    .chart-container.large {
+        height: 500px;
+    }
+    
+    .tables-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2.5rem;
+    }
+    
+    .table-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border: 1px solid #e1e8ed;
+    }
+    
+    .table-card h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
         color: #34495e;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #e1e8ed;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
         font-size: 0.95rem;
-        font-weight: 500;
     }
-    .pagination-controls {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .pagination-btn {
-        padding: 0.625rem 1rem;
-        background: #ecf0f1;
-        color: #34495e;
-        text-decoration: none;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid transparent;
-        min-width: 100px;
-        box-sizing: border-box;
-    }
-    .pagination-btn:hover:not(.disabled) {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+    
+    .data-table thead {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
         color: #ffffff;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
-        border-color: transparent;
     }
-    .pagination-btn.disabled {
+    
+    .data-table th {
+        padding: 1.25rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: none;
+        white-space: nowrap;
+    }
+    
+    .data-table th:first-child {
+        border-radius: 12px 0 0 0;
+    }
+    
+    .data-table th:last-child {
+        border-radius: 0 12px 0 0;
+    }
+    
+    .data-table td {
+        padding: 1.25rem 1rem;
+        border-bottom: 1px solid #e1e8ed;
+        color: #2c3e50;
+    }
+    
+    .data-table tbody tr {
+        transition: background 0.2s;
+    }
+    
+    .data-table tbody tr:hover {
         background: #f8f9fa;
-        color: #bdc3c7;
-        cursor: not-allowed;
-        opacity: 0.6;
     }
-    .pagination-current {
-        padding: 0.625rem 1.25rem;
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
-        color: #ffffff;
-        border-radius: 8px;
-        font-size: 0.9rem;
+    
+    .data-table tbody tr:last-child td:first-child {
+        border-radius: 0 0 0 12px;
+    }
+    
+    .data-table tbody tr:last-child td:last-child {
+        border-radius: 0 0 12px 0;
+    }
+    
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .badge-status {
+        display: inline-block;
+        padding: 0.4rem 0.9rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
         font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
+        white-space: nowrap;
     }
+    
+    .badge-status.concluido {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+    
+    .badge-status.rejeitado {
+        background: #fed7d7;
+        color: #742a2a;
+    }
+    
+    .badge-status.em-processo {
+        background: #bee3f8;
+        color: #2c5282;
+    }
+    
+    .insights-section {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        border-left: 6px solid #805ad5;
+    }
+    
+    .insights-section h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #34495e;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .insight-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 4px solid #805ad5;
+    }
+    
+    .insight-card h3 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #34495e;
+    }
+    
+    .insight-card p {
+        margin: 0;
+        color: #7f8c8d;
+        line-height: 1.6;
+    }
+    
+    .insight-card .highlight {
+        color: #805ad5;
+        font-weight: 700;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #7f8c8d;
+    }
+    
+    .no-data::before {
+        content: '📊';
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 1200px) {
+        .charts-section {
+            grid-template-columns: 1fr;
+        }
+        
+        .tables-section {
+            grid-template-columns: 1fr;
+        }
+    }
+    
     @media (max-width: 768px) {
-        .pagination-wrapper {
-            flex-direction: column;
-            align-items: stretch !important;
-            gap: 1rem !important;
+        .dashboard-header h1 {
+            font-size: 1.75rem;
         }
-        .pagination-info {
-            text-align: center;
-            width: 100%;
+        
+        .kpi-grid {
+            grid-template-columns: 1fr;
         }
-        .pagination-controls {
-            justify-content: center;
-            flex-wrap: wrap;
-            width: 100%;
+        
+        .chart-container {
+            height: 300px;
         }
-        .pagination-btn {
-            min-width: 90px;
+        
+        .chart-container.large {
+            height: 350px;
+        }
+        
+        .data-table {
             font-size: 0.85rem;
-            padding: 0.5rem 0.75rem;
         }
-        .pagination-current {
-            font-size: 0.85rem;
-            padding: 0.5rem 1rem;
+        
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem 0.5rem;
         }
     }
 </style>
 {% endblock %}
-{% block content %}
-<h1 class="page-title">Dashboard</h1>
 
-<!-- Formulário de Filtros -->
-<div class="filters-card">
-    <h2 class="filters-title">Filtros</h2>
-    <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
-        <div class="filters-grid">
-            <div class="filter-group">
-                <label for="data_inicio">Data Início</label>
-                <input type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>📊 Dashboard Executivo de Reembolsos</h1>
+        <p>Análise completa e insights para gestão administrativa</p>
+    </div>
+
+    <!-- Formulário de Filtros -->
+    <div class="filters-card">
+        <h2 class="filters-title">🔍 Filtros de Análise</h2>
+        <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="data_inicio">Data Início</label>
+                    <input type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="data_fim">Data Fim</label>
+                    <input type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status" class="form-control">
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="centro_custo">Centro de Custo</label>
+                    <select id="centro_custo" name="centro_custo" class="form-control">
+                        <option value="">Todos</option>
+                        {% for value, label in centros_custo %}
+                            <option value="{{ value }}" {% if filtros.centro_custo == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="tipo_despesa">Tipo de Despesa</label>
+                    <select id="tipo_despesa" name="tipo_despesa" class="form-control">
+                        <option value="">Todos</option>
+                        {% for value, label in tipos_despesa %}
+                            <option value="{{ value }}" {% if filtros.tipo_despesa == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="id">ID da Solicitação</label>
+                    <input type="number" id="id" name="id" value="{{ filtros.id }}" placeholder="Ex: 123" class="form-control" min="1">
+                </div>
             </div>
             
-            <div class="filter-group">
-                <label for="data_fim">Data Fim</label>
-                <input type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
+            <div class="filters-actions">
+                <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+                <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...');">🗑️ Limpar</a>
             </div>
-            
-            <div class="filter-group">
-                <label for="status">Status</label>
-                <select id="status" name="status" class="form-control">
-                    {% for value, label in status_choices %}
-                        <option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="centro_custo">Centro de Custo</label>
-                <select id="centro_custo" name="centro_custo" class="form-control">
-                    <option value="">Todos</option>
-                    {% for value, label in centros_custo %}
-                        <option value="{{ value }}" {% if filtros.centro_custo == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="tipo_despesa">Tipo de Despesa</label>
-                <select id="tipo_despesa" name="tipo_despesa" class="form-control">
-                    <option value="">Todos</option>
-                    {% for value, label in tipos_despesa %}
-                        <option value="{{ value }}" {% if filtros.tipo_despesa == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="id">ID da Solicitação</label>
-                <input type="number" id="id" name="id" value="{{ filtros.id }}" placeholder="Ex: 123" class="form-control" min="1">
-            </div>
+        </form>
+        
+        <!-- Badges de Filtros Ativos -->
+        {% if active_filter_badges %}
+        <div class="active-filters">
+            <strong>Filtros ativos:</strong>
+            {% for badge in active_filter_badges %}
+                <span class="filter-badge">
+                    {{ badge.label }}
+                    <a href="{% url 'intra:dashboard_gestor' %}{{ badge.remove_url }}" class="badge-remove">×</a>
+                </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- KPIs Principais -->
+    <div class="kpi-grid">
+        <div class="kpi-card total">
+            <h3>📈 Total Geral</h3>
+            <p class="valor">R$ {{ total_geral_valor|currency_br }}</p>
+            <p class="count">{{ total_geral_count }} reembolso{{ total_geral_count|pluralize }} no total</p>
         </div>
         
-        <div class="filters-actions">
-            <button type="submit" class="btn btn-primary">Filtrar</button>
-            <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...');">Limpar</a>
+        <div class="kpi-card concluido">
+            <h3>✅ Concluídos</h3>
+            <p class="valor">R$ {{ total_concluido|currency_br }}</p>
+            <p class="count">{{ count_concluido }} reembolso{{ count_concluido|pluralize }}</p>
+            <span class="percentual">{{ taxa_aprovacao }}% do total</span>
         </div>
-    </form>
-    
-    <!-- Badges de Filtros Ativos -->
-    {% if active_filter_badges %}
-    <div class="active-filters">
-        <strong>Filtros ativos:</strong>
-        {% for badge in active_filter_badges %}
-            <span class="filter-badge">
-                {{ badge.label }}
-                <a href="{% url 'intra:dashboard_gestor' %}{{ badge.remove_url }}" class="badge-remove">×</a>
-            </span>
-        {% endfor %}
-    </div>
-    {% endif %}
-</div>
-
-<div class="dashboard-grid">
-    <div class="stat-card concluido">
-        <h3>Total Concluído</h3>
-        <p class="valor">R$ {{ total_concluido|currency_br }}</p>
-        <p class="count">{{ count_concluido }} reembolso{{ count_concluido|pluralize }}</p>
-    </div>
-    
-    <div class="stat-card em-processo">
-        <h3>Total Em Processo</h3>
-        <p class="valor">R$ {{ total_em_processo|currency_br }}</p>
-        <p class="count">{{ count_em_processo }} reembolso{{ count_em_processo|pluralize }}</p>
-    </div>
-    
-    <div class="stat-card rejeitado">
-        <h3>Total Rejeitado</h3>
-        <p class="valor">R$ {{ total_rejeitado|currency_br }}</p>
-        <p class="count">{{ count_rejeitado }} reembolso{{ count_rejeitado|pluralize }}</p>
-    </div>
-</div>
-
-
-<div class="chart-card">
-    <h2>Gastos por Tipo de Despesa</h2>
-    {% if gastos_por_tipo %}
-    <ul class="chart-list">
-        {% for item in gastos_por_tipo %}
-        <li class="chart-item">
-            <span class="chart-item-label">{{ item.tipo }}</span>
-            <span class="chart-item-value">R$ {{ item.valor|currency_br }}</span>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
-    {% endif %}
-</div>
-
-<div class="chart-card">
-    <h2>Gastos por Centro de Custo</h2>
-    {% if gastos_por_centro %}
-    <ul class="chart-list">
-        {% for item in gastos_por_centro %}
-        <li class="chart-item">
-            <span class="chart-item-label">{{ item.centro }}</span>
-            <span class="chart-item-value">R$ {{ item.valor|currency_br }}</span>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
-    {% endif %}
-</div>
-
-<div class="chart-card">
-    <h2>Reembolsos Pagos por Área</h2>
-    {% if pagos_por_area %}
-    <table class="table-chart">
-        <thead>
-            <tr>
-                <th>Área (Centro de Custo)</th>
-                <th>Quantidade</th>
-                <th>Valor Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in pagos_por_area %}
-            <tr>
-                <td>{{ item.centro }}</td>
-                <td>{{ item.count }} reembolso{{ item.count|pluralize }}</td>
-                <td>R$ {{ item.valor|currency_br }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
-    {% endif %}
-</div>
-
-<div class="chart-card">
-    <h2>Reembolsos por Mês (Últimos 12 meses)</h2>
-    {% if page_obj_mes %}
-    <table class="table-chart">
-        <thead>
-            <tr>
-                <th>Mês</th>
-                <th>Quantidade</th>
-                <th>Valor Concluído</th>
-                <th>Valor Em Processo</th>
-                <th>Valor Rejeitado</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in page_obj_mes %}
-            <tr>
-                <td>{{ item.mes }}</td>
-                <td>{{ item.total }}</td>
-                <td>R$ {{ item.valor_concluido|currency_br }}</td>
-                <td>R$ {{ item.valor_em_processo|currency_br }}</td>
-                <td>R$ {{ item.valor_rejeitado|currency_br }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    
-    <!-- Paginação Reembolsos por Mês -->
-    {% if page_obj_mes.has_other_pages %}
-    <div class="pagination-wrapper">
-        <div class="pagination-info">
-            Mostrando {{ page_obj_mes.start_index }} a {{ page_obj_mes.end_index }} de {{ page_obj_mes.paginator.count }} mês{{ page_obj_mes.paginator.count|pluralize:"es" }}
+        
+        <div class="kpi-card em-processo">
+            <h3>⏳ Em Processo</h3>
+            <p class="valor">R$ {{ total_em_processo|currency_br }}</p>
+            <p class="count">{{ count_em_processo }} reembolso{{ count_em_processo|pluralize }}</p>
+            <span class="percentual">{{ taxa_em_processo }}% do total</span>
         </div>
-        <div class="pagination-controls">
-            {% if page_obj_mes.has_previous %}
-                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.first }}" class="pagination-btn">
-                    « Primeira
-                </a>
-                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.prev }}" class="pagination-btn">
-                    ‹ Anterior
-                </a>
-            {% else %}
-                <span class="pagination-btn disabled">
-                    « Primeira
-                </span>
-                <span class="pagination-btn disabled">
-                    ‹ Anterior
-                </span>
+        
+        <div class="kpi-card rejeitado">
+            <h3>❌ Rejeitados</h3>
+            <p class="valor">R$ {{ total_rejeitado|currency_br }}</p>
+            <p class="count">{{ count_rejeitado }} reembolso{{ count_rejeitado|pluralize }}</p>
+            <span class="percentual">{{ taxa_rejeicao }}% do total</span>
+        </div>
+    </div>
+
+    <!-- Insights e Análises -->
+    {% if area_mais_concluidos or area_mais_rejeitados or area_maior_taxa_rejeicao %}
+    <div class="insights-section">
+        <h2>💡 Insights e Análises</h2>
+        <div class="insights-grid">
+            {% if area_mais_concluidos %}
+            <div class="insight-card">
+                <h3>🏆 Área com Mais Concluídos</h3>
+                <p><span class="highlight">{{ area_mais_concluidos.centro_label }}</span> lidera com <strong>{{ area_mais_concluidos.concluido_count }}</strong> reembolsos concluídos, totalizando <strong>R$ {{ area_mais_concluidos.concluido_total|currency_br }}</strong>.</p>
+            </div>
             {% endif %}
             
-            <span class="pagination-current">
-                Página {{ page_obj_mes.number }} de {{ page_obj_mes.paginator.num_pages }}
-            </span>
+            {% if area_mais_rejeitados %}
+            <div class="insight-card">
+                <h3>⚠️ Área com Mais Rejeitados</h3>
+                <p><span class="highlight">{{ area_mais_rejeitados.centro_label }}</span> apresenta <strong>{{ area_mais_rejeitados.rejeitado_count }}</strong> reembolsos rejeitados, totalizando <strong>R$ {{ area_mais_rejeitados.rejeitado_total|currency_br }}</strong>.</p>
+            </div>
+            {% endif %}
             
-            {% if page_obj_mes.has_next %}
-                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.next }}" class="pagination-btn">
-                    Próxima ›
-                </a>
-                <a href="{% url 'intra:dashboard_gestor' %}{{ pagination_urls.last }}" class="pagination-btn">
-                    Última »
-                </a>
-            {% else %}
-                <span class="pagination-btn disabled">
-                    Próxima ›
-                </span>
-                <span class="pagination-btn disabled">
-                    Última »
-                </span>
+            {% if area_maior_taxa_rejeicao and area_maior_taxa_rejeicao.taxa_rejeicao > 0 %}
+            <div class="insight-card">
+                <h3>📊 Maior Taxa de Rejeição</h3>
+                <p><span class="highlight">{{ area_maior_taxa_rejeicao.centro_label }}</span> possui a maior taxa de rejeição com <strong>{{ area_maior_taxa_rejeicao.taxa_rejeicao|floatformat:1 }}%</strong> dos reembolsos rejeitados.</p>
+            </div>
             {% endif %}
         </div>
     </div>
     {% endif %}
-    {% else %}
-    <p style="color: #7f8c8d; text-align: center; padding: 2rem;">Nenhum dado disponível</p>
-    {% endif %}
+
+    <!-- Gráficos -->
+    <div class="charts-section">
+        <!-- Gráfico de Barras - Estatísticas por Área -->
+        <div class="chart-card full-width">
+            <h2>📊 Estatísticas por Área (Centro de Custo)</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container large">
+                <canvas id="areasChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível para exibição</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Comparação - Concluídos vs Rejeitados -->
+        <div class="chart-card">
+            <h2>⚖️ Concluídos vs Rejeitados por Área</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container medium">
+                <canvas id="comparisonChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Pizza - Gastos por Tipo -->
+        <div class="chart-card">
+            <h2>🥧 Distribuição por Tipo de Despesa</h2>
+            {% if gastos_por_tipo %}
+            <div class="chart-container medium">
+                <canvas id="tipoDespesaChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Linha - Evolução Mensal -->
+        <div class="chart-card full-width">
+            <h2>📈 Evolução Mensal de Reembolsos</h2>
+            {% if reembolsos_por_mes %}
+            <div class="chart-container large">
+                <canvas id="mesesChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabelas Detalhadas -->
+    <div class="tables-section">
+        <!-- Tabela: Rejeitados por Área -->
+        <div class="table-card">
+            <h2>❌ Rejeitados por Área</h2>
+            {% if areas_ordenadas_rejeitados %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Quantidade</th>
+                        <th>Valor Total</th>
+                        <th>Taxa de Rejeição</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for area in areas_ordenadas_rejeitados %}
+                    {% if area.rejeitado_count > 0 %}
+                    <tr>
+                        <td><strong>{{ area.centro_label }}</strong></td>
+                        <td>
+                            <span class="badge-status rejeitado">{{ area.rejeitado_count }}</span>
+                        </td>
+                        <td><strong>R$ {{ area.rejeitado_total|currency_br }}</strong></td>
+                        <td><strong>{{ area.taxa_rejeicao|floatformat:1 }}%</strong></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">Nenhum reembolso rejeitado encontrado</div>
+            {% endif %}
+        </div>
+
+        <!-- Tabela: Concluídos por Área -->
+        <div class="table-card">
+            <h2>✅ Concluídos por Área</h2>
+            {% if areas_ordenadas_concluidos %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Área</th>
+                        <th>Quantidade</th>
+                        <th>Valor Total</th>
+                        <th>Taxa de Aprovação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for area in areas_ordenadas_concluidos %}
+                    {% if area.concluido_count > 0 %}
+                    <tr>
+                        <td><strong>{{ area.centro_label }}</strong></td>
+                        <td>
+                            <span class="badge-status concluido">{{ area.concluido_count }}</span>
+                        </td>
+                        <td><strong>R$ {{ area.concluido_total|currency_br }}</strong></td>
+                        <td><strong>{{ area.taxa_aprovacao|floatformat:1 }}%</strong></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">Nenhum reembolso concluído encontrado</div>
+            {% endif %}
+        </div>
+
+        <!-- Tabela: Taxa de Rejeição por Área -->
+        <div class="table-card full-width">
+            <h2>📊 Taxa de Rejeição por Área (Ranking)</h2>
+            {% if areas_ordenadas_taxa_rejeicao %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ranking</th>
+                        <th>Área</th>
+                        <th>Total de Reembolsos</th>
+                        <th>Concluídos</th>
+                        <th>Rejeitados</th>
+                        <th>Em Processo</th>
+                        <th>Taxa de Rejeição</th>
+                        <th>Taxa de Aprovação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for area in areas_ordenadas_taxa_rejeicao %}
+                    {% if area.count_geral > 0 %}
+                    <tr>
+                        <td><strong>#{{ forloop.counter }}</strong></td>
+                        <td><strong>{{ area.centro_label }}</strong></td>
+                        <td>{{ area.count_geral }}</td>
+                        <td>
+                            <span class="badge-status concluido">{{ area.concluido_count }}</span>
+                            <br><small>R$ {{ area.concluido_total|currency_br }}</small>
+                        </td>
+                        <td>
+                            <span class="badge-status rejeitado">{{ area.rejeitado_count }}</span>
+                            <br><small>R$ {{ area.rejeitado_total|currency_br }}</small>
+                        </td>
+                        <td>
+                            <span class="badge-status em-processo">{{ area.em_processo_count }}</span>
+                            <br><small>R$ {{ area.em_processo_total|currency_br }}</small>
+                        </td>
+                        <td><strong style="color: #e53e3e;">{{ area.taxa_rejeicao|floatformat:1 }}%</strong></td>
+                        <td><strong style="color: #38a169;">{{ area.taxa_aprovacao|floatformat:1 }}%</strong></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<script>
+// Dados dos gráficos
+const areasLabels = {{ areas_labels_json|safe|default:"[]" }};
+const areasConcluidos = {{ areas_concluidos_json|safe|default:"[]" }};
+const areasRejeitados = {{ areas_rejeitados_json|safe|default:"[]" }};
+const areasEmProcesso = {{ areas_em_processo_json|safe|default:"[]" }};
+const mesesLabels = {{ meses_labels_json|safe|default:"[]" }};
+const mesesConcluidos = {{ meses_concluidos_json|safe|default:"[]" }};
+const mesesRejeitados = {{ meses_rejeitados_json|safe|default:"[]" }};
+const mesesEmProcesso = {{ meses_em_processo_json|safe|default:"[]" }};
+const tiposLabels = {{ tipos_labels_json|safe|default:"[]" }};
+const tiposValores = {{ tipos_valores_json|safe|default:"[]" }};
+
+// Configuração profissional do Chart.js
+Chart.defaults.font.family = "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+Chart.defaults.font.size = 13;
+Chart.defaults.color = '#2c3e50';
+Chart.defaults.plugins.legend.display = true;
+Chart.defaults.plugins.legend.position = 'top';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.padding = 15;
+Chart.defaults.plugins.legend.labels.font = { size: 12, weight: '600' };
+
+// Cores profissionais
+const colors = {
+    concluido: {
+        bg: 'rgba(56, 161, 105, 0.8)',
+        border: 'rgba(56, 161, 105, 1)',
+        light: 'rgba(56, 161, 105, 0.1)'
+    },
+    rejeitado: {
+        bg: 'rgba(229, 62, 62, 0.8)',
+        border: 'rgba(229, 62, 62, 1)',
+        light: 'rgba(229, 62, 62, 0.1)'
+    },
+    emProcesso: {
+        bg: 'rgba(49, 130, 206, 0.8)',
+        border: 'rgba(49, 130, 206, 1)',
+        light: 'rgba(49, 130, 206, 0.1)'
+    }
+};
+
+// Função para formatar valores em R$
+function formatCurrency(value) {
+    return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// Gráfico de Barras - Estatísticas por Área
+const areasCtx = document.getElementById('areasChart');
+if (areasCtx && areasLabels.length > 0) {
+    new Chart(areasCtx, {
+        type: 'bar',
+        data: {
+            labels: areasLabels,
+            datasets: [
+                {
+                    label: 'Concluídos',
+                    data: areasConcluidos,
+                    backgroundColor: colors.concluido.bg,
+                    borderColor: colors.concluido.border,
+                    borderWidth: 2,
+                    borderRadius: 8
+                },
+                {
+                    label: 'Rejeitados',
+                    data: areasRejeitados,
+                    backgroundColor: colors.rejeitado.bg,
+                    borderColor: colors.rejeitado.border,
+                    borderWidth: 2,
+                    borderRadius: 8
+                },
+                {
+                    label: 'Em Processo',
+                    data: areasEmProcesso,
+                    backgroundColor: colors.emProcesso.bg,
+                    borderColor: colors.emProcesso.border,
+                    borderWidth: 2,
+                    borderRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 13, weight: '600' },
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Comparação
+const comparisonCtx = document.getElementById('comparisonChart');
+if (comparisonCtx && areasLabels.length > 0) {
+    new Chart(comparisonCtx, {
+        type: 'bar',
+        data: {
+            labels: areasLabels,
+            datasets: [
+                {
+                    label: 'Concluídos',
+                    data: areasConcluidos,
+                    backgroundColor: colors.concluido.bg,
+                    borderColor: colors.concluido.border,
+                    borderWidth: 2,
+                    borderRadius: 8
+                },
+                {
+                    label: 'Rejeitados',
+                    data: areasRejeitados,
+                    backgroundColor: colors.rejeitado.bg,
+                    borderColor: colors.rejeitado.border,
+                    borderWidth: 2,
+                    borderRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 13, weight: '600' },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 15,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Pizza
+const tipoDespesaCtx = document.getElementById('tipoDespesaChart');
+if (tipoDespesaCtx && tiposLabels.length > 0) {
+    const pieColors = [
+        'rgba(56, 161, 105, 0.8)',
+        'rgba(49, 130, 206, 0.8)',
+        'rgba(229, 62, 62, 0.8)',
+        'rgba(237, 137, 54, 0.8)',
+        'rgba(155, 89, 182, 0.8)',
+        'rgba(52, 73, 94, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(245, 101, 101, 0.8)'
+    ];
+    
+    new Chart(tipoDespesaCtx, {
+        type: 'pie',
+        data: {
+            labels: tiposLabels,
+            datasets: [{
+                data: tiposValores,
+                backgroundColor: pieColors.slice(0, tiposLabels.length),
+                borderColor: '#ffffff',
+                borderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { size: 12, weight: '500' },
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 15,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': ' + formatCurrency(value) + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Linha - Evolução Mensal
+const mesesCtx = document.getElementById('mesesChart');
+if (mesesCtx && mesesLabels.length > 0) {
+    new Chart(mesesCtx, {
+        type: 'line',
+        data: {
+            labels: mesesLabels,
+            datasets: [
+                {
+                    label: 'Concluídos',
+                    data: mesesConcluidos,
+                    borderColor: colors.concluido.border,
+                    backgroundColor: colors.concluido.light,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.concluido.border,
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Rejeitados',
+                    data: mesesRejeitados,
+                    borderColor: colors.rejeitado.border,
+                    backgroundColor: colors.rejeitado.light,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.rejeitado.border,
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Em Processo',
+                    data: mesesEmProcesso,
+                    borderColor: colors.emProcesso.border,
+                    backgroundColor: colors.emProcesso.light,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: colors.emProcesso.border,
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 13, weight: '600' },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 15,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
 {% endblock %}

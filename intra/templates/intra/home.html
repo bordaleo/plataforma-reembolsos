@@ -108,17 +108,59 @@
         color: #34495e;
     }
     @media (max-width: 768px) {
+        .home-container {
+            padding: 0;
+        }
         .welcome-hero {
-            padding: 2rem 1.5rem;
+            padding: 1.5rem 1rem;
+            margin-bottom: 1.5rem;
         }
         .welcome-hero h1 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
         }
         .welcome-hero .welcome-subtitle {
-            font-size: 1rem;
+            font-size: 0.9rem;
+        }
+        .welcome-logo img {
+            max-width: 120px;
+        }
+        .user-role-badge {
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
         }
         .quick-actions {
             grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+        .action-card {
+            padding: 1.25rem;
+        }
+        .action-card-icon {
+            font-size: 1.75rem;
+        }
+        .action-card h3 {
+            font-size: 1rem;
+        }
+        .action-card p {
+            font-size: 0.8rem;
+        }
+        .info-banner {
+            padding: 0.875rem 1rem;
+            margin-top: 1rem;
+        }
+        .info-banner p {
+            font-size: 0.8rem;
+        }
+    }
+    @media (max-width: 480px) {
+        .welcome-hero {
+            padding: 1.25rem 0.875rem;
+        }
+        .welcome-hero h1 {
+            font-size: 1.1rem;
+        }
+        .action-card {
+            padding: 1rem;
         }
     }
 </style>

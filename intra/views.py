@@ -3190,6 +3190,172 @@ def dashboard_gestor(request):
             'motivo': sol.motivo_rejeicao_gestor_admin or 'Não informado',
         })
     
+    # Estatísticas detalhadas por área (centro de custo)
+    # Concluídos por área
+    if tipo_despesa_filtro:
+        concluidos_por_area = ItemReembolso.objects.filter(
+            filtros_itens_concluidos
+        ).values('solicitacao__centro_custo').annotate(
+            total=Sum('valor'),
+            count=Count('solicitacao', distinct=True)
+        ).order_by('-total')
+        
+        rejeitados_por_area = ItemReembolso.objects.filter(
+            filtros_itens_rejeitados
+        ).values('solicitacao__centro_custo').annotate(
+            total=Sum('valor'),
+            count=Count('solicitacao', distinct=True)
+        ).order_by('-total')
+        
+        em_processo_por_area = ItemReembolso.objects.filter(
+            filtros_itens_em_processo
+        ).values('solicitacao__centro_custo').annotate(
+            total=Sum('valor'),
+            count=Count('solicitacao', distinct=True)
+        ).order_by('-total')
+    else:
+        concluidos_por_area = queryset_concluidos.values('centro_custo').annotate(
+            total=Sum('valor_total'),
+            count=Count('id')
+        ).order_by('-total')
+        
+        rejeitados_por_area = queryset_rejeitados.values('centro_custo').annotate(
+            total=Sum('valor_total'),
+            count=Count('id')
+        ).order_by('-total')
+        
+        em_processo_por_area = queryset_em_processo.values('centro_custo').annotate(
+            total=Sum('valor_total'),
+            count=Count('id')
+        ).order_by('-total')
+    
+    # Formatar dados por área
+    estatisticas_por_area = []
+    todas_areas = set()
+    
+    # Coletar todas as áreas
+    for item in concluidos_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        todas_areas.add(centro)
+    for item in rejeitados_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        todas_areas.add(centro)
+    for item in em_processo_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        todas_areas.add(centro)
+    
+    # Criar dicionários para busca rápida
+    concluidos_dict = {}
+    for item in concluidos_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        concluidos_dict[centro] = {
+            'total': float(item['total']),
+            'count': item['count']
+        }
+    
+    rejeitados_dict = {}
+    for item in rejeitados_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        rejeitados_dict[centro] = {
+            'total': float(item['total']),
+            'count': item['count']
+        }
+    
+    em_processo_dict = {}
+    for item in em_processo_por_area:
+        centro = item.get('centro_custo') or item.get('solicitacao__centro_custo')
+        em_processo_dict[centro] = {
+            'total': float(item['total']),
+            'count': item['count']
+        }
+    
+    # Montar lista completa de estatísticas por área
+    for centro in todas_areas:
+        centro_label = centro_labels.get(centro, centro)
+        concluido = concluidos_dict.get(centro, {'total': 0, 'count': 0})
+        rejeitado = rejeitados_dict.get(centro, {'total': 0, 'count': 0})
+        em_processo = em_processo_dict.get(centro, {'total': 0, 'count': 0})
+        
+        total_geral = concluido['total'] + rejeitado['total'] + em_processo['total']
+        count_geral = concluido['count'] + rejeitado['count'] + em_processo['count']
+        
+        estatisticas_por_area.append({
+            'centro': centro,
+            'centro_label': centro_label,
+            'concluido_total': concluido['total'],
+            'concluido_count': concluido['count'],
+            'rejeitado_total': rejeitado['total'],
+            'rejeitado_count': rejeitado['count'],
+            'em_processo_total': em_processo['total'],
+            'em_processo_count': em_processo['count'],
+            'total_geral': total_geral,
+            'count_geral': count_geral,
+        })
+    
+    # Ordenar por total geral (maior primeiro)
+    estatisticas_por_area.sort(key=lambda x: x['total_geral'], reverse=True)
+    
+    # Dados para gráficos (JSON)
+    areas_labels = [item['centro_label'] for item in estatisticas_por_area]
+    areas_concluidos = [item['concluido_total'] for item in estatisticas_por_area]
+    areas_rejeitados = [item['rejeitado_total'] for item in estatisticas_por_area]
+    areas_em_processo = [item['em_processo_total'] for item in estatisticas_por_area]
+    areas_concluidos_count = [item['concluido_count'] for item in estatisticas_por_area]
+    areas_rejeitados_count = [item['rejeitado_count'] for item in estatisticas_por_area]
+    
+    # Dados para gráfico de linha (reembolsos por mês)
+    meses_labels = [item['mes'] for item in reembolsos_por_mes_formatado]
+    meses_concluidos = [item['valor_concluido'] for item in reembolsos_por_mes_formatado]
+    meses_rejeitados = [item['valor_rejeitado'] for item in reembolsos_por_mes_formatado]
+    meses_em_processo = [item['valor_em_processo'] for item in reembolsos_por_mes_formatado]
+    
+    # Dados para gráfico de pizza (gastos por tipo)
+    tipos_labels_chart = [item['tipo'] for item in gastos_por_tipo_formatado]
+    tipos_valores = [item['valor'] for item in gastos_por_tipo_formatado]
+    
+    # Calcular métricas de gestão (KPIs)
+    total_geral_valor = total_concluido + total_em_processo + total_rejeitado
+    total_geral_count = count_concluido + count_em_processo + count_rejeitado
+    
+    # Taxa de aprovação e rejeição
+    taxa_aprovacao = (count_concluido / total_geral_count * 100) if total_geral_count > 0 else 0
+    taxa_rejeicao = (count_rejeitado / total_geral_count * 100) if total_geral_count > 0 else 0
+    taxa_em_processo = (count_em_processo / total_geral_count * 100) if total_geral_count > 0 else 0
+    
+    # Adicionar taxas e percentuais às estatísticas por área
+    for area in estatisticas_por_area:
+        total_area = area['count_geral']
+        if total_area > 0:
+            area['taxa_aprovacao'] = round((area['concluido_count'] / total_area * 100), 2)
+            area['taxa_rejeicao'] = round((area['rejeitado_count'] / total_area * 100), 2)
+            area['taxa_em_processo'] = round((area['em_processo_count'] / total_area * 100), 2)
+        else:
+            area['taxa_aprovacao'] = 0
+            area['taxa_rejeicao'] = 0
+            area['taxa_em_processo'] = 0
+    
+    # Rankings (apenas áreas com dados)
+    area_mais_concluidos = None
+    area_mais_rejeitados = None
+    area_maior_taxa_rejeicao = None
+    
+    if estatisticas_por_area:
+        areas_com_concluidos = [a for a in estatisticas_por_area if a['concluido_count'] > 0]
+        areas_com_rejeitados = [a for a in estatisticas_por_area if a['rejeitado_count'] > 0]
+        areas_com_taxa = [a for a in estatisticas_por_area if a['taxa_rejeicao'] > 0]
+        
+        if areas_com_concluidos:
+            area_mais_concluidos = max(areas_com_concluidos, key=lambda x: x['concluido_count'])
+        if areas_com_rejeitados:
+            area_mais_rejeitados = max(areas_com_rejeitados, key=lambda x: x['rejeitado_count'])
+        if areas_com_taxa:
+            area_maior_taxa_rejeicao = max(areas_com_taxa, key=lambda x: x['taxa_rejeicao'])
+    
+    # Ordenar áreas por diferentes critérios para tabelas
+    areas_ordenadas_concluidos = sorted(estatisticas_por_area, key=lambda x: x['concluido_count'], reverse=True)
+    areas_ordenadas_rejeitados = sorted(estatisticas_por_area, key=lambda x: x['rejeitado_count'], reverse=True)
+    areas_ordenadas_taxa_rejeicao = sorted(estatisticas_por_area, key=lambda x: x['taxa_rejeicao'], reverse=True)
+    
     context = {
         'total_concluido': float(total_concluido),
         'total_em_processo': float(total_em_processo),
@@ -3233,6 +3399,35 @@ def dashboard_gestor(request):
             (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando Assinaturas'),
             (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
         ],
+        # Estatísticas por área
+        'estatisticas_por_area': estatisticas_por_area,
+        # Dados para gráficos (JSON)
+        'areas_labels_json': json.dumps(areas_labels),
+        'areas_concluidos_json': json.dumps(areas_concluidos),
+        'areas_rejeitados_json': json.dumps(areas_rejeitados),
+        'areas_em_processo_json': json.dumps(areas_em_processo),
+        'areas_concluidos_count_json': json.dumps(areas_concluidos_count),
+        'areas_rejeitados_count_json': json.dumps(areas_rejeitados_count),
+        'meses_labels_json': json.dumps(meses_labels),
+        'meses_concluidos_json': json.dumps(meses_concluidos),
+        'meses_rejeitados_json': json.dumps(meses_rejeitados),
+        'meses_em_processo_json': json.dumps(meses_em_processo),
+        'tipos_labels_json': json.dumps(tipos_labels_chart),
+        'tipos_valores_json': json.dumps(tipos_valores),
+        # Métricas de gestão (KPIs)
+        'total_geral_valor': float(total_geral_valor),
+        'total_geral_count': total_geral_count,
+        'taxa_aprovacao': round(taxa_aprovacao, 2),
+        'taxa_rejeicao': round(taxa_rejeicao, 2),
+        'taxa_em_processo': round(taxa_em_processo, 2),
+        # Rankings
+        'area_mais_concluidos': area_mais_concluidos,
+        'area_mais_rejeitados': area_mais_rejeitados,
+        'area_maior_taxa_rejeicao': area_maior_taxa_rejeicao,
+        # Áreas ordenadas para tabelas
+        'areas_ordenadas_concluidos': areas_ordenadas_concluidos,
+        'areas_ordenadas_rejeitados': areas_ordenadas_rejeitados,
+        'areas_ordenadas_taxa_rejeicao': areas_ordenadas_taxa_rejeicao,
     }
     
     return render(request, "intra/dashboard_gestor.html", context)

@@ -84,8 +84,80 @@
         }
     }
     @media (max-width: 768px) {
+        .dados-gerais-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
         .linha-despesa {
             grid-template-columns: 1fr;
+            padding: 1.25rem;
+            gap: 1rem;
+        }
+        .linha-despesa .form-group:last-child {
+            grid-column: 1;
+            justify-content: stretch;
+        }
+        .card-header {
+            margin: -1rem -1rem 1rem -1rem;
+            padding: 1rem 1.25rem;
+        }
+        .card-header h2 {
+            font-size: 1rem;
+        }
+        .valor-total-container {
+            padding: 1rem 1.5rem;
+            font-size: 1rem;
+            width: 100%;
+            display: block;
+        }
+        .valor-total-container span {
+            font-size: 1.1rem;
+        }
+        .card-submit .btn-primary {
+            padding: 1.25rem 1.5rem;
+            font-size: 1rem;
+        }
+        .modal-box {
+            min-width: auto;
+            max-width: 95%;
+            margin: 1rem;
+            padding: 1.5rem;
+        }
+        .modal-botoes {
+            flex-direction: column;
+        }
+        .modal-botoes .btn {
+            width: 100%;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .form-group > div {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .form-group > div > select {
+            width: 100%;
+        }
+        #btn-usar-dados-perfil {
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            white-space: normal;
+        }
+    }
+    @media (max-width: 480px) {
+        .linha-despesa {
+            padding: 1rem;
+        }
+        .card-header {
+            padding: 0.875rem 1rem;
+        }
+        .modal-box {
+            padding: 1.25rem;
         }
     }
     .linha-despesa:hover {

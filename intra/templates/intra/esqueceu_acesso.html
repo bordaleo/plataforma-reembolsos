@@ -54,6 +54,61 @@
         .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
         .messages li { padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 1.1rem; }
         .messages .error { background: #fed7d7; color: #c53030; }
+        @media (max-width: 768px) {
+            body {
+                padding: 0.75rem;
+            }
+            .box {
+                padding: 1.5rem;
+            }
+            .box h1 {
+                font-size: 1.4rem;
+            }
+            .box p {
+                font-size: 1rem;
+            }
+            .form-group {
+                margin-bottom: 1.25rem;
+            }
+            .form-group label {
+                font-size: 1rem;
+            }
+            .form-group input {
+                padding: 0.75rem 0.875rem;
+                font-size: 1rem;
+            }
+            .btn {
+                font-size: 1rem;
+            }
+            .btn-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .links a {
+                font-size: 1rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .box {
+                padding: 1.25rem;
+            }
+            .box h1 {
+                font-size: 1.2rem;
+            }
+            .box p {
+                font-size: 0.9rem;
+            }
+            .form-group label {
+                font-size: 0.95rem;
+            }
+            .form-group input {
+                padding: 0.625rem 0.75rem;
+                font-size: 0.95rem;
+            }
+            .btn {
+                font-size: 0.95rem;
+            }
+        }
     </style>
 </head>
 <body>

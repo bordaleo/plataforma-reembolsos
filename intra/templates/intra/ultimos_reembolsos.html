@@ -13,7 +13,6 @@
         border-collapse: separate;
         border-spacing: 0;
         background: #ffffff;
-        table-layout: auto;
     }
     .tabela-reembolsos th {
         background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
@@ -124,7 +123,7 @@
         color: #ffffff;
     }
     .btn-marcar-pago {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        background: linear-gradient(135deg, #27ae60 0%, #229954 50%, #1e8449 100%);
         color: #ffffff;
         border: none;
         padding: 0.75rem 1.5rem;
@@ -138,9 +137,40 @@
     }
     .btn-marcar-pago:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
         text-decoration: none;
         color: #ffffff;
+    }
+    .btn-ver {
+        background: #e8e8e8;
+        color: #34495e;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-ver:hover {
+        background: #ddd;
+        color: #2c3e50;
+    }
+    .btn-editar-programar {
+        background: #3182ce;
+        color: #ffffff;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-editar-programar:hover {
+        background: #2c5aa0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
     }
     .section-title {
         font-size: 1.5rem;
@@ -634,6 +664,68 @@
             transform: translateY(0);
         }
     }
+    .pagination-wrapper {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .pagination-info {
+        color: #34495e;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .pagination-btn {
+        padding: 0.625rem 1rem;
+        background: #ecf0f1;
+        color: #34495e;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
+        min-width: 100px;
+        box-sizing: border-box;
+    }
+    .pagination-btn:hover:not(.disabled) {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        border-color: transparent;
+    }
+    .pagination-btn.disabled {
+        background: #f8f9fa;
+        color: #bdc3c7;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    .pagination-current {
+        padding: 0.625rem 1.25rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(52, 73, 94, 0.2);
+    }
 </style>
 {% endblock %}
 
@@ -656,7 +748,7 @@
                 <span style="font-size: 1.5rem; line-height: 1;"></span>
                 <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Em Processo ⏳</span>
                 <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações em andamento</span>
-                <span class="badge-contador badge-em-processo">{{ em_processo|length }}</span>
+                <span class="badge-contador badge-em-processo">{% if page_obj_em_processo %}{{ page_obj_em_processo.paginator.count }}{% else %}0{% endif %}</span>
             </div>
         </button>
         <button id="btn-concluidos" class="btn-tabela" data-tabela="concluidos">
@@ -664,7 +756,7 @@
                 <span style="font-size: 1.5rem; line-height: 1;"></span>
                 <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Concluídos ✅ </span>
                 <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações finalizadas</span>
-                <span class="badge-contador badge-concluidos">{{ concluidos|length }}</span>
+                <span class="badge-contador badge-concluidos">{% if page_obj_concluidos %}{{ page_obj_concluidos.paginator.count }}{% else %}0{% endif %}</span>
             </div>
         </button>
         <button id="btn-rejeitados" class="btn-tabela" data-tabela="rejeitados">
@@ -672,7 +764,7 @@
                 <span style="font-size: 1.5rem; line-height: 1;"></span>
                 <span style="font-size: 1.25rem; font-weight: 700; color: inherit;">Rejeitados ❌</span>
                 <span style="font-size: 0.85rem; opacity: 0.8; font-weight: 500; color: inherit;">Solicitações recusadas</span>
-                <span class="badge-contador badge-rejeitados">{{ rejeitados|length }}</span>
+                <span class="badge-contador badge-rejeitados">{% if page_obj_rejeitados %}{{ page_obj_rejeitados.paginator.count }}{% else %}0{% endif %}</span>
             </div>
         </button>
     </div>
@@ -762,6 +854,7 @@
         <table class="tabela-reembolsos">
             <thead>
                 <tr>
+                    <th>Ver Solicitação</th>
                     <th>ID</th>
                     <th>Solicitante</th>
                     <th>Data de Criação</th>
@@ -774,16 +867,20 @@
             <tbody>
                 {% for s in em_processo %}
                 <tr>
-                    <td><a href="#" class="id-clicavel" data-pk="{{ s.pk }}"><strong>#{{ s.pk }}</strong></a></td>
+                    <td class="acoes">
+                        <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    </td>
+                    <td><strong>#{{ s.pk }}</strong></td>
                     <td>
-                        <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a><br>
-                        <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
+                        <a href="#" class="solicitante-clicavel" data-pk="{{ s.pk }}">{{ s.nome_solicitante|default:"—" }}</a>
                     </td>
                     <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
                     <td>
                         {% if s.status_descritivo == 'aguardando_pagamento' %}
                             <span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>
+                        {% elif s.status_descritivo == 'pagamento_agendado' %}
+                            <span class="status-aguardando-pagamento">Solicitação aprovada - Pagamento agendado</span>
                         {% elif s.status_descritivo == 'pago_aguardando_assinaturas' %}
                             <span class="status-pago-aguardando-assinaturas">Pago - Aguardando assinaturas</span>
                             {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
@@ -820,8 +917,10 @@
                         {% elif s.status_descritivo == 'aguardando_pagamento' %}
                             <form method="post" action="{% url 'intra:reembolso_marcar_pago' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja marcar esta solicitação como paga?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn-marcar-pago">Marcar como Pago</button>
+                                <button type="submit" class="btn-marcar-pago">Pago</button>
                             </form>
+                        {% elif s.status_descritivo == 'pagamento_agendado' %}
+                            <button type="button" class="btn-editar-programar" data-pk="{{ s.pk }}" data-data-pagamento="{% if s.data_pagamento_programada %}{{ s.data_pagamento_programada|date:'Y-m-d' }}{% endif %}">Editar</button>
                         {% endif %}
                     </td>
                 </tr>
@@ -829,6 +928,44 @@
             </tbody>
         </table>
         </div>
+        
+        <!-- Paginação Em Processo -->
+        {% if page_obj_em_processo.has_other_pages %}
+        <div class="pagination-wrapper" style="padding: 0 1.5rem 1.5rem;">
+            <div class="pagination-info">
+                Mostrando {{ page_obj_em_processo.start_index }} a {{ page_obj_em_processo.end_index }} de {{ page_obj_em_processo.paginator.count }} solicitação{{ page_obj_em_processo.paginator.count|pluralize }}
+            </div>
+            <div class="pagination-controls">
+                {% if page_obj_em_processo.has_previous %}
+                    <a href="?page_em_processo=1{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">
+                        « Primeira
+                    </a>
+                    <a href="?page_em_processo={{ page_obj_em_processo.previous_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">
+                        ‹ Anterior
+                    </a>
+                {% else %}
+                    <span class="pagination-btn disabled">« Primeira</span>
+                    <span class="pagination-btn disabled">‹ Anterior</span>
+                {% endif %}
+                
+                <span class="pagination-current">
+                    Página {{ page_obj_em_processo.number }} de {{ page_obj_em_processo.paginator.num_pages }}
+                </span>
+                
+                {% if page_obj_em_processo.has_next %}
+                    <a href="?page_em_processo={{ page_obj_em_processo.next_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">
+                        Próxima ›
+                    </a>
+                    <a href="?page_em_processo={{ page_obj_em_processo.paginator.num_pages }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">
+                        Última »
+                    </a>
+                {% else %}
+                    <span class="pagination-btn disabled">Próxima ›</span>
+                    <span class="pagination-btn disabled">Última »</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="card-empty">
             <p>Nenhum reembolso em processo encontrado.</p>
@@ -848,6 +985,7 @@
         <table class="tabela-reembolsos">
             <thead>
                 <tr>
+                    <th>Ver Solicitação</th>
                     <th>ID</th>
                     <th>Solicitante</th>
                     <th>Data de Rejeição</th>
@@ -860,10 +998,12 @@
             <tbody>
                 {% for s in rejeitados %}
                 <tr>
+                    <td class="acoes">
+                        <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    </td>
                     <td><strong>#{{ s.pk }}</strong></td>
                     <td>
-                        {{ s.nome_solicitante|default:"—" }}<br>
-                        <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
+                        {{ s.nome_solicitante|default:"—" }}
                     </td>
                     <td>{{ s.aprovado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td>{{ s.centro_custo }}</td>
@@ -877,6 +1017,32 @@
             </tbody>
         </table>
         </div>
+        
+        <!-- Paginação Rejeitados -->
+        {% if page_obj_rejeitados.has_other_pages %}
+        <div class="pagination-wrapper" style="padding: 0 1.5rem 1.5rem;">
+            <div class="pagination-info">
+                Mostrando {{ page_obj_rejeitados.start_index }} a {{ page_obj_rejeitados.end_index }} de {{ page_obj_rejeitados.paginator.count }} solicitação{{ page_obj_rejeitados.paginator.count|pluralize }}
+            </div>
+            <div class="pagination-controls">
+                {% if page_obj_rejeitados.has_previous %}
+                    <a href="?page_rejeitados=1{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">« Primeira</a>
+                    <a href="?page_rejeitados={{ page_obj_rejeitados.previous_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">‹ Anterior</a>
+                {% else %}
+                    <span class="pagination-btn disabled">« Primeira</span>
+                    <span class="pagination-btn disabled">‹ Anterior</span>
+                {% endif %}
+                <span class="pagination-current">Página {{ page_obj_rejeitados.number }} de {{ page_obj_rejeitados.paginator.num_pages }}</span>
+                {% if page_obj_rejeitados.has_next %}
+                    <a href="?page_rejeitados={{ page_obj_rejeitados.next_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">Próxima ›</a>
+                    <a href="?page_rejeitados={{ page_obj_rejeitados.paginator.num_pages }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">Última »</a>
+                {% else %}
+                    <span class="pagination-btn disabled">Próxima ›</span>
+                    <span class="pagination-btn disabled">Última »</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="card-empty">
             <p>Nenhum reembolso rejeitado encontrado.</p>
@@ -896,6 +1062,7 @@
         <table class="tabela-reembolsos">
             <thead>
                 <tr>
+                    <th>Ver Solicitação</th>
                     <th>ID</th>
                     <th>Solicitante</th>
                     <th>Data de Conclusão</th>
@@ -908,10 +1075,12 @@
             <tbody>
                 {% for s in concluidos %}
                 <tr>
+                    <td class="acoes">
+                        <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    </td>
                     <td><strong>#{{ s.pk }}</strong></td>
                     <td>
-                        {{ s.nome_solicitante|default:"—" }}<br>
-                        <small style="color: #7f8c8d;">{{ s.email_solicitante }}</small>
+                        {{ s.nome_solicitante|default:"—" }}
                     </td>
                     <td>{{ s.concluido_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td>{{ s.centro_custo }}</td>
@@ -925,6 +1094,32 @@
             </tbody>
         </table>
         </div>
+        
+        <!-- Paginação Concluídos -->
+        {% if page_obj_concluidos.has_other_pages %}
+        <div class="pagination-wrapper" style="padding: 0 1.5rem 1.5rem;">
+            <div class="pagination-info">
+                Mostrando {{ page_obj_concluidos.start_index }} a {{ page_obj_concluidos.end_index }} de {{ page_obj_concluidos.paginator.count }} solicitação{{ page_obj_concluidos.paginator.count|pluralize }}
+            </div>
+            <div class="pagination-controls">
+                {% if page_obj_concluidos.has_previous %}
+                    <a href="?page_concluidos=1{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">« Primeira</a>
+                    <a href="?page_concluidos={{ page_obj_concluidos.previous_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">‹ Anterior</a>
+                {% else %}
+                    <span class="pagination-btn disabled">« Primeira</span>
+                    <span class="pagination-btn disabled">‹ Anterior</span>
+                {% endif %}
+                <span class="pagination-current">Página {{ page_obj_concluidos.number }} de {{ page_obj_concluidos.paginator.num_pages }}</span>
+                {% if page_obj_concluidos.has_next %}
+                    <a href="?page_concluidos={{ page_obj_concluidos.next_page_number }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">Próxima ›</a>
+                    <a href="?page_concluidos={{ page_obj_concluidos.paginator.num_pages }}{% if tabela_atual %}&tabela_atual={{ tabela_atual }}{% endif %}{% if filtros.data_inicio %}&data_inicio={{ filtros.data_inicio }}{% endif %}{% if filtros.data_fim %}&data_fim={{ filtros.data_fim }}{% endif %}{% if filtros.status %}&status={{ filtros.status }}{% endif %}{% if filtros.centro_custo %}&centro_custo={{ filtros.centro_custo }}{% endif %}{% if filtros.tipo_despesa %}&tipo_despesa={{ filtros.tipo_despesa }}{% endif %}{% if filtros.id %}&id={{ filtros.id }}{% endif %}" class="pagination-btn">Última »</a>
+                {% else %}
+                    <span class="pagination-btn disabled">Próxima ›</span>
+                    <span class="pagination-btn disabled">Última »</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="card-empty">
             <p>Nenhum reembolso concluído encontrado.</p>
@@ -932,6 +1127,95 @@
         {% endif %}
     </div>
     </div>
+
+<!-- Modal Programar Pagamento -->
+<div id="modal-programar-pagamento" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 550px;">
+        <div class="modal-header">
+            <h2 style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+                <span style="font-size: 1.75rem; line-height: 1;">📅</span>
+                <span>Programar Pagamento</span>
+            </h2>
+            <button type="button" class="modal-fechar" id="modal-programar-pagamento-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form method="post" id="form-programar-pagamento" action="" onsubmit="showLoading('Programando pagamento...'); return true;">
+            {% csrf_token %}
+            <div style="padding: 2.5rem 2rem;">
+                <!-- Opção 1: Programar Data -->
+                <div style="margin-bottom: 2.5rem;">
+                    <label for="data_pagamento" style="display: block; font-weight: 700; color: #34495e; margin-bottom: 1rem; font-size: 1rem; letter-spacing: 0.2px;">
+                        <span style="display: flex; align-items: center; gap: 0.625rem;">
+                            <span style="font-size: 1.5rem; line-height: 1;">📆</span>
+                            <span>Data de Pagamento Programada</span>
+                        </span>
+                    </label>
+                    <input 
+                        type="date" 
+                        name="data_pagamento" 
+                        id="data_pagamento" 
+                        class="form-control"
+                        style="width: 100%; padding: 1rem 1.25rem; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 1.05rem; color: #2c3e50; background: #ffffff; transition: all 0.3s; font-family: inherit; box-sizing: border-box;"
+                        onfocus="this.style.borderColor='#3182ce'; this.style.boxShadow='0 0 0 3px rgba(49, 130, 206, 0.1)';"
+                        onblur="this.style.borderColor='#e1e8ed'; this.style.boxShadow='none';"
+                    >
+                </div>
+                
+                <!-- Divisor -->
+                <div style="display: flex; align-items: center; margin: 2.5rem 0; gap: 1.25rem;">
+                    <div style="flex: 1; height: 2px; background: linear-gradient(to right, transparent, #e1e8ed);"></div>
+                    <span style="color: #95a5a6; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 0 0.75rem;">ou</span>
+                    <div style="flex: 1; height: 2px; background: linear-gradient(to left, transparent, #e1e8ed);"></div>
+                </div>
+                
+                <!-- Opção 2: Marcar como Pago -->
+                <div style="margin-bottom: 2.5rem;">
+                    <label 
+                        for="marcar_como_pago" 
+                        id="label-marcar-pago"
+                        style="display: flex; align-items: flex-start; gap: 1rem; cursor: pointer; padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 2px solid #e1e8ed; border-radius: 12px; transition: all 0.3s; position: relative; overflow: hidden;"
+                    >
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(49, 130, 206, 0.05) 0%, rgba(49, 130, 206, 0.02) 100%); opacity: 0; transition: opacity 0.3s;" id="hover-overlay"></div>
+                        <input 
+                            type="checkbox" 
+                            name="marcar_como_pago" 
+                            id="marcar_como_pago" 
+                            style="width: 22px; height: 22px; cursor: pointer; margin-top: 3px; flex-shrink: 0; accent-color: #3182ce; z-index: 1; position: relative;"
+                        >
+                        <div style="flex: 1; z-index: 1; position: relative;">
+                            <div style="display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.5rem; line-height: 1; color: #38a169;">✓</span>
+                                <span style="font-weight: 700; color: #34495e; font-size: 1rem; letter-spacing: 0.2px;">Marcar como pago imediatamente</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- Botões -->
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 2rem; border-top: 2px solid #e1e8ed; margin-top: 2.5rem;">
+                    <button 
+                        type="button" 
+                        class="btn-secondary" 
+                        id="btn-cancelar-programar"
+                        style="padding: 1rem 2.25rem; font-size: 1rem; font-weight: 600; border-radius: 10px; transition: all 0.3s; background: #e1e8ed; color: #34495e; border: 2px solid #e1e8ed; cursor: pointer;"
+                        onmouseover="this.style.background='#d1d9e0'; this.style.borderColor='#d1d9e0'; this.style.transform='translateY(-2px)';"
+                        onmouseout="this.style.background='#e1e8ed'; this.style.borderColor='#e1e8ed'; this.style.transform='translateY(0)';"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="btn-primary"
+                        style="padding: 1rem 2.25rem; font-size: 1rem; font-weight: 600; border-radius: 10px; transition: all 0.3s; background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%); color: #ffffff; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(49, 130, 206, 0.25);"
+                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(49, 130, 206, 0.35)';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(49, 130, 206, 0.25)';"
+                    >
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Modal Ver Solicitação -->
 <div id="modal-ver-solicitacao" class="modal-overlay" aria-hidden="true">
@@ -1107,114 +1391,274 @@
     // Modal Ver Solicitação
     var modalVerSolicitacao = document.getElementById('modal-ver-solicitacao');
     var solicitacaoContent = document.getElementById('solicitacao-content');
+    
+    // Função reutilizável para abrir modal de detalhes
+    function abrirDetalhesSolicitacao(pk) {
+        solicitacaoContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+        modalVerSolicitacao.classList.add('aberto');
+        modalVerSolicitacao.setAttribute('aria-hidden', 'false');
+        
+        // Buscar dados completos via AJAX
+        showLoading('Carregando detalhes da solicitação...');
+        fetch('/reembolso/' + pk + '/detalhe-gestor/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                hideLoading();
+                if (data.error) {
+                    solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                    return;
+                }
+                var html = '<div style="text-align: right; margin-bottom: 1.5rem;">';
+                html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Visualizar PDF</a>';
+                html += '</div>';
+                 
+                html += '<div class="detalhe-solicitacao">';
+                // 1. ID da Solicitação
+                html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
+                // 2. Data
+                html += '<div class="detalhe-solicitacao-item"><strong>Data</strong><span>' + (data.criado_em || '—') + '</span></div>';
+                // 3. Centro de custo
+                html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
+                // 3. Itens de despesa agrupados (cada item com seu código, descrição, valor e anexo)
+                html += '<div class="detalhe-solicitacao-item" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;"><strong>Itens de Despesa</strong>';
+                html += '<div style="margin-top: 1rem;">';
+                if (data.itens && data.itens.length > 0) {
+                    data.itens.forEach(function(item, index) {
+                        html += '<div style="background: #f8f9fa; border: 1px solid #e1e8ed; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">';
+                        html += '<div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e1e8ed;">';
+                        html += '<span style="background: #34495e; color: white; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; margin-right: 0.75rem;">Item ' + (index + 1) + '</span>';
+                        html += '<span style="font-weight: 600; color: #34495e;">' + escapeHtml(item.tipo_despesa || '—') + '</span>';
+                        html += '<span style="margin-left: auto; font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ ' + formatarValor(item.valor || 0) + '</span>';
+                        html += '</div>';
+                        
+                        // Código de despesa
+                        if (item.cod_despesa_com_descricao || item.cod_despesa) {
+                            html += '<div style="margin-bottom: 0.75rem;">';
+                            html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> ';
+                            html += '<span style="color: #2c3e50;">' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
+                            html += '</div>';
+                        }
+                        
+                        // Data da despesa
+                        if (item.data_despesa) {
+                            html += '<div style="margin-bottom: 0.75rem;">';
+                            html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Data da despesa:</strong> ';
+                            html += '<span style="color: #2c3e50;">' + escapeHtml(item.data_despesa) + '</span>';
+                            html += '</div>';
+                        }
+                        
+                        // Descrição
+                        if (item.descricao) {
+                            html += '<div style="margin-bottom: 0.75rem;">';
+                            html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
+                            html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span>';
+                            html += '</div>';
+                        }
+                        
+                        // Anexo
+                        if (item.anexo_url) {
+                            html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e1e8ed;">';
+                            html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">📎 Anexo:</strong> ';
+                            html += '<a href="' + escapeHtml(item.anexo_url) + '" target="_blank" rel="noopener" style="color: #3498db; text-decoration: none; font-weight: 600;">';
+                            html += escapeHtml(item.anexo_nome || 'Visualizar anexo');
+                            html += '</a>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<span>—</span>';
+                }
+                html += '</div></div>';
+                // 4. Valor total
+                html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
+                // 7. Nome do Gestor
+                html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
+                // 8. Forma de Pagamento
+                if (data.forma_pagamento) {
+                    html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong>';
+                    if (data.forma_pagamento === 'PIX') {
+                        html += '<div style="margin-top: 0.5rem;">';
+                        html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
+                        if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
+                        if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
+                        if (data.pix_cpf) html += '<span style="display: block;">CPF: ' + escapeHtml(data.pix_cpf) + '</span>';
+                        html += '</div>';
+                    } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                        html += '<div style="margin-top: 0.5rem;">';
+                        html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>Transferência Bancária</strong></span>';
+                        if (data.transf_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
+                        if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
+                        if (data.transf_conta_tipo) {
+                            var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                            html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
+                        }
+                        if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                // 9. Status da Solicitação
+                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;" id="status-section">';
+                html += '<h3 style="color: #34495e; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">Status da Solicitação</h3>';
+                
+                var statusLabel = '';
+                var statusClass = '';
+                var statusBg = '';
+                var statusColor = '';
+                var statusIcon = '';
+                
+                if (data.status_descritivo === 'aguardando_gestor') {
+                    statusLabel = 'Aguardando aprovação de gestor';
+                    statusClass = 'status-aguardando-gestor';
+                    statusBg = '#fef3c7';
+                    statusColor = '#d69e2e';
+                    statusIcon = '⏳';
+                } else if (data.status_descritivo === 'aguardando_gestor_admin') {
+                    statusLabel = 'Aguardando aprovação de gestor administrativo';
+                    statusClass = 'status-aguardando-gestor-admin';
+                    statusBg = '#bee3f8';
+                    statusColor = '#3182ce';
+                    statusIcon = '⏳';
+                } else if (data.status_descritivo === 'aprovado' || data.status_descritivo === 'aguardando_pagamento' || data.status_descritivo === 'pagamento_agendado') {
+                    statusLabel = data.status_descritivo === 'pagamento_agendado' ? 'Solicitação aprovada - Pagamento agendado' : 'Aprovado';
+                    statusClass = 'status-aprovado';
+                    statusBg = '#c6f6d5';
+                    statusColor = '#38a169';
+                    statusIcon = '✓';
+                } else if (data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') {
+                    statusLabel = 'Rejeitado';
+                    statusClass = 'status-rejeitado';
+                    statusBg = '#fed7d7';
+                    statusColor = '#e53e3e';
+                    statusIcon = '✗';
+                } else if (data.status_descritivo === 'pago_aguardando_assinaturas') {
+                    statusLabel = 'Pago - Aguardando assinaturas';
+                    statusClass = 'status-pago-aguardando';
+                    statusBg = '#e6f3ff';
+                    statusColor = '#3182ce';
+                    statusIcon = '📝';
+                } else if (data.status_descritivo === 'assinado_todas_partes') {
+                    statusLabel = 'Assinado por todas as partes';
+                    statusClass = 'status-assinado';
+                    statusBg = '#c6f6d5';
+                    statusColor = '#38a169';
+                    statusIcon = '✓';
+                } else if (data.status_descritivo === 'concluido') {
+                    statusLabel = 'Concluído';
+                    statusClass = 'status-concluido';
+                    statusBg = '#d5f4e6';
+                    statusColor = '#1e8449';
+                    statusIcon = '✓';
+                }
+                
+                if (statusLabel) {
+                    html += '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1rem;">';
+                    html += '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">';
+                    html += '<span style="font-size: 1.5rem;">' + statusIcon + '</span>';
+                    html += '<strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong>';
+                    html += '</div>';
+                    
+                    // Adicionar informações de assinatura DocuSign se aguardando assinatura
+                    if (data.status_descritivo === 'pago_aguardando_assinaturas' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
+                        var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
+                        html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + escapeHtml(nomesAguardando) + '</small></div>';
+                    }
+                    
+                    // Se aprovado, mostrar informações de aprovação
+                    if ((data.status_descritivo === 'aprovado' || data.status_descritivo === 'aguardando_pagamento' || data.status_descritivo === 'pagamento_agendado') && data.aprovacao_gestor_admin && Object.keys(data.aprovacao_gestor_admin).length > 0) {
+                        if (data.aprovacao_gestor_admin.aprovado_por_nome || data.aprovacao_gestor_admin.aprovado_por_email) {
+                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                            html += '<strong>Aprovado por:</strong> ';
+                            if (data.aprovacao_gestor_admin.aprovado_por_nome) {
+                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_nome);
+                                if (data.aprovacao_gestor_admin.aprovado_por_email) {
+                                    html += ' (' + escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email) + ')';
+                                }
+                            } else {
+                                html += escapeHtml(data.aprovacao_gestor_admin.aprovado_por_email);
+                            }
+                            html += '</p>';
+                        }
+                        if (data.aprovacao_gestor_admin.aprovado_em) {
+                            html += '<p style="margin: 0.5rem 0 0; color: ' + statusColor + '; font-size: 0.95rem;">';
+                            html += '<strong>Data:</strong> ' + escapeHtml(data.aprovacao_gestor_admin.aprovado_em);
+                            html += '</p>';
+                        }
+                    }
+                    
+                    // Se rejeitado, mostrar motivo
+                    if ((data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') && data.motivo_rejeicao) {
+                        html += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid ' + statusColor + ';">';
+                        html += '<p style="margin: 0 0 0.5rem; color: ' + statusColor + '; font-size: 0.95rem; font-weight: 600;">Motivo da Rejeição:</p>';
+                        html += '<p style="margin: 0; color: ' + statusColor + '; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(data.motivo_rejeicao) + '</p>';
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+                
+                // Fechar div de status
+                html += '</div>';
+                
+                // Mostrar data programada para pagamento (apenas para gestor administrativo)
+                if (data.is_gestor_admin && data.data_pagamento_programada) {
+                    html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                    html += '<div class="detalhe-solicitacao-item">';
+                    html += '<strong>📅 Data Programada para Pagamento</strong>';
+                    html += '<span style="color: #3182ce; font-weight: 600;">' + escapeHtml(data.data_pagamento_programada) + '</span>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+                
+                // Mostrar histórico de alterações se houver (apenas para gestor administrativo)
+                if (data.is_gestor_admin && data.historico && data.historico.length > 0) {
+                    html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                    html += '<h3 style="margin: 0 0 1rem; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">Histórico de Alterações</h3>';
+                    html += '<div style="background: #f8f9fa; border-radius: 6px; padding: 1rem;">';
+                    data.historico.forEach(function(hist) {
+                        html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e1e8ed;">';
+                        html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+                        html += '<strong style="color: #34495e; font-size: 0.95rem;">' + escapeHtml(hist.acao) + '</strong>';
+                        html += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + escapeHtml(hist.data) + '</span>';
+                        html += '</div>';
+                        if (hist.descricao) {
+                            html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(hist.descricao) + '</p>';
+                        }
+                        html += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + escapeHtml(hist.usuario) + '</p>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                html += '</div>';
+                
+                solicitacaoContent.innerHTML = html;
+            })
+            .catch(function() {
+                hideLoading();
+                solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+            });
+    }
+    
+    // Botão Ver Solicitação - usando event delegation para garantir que funcione mesmo se os elementos forem adicionados dinamicamente
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('btn-ver')) {
+            var pk = e.target.getAttribute('data-pk');
+            if (pk) {
+                abrirDetalhesSolicitacao(pk);
+            }
+        }
+    });
+    
     document.querySelectorAll('.id-clicavel').forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             var pk = this.getAttribute('data-pk');
-            solicitacaoContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
-            modalVerSolicitacao.classList.add('aberto');
-            modalVerSolicitacao.setAttribute('aria-hidden', 'false');
-            
-            // Buscar dados completos via AJAX
-            fetch('/reembolso/' + pk + '/detalhe-gestor/')
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data.error) {
-                        solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
-                        return;
-                    }
-                    var html = '<div style="text-align: right; margin-bottom: 1.5rem;">';
-                    html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Visualizar PDF</a>';
-                    html += '</div>';
-                     
-                    html += '<div class="detalhe-solicitacao">';
-                    html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
-                    html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
-                    html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
-                    
-                    // Código de despesa
-                    html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
-                    if (data.cod_despesa_com_descricao && data.cod_despesa_com_descricao.length > 0) {
-                        html += '<span>' + escapeHtml(data.cod_despesa_com_descricao.join(', ')) + '</span>';
-                    } else if (data.cod_despesa && data.cod_despesa.length > 0) {
-                        html += '<span>' + escapeHtml(data.cod_despesa.join(', ')) + '</span>';
-                    } else {
-                        html += '<span>—</span>';
-                    }
-                    html += '</div>';
-                    
-                    html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
-                    
-                    // Dados de pagamento
-                    if (data.forma_pagamento) {
-                        html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong>';
-                        if (data.forma_pagamento === 'PIX') {
-                            html += '<div style="margin-top: 0.5rem;">';
-                            html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
-                            if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
-                            if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
-                            if (data.pix_cpf) html += '<span style="display: block;">CPF: ' + escapeHtml(data.pix_cpf) + '</span>';
-                            html += '</div>';
-                        } else if (data.forma_pagamento === 'TRANSFERENCIA') {
-                            html += '<div style="margin-top: 0.5rem;">';
-                            html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>Transferência Bancária</strong></span>';
-                            if (data.transf_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
-                            if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
-                            if (data.transf_conta_tipo) {
-                                var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
-                                html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
-                            }
-                            if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
-                            html += '</div>';
-                        }
-                        html += '</div>';
-                    }
-                    
-                    // Descrição (apenas a descrição dos itens)
-                    html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
-                    html += '<div class="detalhe-itens-lista">';
-                    if (data.itens && data.itens.length > 0) {
-                        var temDescricao = false;
-                        data.itens.forEach(function(item) {
-                            if (item.descricao) {
-                                temDescricao = true;
-                                html += '<div class="detalhe-item"><div class="detalhe-item-header">' + escapeHtml(item.descricao) + '</div></div>';
-                            }
-                        });
-                        if (!temDescricao) {
-                            html += '<span>—</span>';
-                        }
-                    } else {
-                        html += '<span>—</span>';
-                    }
-                    html += '</div></div>';
-                    
-                    // Anexos
-                    html += '<div class="detalhe-solicitacao-item"><strong>📎 Anexos</strong>';
-                    html += '<div class="anexos-lista">';
-                    if (data.anexos && data.anexos.length > 0) {
-                        var temAnexo = false;
-                        data.anexos.forEach(function(anexo) {
-                            if (anexo.url) {
-                                temAnexo = true;
-                                html += '<div class="anexo-item"><a href="' + escapeHtml(anexo.url) + '" target="_blank" rel="noopener">📎 ' + escapeHtml(anexo.nome || 'Anexo') + '</a></div>';
-                            }
-                        });
-                        if (!temAnexo) {
-                            html += '<span>—</span>';
-                        }
-                    } else {
-                        html += '<span>—</span>';
-                    }
-                    html += '</div></div>';
-                    
-                    html += '</div>';
-                    solicitacaoContent.innerHTML = html;
-                    
-                })
-                .catch(function() {
-                    solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
-                });
+            abrirDetalhesSolicitacao(pk);
         });
     });
     var btnFecharVerSolicitacao = document.getElementById('modal-ver-solicitacao-fechar');
@@ -1317,6 +1761,71 @@
             var pk = this.getAttribute('data-pk');
             if (pk) mostrarDadosSolicitante(pk);
         });
+    });
+    
+    // Modal Programar Pagamento
+    var modalProgramarPagamento = document.getElementById('modal-programar-pagamento');
+    var formProgramarPagamento = document.getElementById('form-programar-pagamento');
+    var btnCancelarProgramar = document.getElementById('btn-cancelar-programar');
+    var btnFecharProgramar = document.getElementById('modal-programar-pagamento-fechar');
+    var checkMarcarComoPago = document.getElementById('marcar_como_pago');
+    var inputDataPagamento = document.getElementById('data_pagamento');
+    
+    // Abrir modal ao clicar no botão Editar
+    document.querySelectorAll('.btn-editar-programar').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var pk = this.getAttribute('data-pk');
+            var dataPagamento = this.getAttribute('data-data-pagamento');
+            formProgramarPagamento.action = '/reembolso/' + pk + '/programar-pagamento/?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            // Preencher data se existir
+            if (dataPagamento) {
+                inputDataPagamento.value = dataPagamento;
+            } else {
+                inputDataPagamento.value = '';
+            }
+            checkMarcarComoPago.checked = false;
+            // Resetar hover overlay
+            var hoverOverlay = document.getElementById('hover-overlay');
+            if (hoverOverlay) hoverOverlay.style.opacity = '0';
+            modalProgramarPagamento.classList.add('aberto');
+            modalProgramarPagamento.setAttribute('aria-hidden', 'false');
+        });
+    });
+    
+    // Efeito hover no label do checkbox
+    var labelMarcarPago = document.getElementById('label-marcar-pago');
+    var hoverOverlay = document.getElementById('hover-overlay');
+    if (labelMarcarPago && hoverOverlay) {
+        labelMarcarPago.addEventListener('mouseenter', function() {
+            this.style.borderColor = '#3182ce';
+            this.style.boxShadow = '0 4px 12px rgba(49, 130, 206, 0.15)';
+            hoverOverlay.style.opacity = '1';
+        });
+        labelMarcarPago.addEventListener('mouseleave', function() {
+            this.style.borderColor = '#e1e8ed';
+            this.style.boxShadow = 'none';
+            hoverOverlay.style.opacity = '0';
+        });
+    }
+    
+    // Fechar modal
+    function fecharModalProgramar() {
+        modalProgramarPagamento.classList.remove('aberto');
+        modalProgramarPagamento.setAttribute('aria-hidden', 'true');
+    }
+    
+    if (btnCancelarProgramar) {
+        btnCancelarProgramar.addEventListener('click', fecharModalProgramar);
+    }
+    
+    if (btnFecharProgramar) {
+        btnFecharProgramar.addEventListener('click', fecharModalProgramar);
+    }
+    
+    modalProgramarPagamento.addEventListener('click', function(e) {
+        if (e.target === modalProgramarPagamento) {
+            fecharModalProgramar();
+        }
     });
 })();
 </script>

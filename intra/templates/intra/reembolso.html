@@ -393,7 +393,7 @@
             <div class="linha-despesa" data-index="0">
                 <div class="form-group">
                     <label>Data da Despesa <span style="color: #e74c3c;">*</span></label>
-                    <input type="date" name="data_despesa_0" required class="form-control">
+                    <input type="date" name="data_despesa_0" required class="form-control" max="">
                 </div>
                 <div class="form-group">
                     <label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label>
@@ -414,8 +414,8 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Descrição</label>
-                    <input type="text" name="descricao_0" placeholder="Descrição do item" class="form-control">
+                    <label>Descrição <span style="color: #e74c3c;">*</span></label>
+                    <input type="text" name="descricao_0" placeholder="Descrição do item" required class="form-control">
                 </div>
                 <div class="form-group">
                     <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
@@ -488,8 +488,11 @@
         <div id="campos-transferencia" class="campos-pagamento" style="display: none;">
             <div class="form-group">
                 <label for="transf_banco">Banco <span style="color: #e74c3c;">*</span></label>
-                <input type="text" name="transf_banco" id="transf_banco" class="form-control" 
-                       placeholder="Nome do banco">
+                <select name="transf_banco" id="transf_banco" class="form-control" required>
+                    {% for value, label in bancos_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="form-group">
                 <label for="transf_agencia">Agência <span style="color: #e74c3c;">*</span></label>
@@ -543,6 +546,29 @@
     var codigosDespesa = {{ codigos_despesa_json|safe }};
     var codigosPorPrograma = {{ codigos_por_programa_json|safe }};
     var count = 1;
+    
+    // Função para obter data máxima (hoje) no formato YYYY-MM-DD
+    function obterDataMaxima() {
+        var hoje = new Date();
+        var ano = hoje.getFullYear();
+        var mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        var dia = String(hoje.getDate()).padStart(2, '0');
+        return ano + '-' + mes + '-' + dia;
+    }
+    
+    // Função para atualizar data máxima em todos os campos de data
+    function atualizarDataMaxima() {
+        var dataMaxima = obterDataMaxima();
+        // Atualizar todos os campos de data de despesa
+        container.querySelectorAll('input[type="date"][name^="data_despesa_"]').forEach(function(input) {
+            input.setAttribute('max', dataMaxima);
+        });
+    }
+    
+    // Atualizar data máxima ao carregar a página
+    setTimeout(function() {
+        atualizarDataMaxima();
+    }, 100);
 
     // Função para habilitar/desabilitar campos de despesa
     function toggleCamposDespesa(habilitar) {
@@ -720,11 +746,12 @@
             codigosParaUsar = codigosDespesa;
         }
         var optsCod = codigosParaUsar.map(function(c) { return '<option value="' + c.codigo + '">' + c.codigo + ' - ' + c.descricao + '</option>'; }).join('');
+        var dataMaxima = obterDataMaxima();
         div.innerHTML =
-            '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control"></div>' +
+            '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group"><label>Descrição</label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" class="form-control"></div>' +
+            '<div class="form-group"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control"></div>' +
             '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div>' +
             '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
             '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
@@ -754,6 +781,8 @@
             setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
         });
         container.appendChild(div);
+        // Atualizar data máxima após adicionar nova linha
+        atualizarDataMaxima();
         count++;
     }
 

@@ -94,15 +94,19 @@ class SolicitacaoReembolso(models.Model):
     STATUS_APROVADO = "APROVADO"
     STATUS_REJEITADO = "REJEITADO"
     STATUS_AGUARDANDO_PAGAMENTO = "AGUARDANDO_PAGAMENTO"
+    STATUS_PAGAMENTO_AGENDADO = "PAGAMENTO_AGENDADO"
     STATUS_PAGO_AGUARDANDO_ASSINATURAS = "PAGO_AGUARDANDO_ASSINATURAS"
     STATUS_ASSINADO_TODAS_PARTES = "ASSINADO_TODAS_PARTES"
+    STATUS_CONCLUIDO = "CONCLUIDO"
     STATUS_CHOICES = [
         (STATUS_PENDENTE, "Pendente"),
         (STATUS_APROVADO, "Aprovado"),
         (STATUS_REJEITADO, "Rejeitado"),
         (STATUS_AGUARDANDO_PAGAMENTO, "Aprovado - Aguardando pagamento"),
+        (STATUS_PAGAMENTO_AGENDADO, "Solicitação aprovada - Pagamento agendado"),
         (STATUS_PAGO_AGUARDANDO_ASSINATURAS, "Pago - Aguardando assinaturas"),
         (STATUS_ASSINADO_TODAS_PARTES, "Assinado por todas as partes"),
+        (STATUS_CONCLUIDO, "Concluído"),
     ]
 
     user = models.ForeignKey(

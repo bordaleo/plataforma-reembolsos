@@ -684,6 +684,7 @@
                     {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
+                    {% if s.status_descritivo == 'pagamento_agendado' %}<span class="status-aguardando-pagamento">Solicitação aprovada - Pagamento agendado</span>{% endif %}
                     {% if s.status_descritivo == 'pago_aguardando_assinaturas' %}
                         <span class="status-aguardando-assinatura">⏳ Pago - Aguardando assinaturas</span>
                         {% if s.status_docusign_info and s.status_docusign_info.aguardando_assinatura %}
@@ -703,11 +704,15 @@
                 <td class="acoes">
                     {% if s.pode_decidir %}
                         <div class="acoes-vertical">
-                            <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
-                                {% csrf_token %}
-                                <input type="hidden" name="acao" value="aprovar">
-                                <button type="submit" class="btn-aprovar">Aprovar</button>
-                            </form>
+                            {% if is_gestor_admin %}
+                                <button type="button" class="btn-aprovar btn-programar-pagamento" data-pk="{{ s.pk }}">Aprovar</button>
+                            {% else %}
+                                <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="acao" value="aprovar">
+                                    <button type="submit" class="btn-aprovar">Aprovar</button>
+                                </form>
+                            {% endif %}
                             <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
                         </div>
                     {% elif s.pode_marcar_pago %}
@@ -982,62 +987,63 @@
                     html += '<div class="detalhe-solicitacao">';
                     // 1. ID da Solicitação
                     html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
-                    // 2. Centro de custo
+                    // 2. Data
+                    html += '<div class="detalhe-solicitacao-item"><strong>Data</strong><span>' + (data.criado_em || '—') + '</span></div>';
+                    // 3. Centro de custo
                     html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
-                    // 3. Código de despesa
-                    html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
-                    if (data.cod_despesa_com_descricao && data.cod_despesa_com_descricao.length > 0) {
-                        html += '<span>' + data.cod_despesa_com_descricao.join(', ') + '</span>';
-                    } else if (data.cod_despesa && data.cod_despesa.length > 0) {
-                        html += '<span>' + data.cod_despesa.join(', ') + '</span>';
+                    // 3. Itens de despesa agrupados (cada item com seu código, descrição, valor e anexo)
+                    html += '<div class="detalhe-solicitacao-item" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;"><strong>Itens de Despesa</strong>';
+                    html += '<div style="margin-top: 1rem;">';
+                    if (data.itens && data.itens.length > 0) {
+                        data.itens.forEach(function(item, index) {
+                            html += '<div style="background: #f8f9fa; border: 1px solid #e1e8ed; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">';
+                            html += '<div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e1e8ed;">';
+                            html += '<span style="background: #34495e; color: white; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; margin-right: 0.75rem;">Item ' + (index + 1) + '</span>';
+                            html += '<span style="font-weight: 600; color: #34495e;">' + escapeHtml(item.tipo_despesa || '—') + '</span>';
+                            html += '<span style="margin-left: auto; font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ ' + formatarValor(item.valor || 0) + '</span>';
+                            html += '</div>';
+                            
+                            // Código de despesa
+                            if (item.cod_despesa_com_descricao || item.cod_despesa) {
+                                html += '<div style="margin-bottom: 0.75rem;">';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> ';
+                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
+                                html += '</div>';
+                            }
+                            
+                            // Data da despesa
+                            if (item.data_despesa) {
+                                html += '<div style="margin-bottom: 0.75rem;">';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Data da despesa:</strong> ';
+                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.data_despesa) + '</span>';
+                                html += '</div>';
+                            }
+                            
+                            // Descrição
+                            if (item.descricao) {
+                                html += '<div style="margin-bottom: 0.75rem;">';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
+                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span>';
+                                html += '</div>';
+                            }
+                            
+                            // Anexo
+                            if (item.anexo_url) {
+                                html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e1e8ed;">';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">📎 Anexo:</strong> ';
+                                html += '<a href="' + escapeHtml(item.anexo_url) + '" target="_blank" rel="noopener" style="color: #3498db; text-decoration: none; font-weight: 600;">';
+                                html += escapeHtml(item.anexo_nome || 'Visualizar anexo');
+                                html += '</a>';
+                                html += '</div>';
+                            }
+                            
+                            html += '</div>';
+                        });
                     } else {
                         html += '<span>—</span>';
                     }
-                    html += '</div>';
-                    // 4. Descrição
-                    html += '<div class="detalhe-solicitacao-item"><strong>Descrição</strong>';
-                    html += '<div class="detalhe-itens-lista">';
-                    if (data.itens && data.itens.length > 0) {
-                        var temDescricao = false;
-                        data.itens.forEach(function(item) {
-                            if (item.descricao && item.descricao.trim()) {
-                                temDescricao = true;
-                                html += '<div class="detalhe-item">';
-                                html += '<p style="margin: 0; color: #2c3e50; font-size: 1rem; line-height: 1.6;">' + escapeHtml(item.descricao) + '</p>';
-                                html += '</div>';
-                            }
-                        });
-                        if (!temDescricao) {
-                            html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
-                        }
-                    } else {
-                        html += '<p style="color: #7f8c8d;">Nenhuma descrição encontrada</p>';
-                    }
                     html += '</div></div>';
-                    // 5. Anexos
-                    html += '<div class="detalhe-solicitacao-item"><strong>Anexos</strong>';
-                    html += '<div class="anexos-lista">';
-                    if (data.anexos && data.anexos.length > 0) {
-                        var temAnexo = false;
-                        data.anexos.forEach(function(anexo) {
-                            if (anexo.url) {
-                                temAnexo = true;
-                                html += '<div class="anexo-item">';
-                                html += '<a href="' + escapeHtml(anexo.url) + '" target="_blank" rel="noopener">📎 ' + escapeHtml(anexo.nome || 'Ver anexo') + '</a>';
-                                if (anexo.tipo_despesa) {
-                                    html += '<span style="display: block; color: #7f8c8d; font-size: 0.9rem; margin-top: 0.25rem;">Item: ' + escapeHtml(anexo.tipo_despesa) + '</span>';
-                                }
-                                html += '</div>';
-                            }
-                        });
-                        if (!temAnexo) {
-                            html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
-                        }
-                    } else {
-                        html += '<p style="color: #7f8c8d; margin: 0;">Nenhum anexo disponível</p>';
-                    }
-                    html += '</div></div>';
-                    // 6. Valor total
+                    // 4. Valor total
                     html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
                     // 7. Nome do Gestor
                     html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';

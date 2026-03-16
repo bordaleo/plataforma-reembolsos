@@ -380,6 +380,50 @@
 
 <div class="card">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Alterar Senha</h2>
+    </div>
+    
+    <form method="post" action="{% url 'intra:meu_perfil' %}" id="form-trocar-senha">
+        {% csrf_token %}
+        <input type="hidden" name="trocar_senha" value="1">
+        
+        <div class="form-section">
+            <div class="form-group">
+                <label for="id_senha_atual">
+                    {{ senha_form.senha_atual.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ senha_form.senha_atual }}
+                {% if senha_form.senha_atual.errors %}<ul class="errorlist">{{ senha_form.senha_atual.errors }}</ul>{% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_nova_senha">
+                    {{ senha_form.nova_senha.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ senha_form.nova_senha }}
+                {% if senha_form.nova_senha.errors %}<ul class="errorlist">{{ senha_form.nova_senha.errors }}</ul>{% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_confirmar_senha">
+                    {{ senha_form.confirmar_senha.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ senha_form.confirmar_senha }}
+                {% if senha_form.confirmar_senha.errors %}<ul class="errorlist">{{ senha_form.confirmar_senha.errors }}</ul>{% endif %}
+            </div>
+        </div>
+        
+        <div class="btn-actions">
+            <button type="submit" class="btn">Alterar Senha</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Dados de Pagamento</h2>
         <button type="button" id="btn-editar" class="btn-edit">✏️ Editar</button>
     </div>
@@ -394,7 +438,7 @@
             <dd>{{ perfil.banco_pix|default:"—" }}</dd>
             <dt>Chave PIX</dt>
             <dd>{{ perfil.chave_pix|default:"—" }}</dd>
-            <dt>CPF (PIX)</dt>
+            <dt>CPF/CNPJ (PIX)</dt>
             <dd>{{ perfil.cpf_pix|default:"—" }}</dd>
             {% elif perfil.forma_pagamento == 'TRANSFERENCIA' %}
             <dt>Banco</dt>
@@ -405,7 +449,7 @@
             <dd>{{ perfil.get_conta_tipo_display|default:"—" }}</dd>
             <dt>Conta</dt>
             <dd>{{ perfil.conta_numero|default:"—" }}</dd>
-            <dt>CPF (Transferência)</dt>
+            <dt>CPF/CNPJ (Transferência)</dt>
             <dd>{{ perfil.cpf_transferencia|default:"—" }}</dd>
             {% endif %}
         </dl>
@@ -414,6 +458,7 @@
     <!-- Modo Edição -->
     <form method="post" action="{% url 'intra:meu_perfil' %}" id="edit-mode" class="edit-mode">
         {% csrf_token %}
+        <input type="hidden" name="editar_pagamento" value="1">
         
         <div class="form-section">
             <p class="section-description">Escolha a forma de pagamento desejada</p>
@@ -575,22 +620,39 @@
         }
     })();
 
-    // Máscara para CPF
+    // Função para aplicar máscara de CPF ou CNPJ
     (function() {
-        function aplicarMascaraCPF(value) {
+        function aplicarMascaraCPFCNPJ(value) {
             let numeros = value.replace(/\D/g, '');
-            if (numeros.length > 11) {
-                numeros = numeros.substring(0, 11);
-            }
-            if (numeros.length <= 3) {
-                return numeros;
-            } else if (numeros.length <= 6) {
-                return numeros.substring(0, 3) + '.' + numeros.substring(3);
-            } else if (numeros.length <= 9) {
-                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+            
+            // Se tiver 11 dígitos ou menos, aplicar máscara de CPF
+            if (numeros.length <= 11) {
+                if (numeros.length <= 3) {
+                    return numeros;
+                } else if (numeros.length <= 6) {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3);
+                } else if (numeros.length <= 9) {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+                } else {
+                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9, 11);
+                }
             } else {
-                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9);
+                // Se tiver mais de 11 dígitos, aplicar máscara de CNPJ
+                if (numeros.length <= 14) {
+                    if (numeros.length <= 2) {
+                        return numeros;
+                    } else if (numeros.length <= 5) {
+                        return numeros.substring(0, 2) + '.' + numeros.substring(2);
+                    } else if (numeros.length <= 8) {
+                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5);
+                    } else if (numeros.length <= 12) {
+                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8);
+                    } else {
+                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8, 12) + '-' + numeros.substring(12, 14);
+                    }
+                }
             }
+            return value;
         }
 
         const cpfPix = document.getElementById('id_cpf_pix');
@@ -598,13 +660,13 @@
         
         if (cpfPix) {
             cpfPix.addEventListener('input', function(e) {
-                e.target.value = aplicarMascaraCPF(e.target.value);
+                e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
             });
         }
         
         if (cpfTransf) {
             cpfTransf.addEventListener('input', function(e) {
-                e.target.value = aplicarMascaraCPF(e.target.value);
+                e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
             });
         }
     })();

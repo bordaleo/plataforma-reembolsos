@@ -1,5 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from .models import PerfilSolicitante, RegraUsuario
 
 User = get_user_model()
@@ -84,23 +86,23 @@ class CompletarCadastroForm(forms.ModelForm):
             "forma_pagamento": forms.Select(attrs={"class": "form-control"}),
             "chave_pix": forms.TextInput(attrs={"placeholder": "CPF, e-mail, telefone ou chave aleatória"}),
             "banco_pix": forms.HiddenInput(),
-            "cpf_pix": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+            "cpf_pix": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
             "banco": forms.HiddenInput(),
             "agencia": forms.TextInput(attrs={"placeholder": "0000", "maxlength": "4"}),
             "conta_numero": forms.TextInput(attrs={"placeholder": "00000-0", "maxlength": "8"}),
-            "cpf_transferencia": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+            "cpf_transferencia": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
         }
         labels = {
             "nome_solicitante": "Nome do solicitante",
             "forma_pagamento": "Forma de Pagamento",
             "chave_pix": "Chave PIX",
             "banco_pix": "Banco",
-            "cpf_pix": "CPF",
+            "cpf_pix": "CPF/CNPJ",
             "banco": "Banco",
             "agencia": "Agência",
             "conta_tipo": "Tipo de conta",
             "conta_numero": "Conta Corrente ou Poupança",
-            "cpf_transferencia": "CPF",
+            "cpf_transferencia": "CPF/CNPJ",
         }
 
     def clean_nome_solicitante(self):
@@ -273,22 +275,22 @@ class EditarPagamentoForm(forms.ModelForm):
             "forma_pagamento": forms.Select(attrs={"class": "form-control"}),
             "chave_pix": forms.TextInput(attrs={"placeholder": "CPF, e-mail, telefone ou chave aleatória"}),
             "banco_pix": forms.HiddenInput(),
-            "cpf_pix": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+            "cpf_pix": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
             "banco": forms.HiddenInput(),
             "agencia": forms.TextInput(attrs={"placeholder": "0000", "maxlength": "4"}),
             "conta_numero": forms.TextInput(attrs={"placeholder": "00000-0", "maxlength": "8"}),
-            "cpf_transferencia": forms.TextInput(attrs={"placeholder": "000.000.000-00"}),
+            "cpf_transferencia": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
         }
         labels = {
             "forma_pagamento": "Forma de Pagamento",
             "chave_pix": "Chave PIX",
             "banco_pix": "Banco",
-            "cpf_pix": "CPF",
+            "cpf_pix": "CPF/CNPJ",
             "banco": "Banco",
             "agencia": "Agência",
             "conta_tipo": "Tipo de conta",
             "conta_numero": "Conta Corrente ou Poupança",
-            "cpf_transferencia": "CPF",
+            "cpf_transferencia": "CPF/CNPJ",
         }
 
     def clean_forma_pagamento(self):
@@ -380,5 +382,67 @@ class EditarPagamentoForm(forms.ModelForm):
             banco_transf_select = cleaned_data.get("banco_transf_select", "").strip()
             if banco_transf_select:
                 cleaned_data["banco"] = banco_transf_select
+        
+        return cleaned_data
+
+
+class TrocarSenhaForm(forms.Form):
+    """Formulário para trocar a senha do usuário."""
+    
+    senha_atual = forms.CharField(
+        label="Senha Atual",
+        widget=forms.PasswordInput(attrs={
+            "placeholder": "Digite sua senha atual",
+            "class": "form-control"
+        }),
+        required=True
+    )
+    
+    nova_senha = forms.CharField(
+        label="Nova Senha",
+        widget=forms.PasswordInput(attrs={
+            "placeholder": "Digite sua nova senha",
+            "class": "form-control"
+        }),
+        required=True,
+        min_length=8
+    )
+    
+    confirmar_senha = forms.CharField(
+        label="Confirmar Nova Senha",
+        widget=forms.PasswordInput(attrs={
+            "placeholder": "Confirme sua nova senha",
+            "class": "form-control"
+        }),
+        required=True
+    )
+    
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+    
+    def clean_senha_atual(self):
+        senha_atual = self.cleaned_data.get("senha_atual")
+        if not self.user.check_password(senha_atual):
+            raise forms.ValidationError("A senha atual está incorreta.")
+        return senha_atual
+    
+    def clean_nova_senha(self):
+        nova_senha = self.cleaned_data.get("nova_senha")
+        if nova_senha:
+            try:
+                validate_password(nova_senha, self.user)
+            except ValidationError as e:
+                raise forms.ValidationError(e.messages)
+        return nova_senha
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        nova_senha = cleaned_data.get("nova_senha")
+        confirmar_senha = cleaned_data.get("confirmar_senha")
+        
+        if nova_senha and confirmar_senha:
+            if nova_senha != confirmar_senha:
+                raise forms.ValidationError("As senhas não coincidem.")
         
         return cleaned_data

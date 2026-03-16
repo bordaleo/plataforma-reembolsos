@@ -37,7 +37,7 @@ class PerfilSolicitante(models.Model):
     # Campos para PIX
     chave_pix = models.CharField("Chave PIX", max_length=100, blank=True)
     banco_pix = models.CharField("Banco (PIX)", max_length=100, blank=True)
-    cpf_pix = models.CharField("CPF (PIX)", max_length=14, blank=True)
+    cpf_pix = models.CharField("CPF/CNPJ (PIX)", max_length=18, blank=True)
     # Campos para Transferência Bancária
     banco = models.CharField("Banco", max_length=100, blank=True)
     agencia = models.CharField("Agência", max_length=20, blank=True)
@@ -48,7 +48,7 @@ class PerfilSolicitante(models.Model):
         blank=True,
     )
     conta_numero = models.CharField("Conta Corrente ou Poupança", max_length=30, blank=True)
-    cpf_transferencia = models.CharField("CPF (Transferência)", max_length=14, blank=True)
+    cpf_transferencia = models.CharField("CPF/CNPJ (Transferência)", max_length=18, blank=True)
     # Campos de gestor (mantidos para compatibilidade, mas não mais obrigatórios no cadastro)
     nome_gestor = models.CharField("Nome do gestor", max_length=200, blank=True)
     email_gestor = models.EmailField("E-mail do gestor", max_length=200, blank=True)
@@ -233,7 +233,7 @@ class SolicitacaoReembolso(models.Model):
     # Campos para PIX
     pix_chave = models.CharField("Chave PIX", max_length=100, blank=True, null=True)
     pix_banco = models.CharField("Banco (PIX)", max_length=100, blank=True, null=True)
-    pix_cpf = models.CharField("CPF (PIX)", max_length=14, blank=True, null=True)
+    pix_cpf = models.CharField("CPF/CNPJ (PIX)", max_length=18, blank=True, null=True)
     # Campos para Transferência
     transf_banco = models.CharField("Banco (Transferência)", max_length=100, blank=True, null=True)
     transf_agencia = models.CharField("Agência (Transferência)", max_length=20, blank=True, null=True)
@@ -245,6 +245,7 @@ class SolicitacaoReembolso(models.Model):
         null=True,
     )
     transf_conta_numero = models.CharField("Conta (Transferência)", max_length=30, blank=True, null=True)
+    transf_cpf = models.CharField("CPF/CNPJ (Transferência)", max_length=18, blank=True, null=True)
     # Campo para nome do gestor específico da solicitação
     nome_gestor = models.CharField("Nome do Gestor", max_length=200, blank=True, null=True)
 

@@ -7,23 +7,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
     .dashboard-container {
-        max-width: 1600px;
+        max-width: 1400px;
         margin: 0 auto;
         padding: 0 1rem;
     }
     
     .dashboard-header {
-        margin-bottom: 2.5rem;
+        margin-bottom: 2rem;
         text-align: center;
         padding: 2rem 0;
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         border-radius: 12px;
         color: #ffffff;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
     
     .dashboard-header h1 {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         font-weight: 700;
         margin-bottom: 0.5rem;
         color: #ffffff;
@@ -39,34 +39,21 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 1.5rem;
-        margin-bottom: 2.5rem;
+        margin-bottom: 2rem;
     }
     
     .kpi-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        border-left: 6px solid #34495e;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .kpi-card::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200px;
-        height: 200px;
-        background: radial-gradient(circle, rgba(0,0,0,0.05) 0%, transparent 70%);
-        border-radius: 50%;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-left: 4px solid #34495e;
+        transition: all 0.3s;
     }
     
     .kpi-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .kpi-card.concluido {
@@ -82,37 +69,29 @@
     }
     
     .kpi-card.total {
-        border-left-color: #805ad5;
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-left-color: #34495e;
     }
     
     .kpi-card h3 {
-        margin: 0 0 1rem;
+        margin: 0 0 0.75rem;
         font-size: 0.9rem;
         font-weight: 600;
         color: #7f8c8d;
         text-transform: uppercase;
-        letter-spacing: 1.2px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        letter-spacing: 1px;
     }
     
     .kpi-card .valor {
-        font-size: 2.5rem;
+        font-size: 2rem;
         font-weight: 700;
         color: #2c3e50;
-        margin: 0.75rem 0;
-        line-height: 1.2;
+        margin: 0.5rem 0;
     }
     
     .kpi-card .count {
-        font-size: 1.1rem;
+        font-size: 1rem;
         color: #7f8c8d;
-        margin-top: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        margin-top: 0.5rem;
     }
     
     .kpi-card .percentual {
@@ -141,30 +120,27 @@
     
     .filters-card {
         background: #ffffff;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        margin-bottom: 2.5rem;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
         border: 1px solid #e1e8ed;
     }
     
     .filters-title {
-        margin: 0 0 1.75rem;
-        font-size: 1.4rem;
+        margin: 0 0 1.5rem;
+        font-size: 1.3rem;
         font-weight: 700;
         color: #34495e;
-        padding-bottom: 1rem;
-        border-bottom: 3px solid #e1e8ed;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
     }
     
     .filters-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1.25rem;
-        margin-bottom: 1.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
     
     .filter-group {
@@ -175,14 +151,14 @@
     .filter-group label {
         font-weight: 600;
         color: #34495e;
-        margin-bottom: 0.625rem;
+        margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
     
     .form-control {
-        padding: 0.875rem 1rem;
+        padding: 0.75rem;
         border: 2px solid #e1e8ed;
-        border-radius: 10px;
+        border-radius: 4px;
         font-size: 0.95rem;
         color: #2c3e50;
         background: #ffffff;
@@ -192,7 +168,7 @@
     .form-control:focus {
         outline: none;
         border-color: #34495e;
-        box-shadow: 0 0 0 4px rgba(52, 73, 94, 0.1);
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
     }
     
     .filters-actions {
@@ -202,9 +178,9 @@
     }
     
     .btn {
-        padding: 0.875rem 1.75rem;
+        padding: 0.75rem 1.5rem;
         border: none;
-        border-radius: 10px;
+        border-radius: 4px;
         font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
@@ -213,18 +189,19 @@
         align-items: center;
         justify-content: center;
         transition: all 0.2s;
-        min-width: 140px;
+        min-width: 120px;
         gap: 0.5rem;
     }
     
     .btn-primary {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         color: #ffffff;
     }
     
     .btn-primary:hover {
+        background: linear-gradient(135deg, #2c3e50 0%, #1a252f 50%, #0f1419 100%);
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(52, 73, 94, 0.3);
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
     }
     
     .btn-secondary {
@@ -234,12 +211,11 @@
     
     .btn-secondary:hover {
         background: #7f8c8d;
-        transform: translateY(-2px);
     }
     
     .active-filters {
-        margin-top: 1.75rem;
-        padding-top: 1.75rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
         border-top: 2px solid #e1e8ed;
         display: flex;
         flex-wrap: wrap;
@@ -251,20 +227,20 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: linear-gradient(135deg, #ecf0f1 0%, #d5dbdb 100%);
+        background: #f5f7fa;
         color: #2c3e50;
-        padding: 0.6rem 1.2rem;
-        border-radius: 25px;
-        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
         font-weight: 500;
-        border: 1px solid #bdc3c7;
+        border: 1px solid #e1e8ed;
     }
     
     .badge-remove {
-        color: #e74c3c;
+        color: #e53e3e;
         text-decoration: none;
         font-weight: bold;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         margin-left: 0.5rem;
         padding: 0 0.5rem;
         border-radius: 50%;
@@ -273,80 +249,127 @@
     }
     
     .badge-remove:hover {
-        background: #e74c3c;
+        background: #e53e3e;
         color: #ffffff;
     }
     
     .charts-section {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-        gap: 2rem;
-        margin-bottom: 2.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
     }
     
     .chart-card {
         background: #ffffff;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         border: 1px solid #e1e8ed;
+        transition: all 0.3s;
     }
     
-    .chart-card.full-width {
-        grid-column: 1 / -1;
+    .chart-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .chart-card h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.5rem;
+        margin: 0 0 1rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #34495e;
-        padding-bottom: 1rem;
-        border-bottom: 3px solid #e1e8ed;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
     }
     
     .chart-container {
         position: relative;
         height: 400px;
-        margin-top: 1.5rem;
+        margin-top: 1rem;
     }
     
-    .chart-container.medium {
-        height: 350px;
+    .insights-section {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-left: 4px solid #34495e;
     }
     
-    .chart-container.large {
-        height: 500px;
+    .insights-section h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #34495e;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .insight-card {
+        background: #f5f7fa;
+        border-radius: 8px;
+        padding: 1.25rem;
+        border-left: 3px solid #34495e;
+        transition: all 0.3s;
+    }
+    
+    .insight-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .insight-card h3 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #34495e;
+    }
+    
+    .insight-card p {
+        margin: 0;
+        color: #7f8c8d;
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+    
+    .insight-card .highlight {
+        color: #34495e;
+        font-weight: 700;
     }
     
     .tables-section {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-        gap: 2rem;
-        margin-bottom: 2.5rem;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
     }
     
     .table-card {
         background: #ffffff;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         border: 1px solid #e1e8ed;
     }
     
+    .table-card.full-width {
+        grid-column: 1 / -1;
+    }
+    
     .table-card h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.5rem;
+        margin: 0 0 1rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #34495e;
-        padding-bottom: 1rem;
-        border-bottom: 3px solid #e1e8ed;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
     }
     
     .data-table {
@@ -357,29 +380,28 @@
     }
     
     .data-table thead {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
         color: #ffffff;
     }
     
     .data-table th {
-        padding: 1.25rem 1rem;
+        padding: 1rem;
         text-align: left;
         font-weight: 600;
         font-size: 0.9rem;
         border: none;
-        white-space: nowrap;
     }
     
     .data-table th:first-child {
-        border-radius: 12px 0 0 0;
+        border-radius: 8px 0 0 0;
     }
     
     .data-table th:last-child {
-        border-radius: 0 12px 0 0;
+        border-radius: 0 8px 0 0;
     }
     
     .data-table td {
-        padding: 1.25rem 1rem;
+        padding: 1rem;
         border-bottom: 1px solid #e1e8ed;
         color: #2c3e50;
     }
@@ -389,15 +411,7 @@
     }
     
     .data-table tbody tr:hover {
-        background: #f8f9fa;
-    }
-    
-    .data-table tbody tr:last-child td:first-child {
-        border-radius: 0 0 0 12px;
-    }
-    
-    .data-table tbody tr:last-child td:last-child {
-        border-radius: 0 0 12px 0;
+        background: #f5f7fa;
     }
     
     .data-table tbody tr:last-child td {
@@ -428,56 +442,6 @@
         color: #2c5282;
     }
     
-    .insights-section {
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-        border-radius: 16px;
-        padding: 2rem;
-        margin-bottom: 2.5rem;
-        border-left: 6px solid #805ad5;
-    }
-    
-    .insights-section h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #34495e;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
-    .insights-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.5rem;
-    }
-    
-    .insight-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border-left: 4px solid #805ad5;
-    }
-    
-    .insight-card h3 {
-        margin: 0 0 0.75rem;
-        font-size: 1rem;
-        font-weight: 600;
-        color: #34495e;
-    }
-    
-    .insight-card p {
-        margin: 0;
-        color: #7f8c8d;
-        line-height: 1.6;
-    }
-    
-    .insight-card .highlight {
-        color: #805ad5;
-        font-weight: 700;
-    }
-    
     .no-data {
         text-align: center;
         padding: 3rem 2rem;
@@ -489,6 +453,32 @@
         font-size: 3rem;
         display: block;
         margin-bottom: 1rem;
+    }
+    
+    .stat-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 0.25rem;
+    }
+    
+    .stat-badge.concluido {
+        background: #c6f6d5;
+        color: #22543d;
+    }
+    
+    .stat-badge.rejeitado {
+        background: #fed7d7;
+        color: #742a2a;
+    }
+    
+    .stat-badge.em-processo {
+        background: #bee3f8;
+        color: #2c5282;
     }
     
     @media (max-width: 1200px) {
@@ -513,19 +503,6 @@
         .chart-container {
             height: 300px;
         }
-        
-        .chart-container.large {
-            height: 350px;
-        }
-        
-        .data-table {
-            font-size: 0.85rem;
-        }
-        
-        .data-table th,
-        .data-table td {
-            padding: 0.75rem 0.5rem;
-        }
     }
 </style>
 {% endblock %}
@@ -540,7 +517,7 @@
     <!-- Formulário de Filtros -->
     <div class="filters-card">
         <h2 class="filters-title">🔍 Filtros de Análise</h2>
-        <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form" onsubmit="showLoading('Aplicando filtros...'); return true;">
+        <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form">
             <div class="filters-grid">
                 <div class="filter-group">
                     <label for="data_inicio">Data Início</label>
@@ -589,7 +566,7 @@
             
             <div class="filters-actions">
                 <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
-                <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...');">🗑️ Limpar</a>
+                <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary">🗑️ Limpar</a>
             </div>
         </form>
         
@@ -668,35 +645,11 @@
 
     <!-- Gráficos -->
     <div class="charts-section">
-        <!-- Gráfico de Barras - Estatísticas por Área -->
-        <div class="chart-card full-width">
-            <h2>📊 Estatísticas por Área (Centro de Custo)</h2>
-            {% if estatisticas_por_area %}
-            <div class="chart-container large">
-                <canvas id="areasChart"></canvas>
-            </div>
-            {% else %}
-            <div class="no-data">Nenhum dado disponível para exibição</div>
-            {% endif %}
-        </div>
-
-        <!-- Gráfico de Comparação - Concluídos vs Rejeitados -->
-        <div class="chart-card">
-            <h2>⚖️ Concluídos vs Rejeitados por Área</h2>
-            {% if estatisticas_por_area %}
-            <div class="chart-container medium">
-                <canvas id="comparisonChart"></canvas>
-            </div>
-            {% else %}
-            <div class="no-data">Nenhum dado disponível</div>
-            {% endif %}
-        </div>
-
-        <!-- Gráfico de Pizza - Gastos por Tipo -->
+        <!-- Gráfico de Distribuição por Tipo de Despesa -->
         <div class="chart-card">
             <h2>🥧 Distribuição por Tipo de Despesa</h2>
             {% if gastos_por_tipo %}
-            <div class="chart-container medium">
+            <div class="chart-container">
                 <canvas id="tipoDespesaChart"></canvas>
             </div>
             {% else %}
@@ -704,12 +657,60 @@
             {% endif %}
         </div>
 
-        <!-- Gráfico de Linha - Evolução Mensal -->
-        <div class="chart-card full-width">
+        <!-- Gráfico de Status Geral -->
+        <div class="chart-card">
+            <h2>📊 Distribuição de Status Geral</h2>
+            {% if total_geral_count > 0 %}
+            <div class="chart-container">
+                <canvas id="statusGeralChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Evolução Mensal -->
+        <div class="chart-card" style="grid-column: 1 / -1;">
             <h2>📈 Evolução Mensal de Reembolsos</h2>
             {% if reembolsos_por_mes %}
-            <div class="chart-container large">
-                <canvas id="mesesChart"></canvas>
+            <div class="chart-container" style="height: 400px;">
+                <canvas id="evolucaoMensalChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Comparação por Área -->
+        <div class="chart-card" style="grid-column: 1 / -1;">
+            <h2>⚖️ Comparação: Concluídos vs Rejeitados por Área</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container" style="height: 450px;">
+                <canvas id="comparacaoAreasChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Top Áreas por Valor Total -->
+        <div class="chart-card">
+            <h2>🏆 Top Áreas por Valor Total</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container">
+                <canvas id="topAreasChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Taxa de Aprovação por Área -->
+        <div class="chart-card">
+            <h2>📊 Taxa de Aprovação por Área</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container">
+                <canvas id="taxaAprovacaoChart"></canvas>
             </div>
             {% else %}
             <div class="no-data">Nenhum dado disponível</div>
@@ -741,7 +742,9 @@
                             <span class="badge-status rejeitado">{{ area.rejeitado_count }}</span>
                         </td>
                         <td><strong>R$ {{ area.rejeitado_total|currency_br }}</strong></td>
-                        <td><strong>{{ area.taxa_rejeicao|floatformat:1 }}%</strong></td>
+                        <td>
+                            <span class="stat-badge rejeitado">{{ area.taxa_rejeicao|floatformat:1 }}%</span>
+                        </td>
                     </tr>
                     {% endif %}
                     {% endfor %}
@@ -774,7 +777,9 @@
                             <span class="badge-status concluido">{{ area.concluido_count }}</span>
                         </td>
                         <td><strong>R$ {{ area.concluido_total|currency_br }}</strong></td>
-                        <td><strong>{{ area.taxa_aprovacao|floatformat:1 }}%</strong></td>
+                        <td>
+                            <span class="stat-badge concluido">{{ area.taxa_aprovacao|floatformat:1 }}%</span>
+                        </td>
                     </tr>
                     {% endif %}
                     {% endfor %}
@@ -785,7 +790,7 @@
             {% endif %}
         </div>
 
-        <!-- Tabela: Taxa de Rejeição por Área -->
+        <!-- Tabela: Taxa de Rejeição por Área (Ranking) -->
         <div class="table-card full-width">
             <h2>📊 Taxa de Rejeição por Área (Ranking)</h2>
             {% if areas_ordenadas_taxa_rejeicao %}
@@ -811,18 +816,22 @@
                         <td>{{ area.count_geral }}</td>
                         <td>
                             <span class="badge-status concluido">{{ area.concluido_count }}</span>
-                            <br><small>R$ {{ area.concluido_total|currency_br }}</small>
+                            <br><small style="color: #7f8c8d;">R$ {{ area.concluido_total|currency_br }}</small>
                         </td>
                         <td>
                             <span class="badge-status rejeitado">{{ area.rejeitado_count }}</span>
-                            <br><small>R$ {{ area.rejeitado_total|currency_br }}</small>
+                            <br><small style="color: #7f8c8d;">R$ {{ area.rejeitado_total|currency_br }}</small>
                         </td>
                         <td>
                             <span class="badge-status em-processo">{{ area.em_processo_count }}</span>
-                            <br><small>R$ {{ area.em_processo_total|currency_br }}</small>
+                            <br><small style="color: #7f8c8d;">R$ {{ area.em_processo_total|currency_br }}</small>
                         </td>
-                        <td><strong style="color: #e53e3e;">{{ area.taxa_rejeicao|floatformat:1 }}%</strong></td>
-                        <td><strong style="color: #38a169;">{{ area.taxa_aprovacao|floatformat:1 }}%</strong></td>
+                        <td>
+                            <span class="stat-badge rejeitado">{{ area.taxa_rejeicao|floatformat:1 }}%</span>
+                        </td>
+                        <td>
+                            <span class="stat-badge concluido">{{ area.taxa_aprovacao|floatformat:1 }}%</span>
+                        </td>
                     </tr>
                     {% endif %}
                     {% endfor %}
@@ -837,6 +846,8 @@
 
 <script>
 // Dados dos gráficos
+const tiposLabels = {{ tipos_labels_json|safe|default:"[]" }};
+const tiposValores = {{ tipos_valores_json|safe|default:"[]" }};
 const areasLabels = {{ areas_labels_json|safe|default:"[]" }};
 const areasConcluidos = {{ areas_concluidos_json|safe|default:"[]" }};
 const areasRejeitados = {{ areas_rejeitados_json|safe|default:"[]" }};
@@ -845,216 +856,148 @@ const mesesLabels = {{ meses_labels_json|safe|default:"[]" }};
 const mesesConcluidos = {{ meses_concluidos_json|safe|default:"[]" }};
 const mesesRejeitados = {{ meses_rejeitados_json|safe|default:"[]" }};
 const mesesEmProcesso = {{ meses_em_processo_json|safe|default:"[]" }};
-const tiposLabels = {{ tipos_labels_json|safe|default:"[]" }};
-const tiposValores = {{ tipos_valores_json|safe|default:"[]" }};
 
-// Configuração profissional do Chart.js
+// Dados de status geral
+const statusGeralData = {
+    concluidos: {{ total_concluido|default:0 }},
+    emProcesso: {{ total_em_processo|default:0 }},
+    rejeitados: {{ total_rejeitado|default:0 }}
+};
+
+// Dados para gráficos de área
+const estatisticasPorArea = {{ estatisticas_por_area_json|safe|default:"[]" }};
+
+// Configuração do Chart.js com cores do site
 Chart.defaults.font.family = "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 Chart.defaults.font.size = 13;
 Chart.defaults.color = '#2c3e50';
 Chart.defaults.plugins.legend.display = true;
-Chart.defaults.plugins.legend.position = 'top';
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.padding = 15;
 Chart.defaults.plugins.legend.labels.font = { size: 12, weight: '600' };
-
-// Cores profissionais
-const colors = {
-    concluido: {
-        bg: 'rgba(56, 161, 105, 0.8)',
-        border: 'rgba(56, 161, 105, 1)',
-        light: 'rgba(56, 161, 105, 0.1)'
-    },
-    rejeitado: {
-        bg: 'rgba(229, 62, 62, 0.8)',
-        border: 'rgba(229, 62, 62, 1)',
-        light: 'rgba(229, 62, 62, 0.1)'
-    },
-    emProcesso: {
-        bg: 'rgba(49, 130, 206, 0.8)',
-        border: 'rgba(49, 130, 206, 1)',
-        light: 'rgba(49, 130, 206, 0.1)'
-    }
-};
 
 // Função para formatar valores em R$
 function formatCurrency(value) {
     return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
-// Gráfico de Barras - Estatísticas por Área
-const areasCtx = document.getElementById('areasChart');
-if (areasCtx && areasLabels.length > 0) {
-    new Chart(areasCtx, {
-        type: 'bar',
-        data: {
-            labels: areasLabels,
-            datasets: [
-                {
-                    label: 'Concluídos',
-                    data: areasConcluidos,
-                    backgroundColor: colors.concluido.bg,
-                    borderColor: colors.concluido.border,
-                    borderWidth: 2,
-                    borderRadius: 8
-                },
-                {
-                    label: 'Rejeitados',
-                    data: areasRejeitados,
-                    backgroundColor: colors.rejeitado.bg,
-                    borderColor: colors.rejeitado.border,
-                    borderWidth: 2,
-                    borderRadius: 8
-                },
-                {
-                    label: 'Em Processo',
-                    data: areasEmProcesso,
-                    backgroundColor: colors.emProcesso.bg,
-                    borderColor: colors.emProcesso.border,
-                    borderWidth: 2,
-                    borderRadius: 8
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        font: { size: 13, weight: '600' },
-                        padding: 20,
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 15,
-                    titleFont: { size: 14, weight: '600' },
-                    bodyFont: { size: 13 },
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        font: { size: 12, weight: '500' }
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        font: { size: 12, weight: '500' },
-                        callback: function(value) {
-                            return formatCurrency(value);
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
+// Cores diferenciadas e vibrantes para o gráfico de tipo de despesa
+const tipoDespesaColors = [
+    'rgba(52, 73, 94, 0.9)',      // Azul escuro principal
+    'rgba(56, 161, 105, 0.9)',    // Verde
+    'rgba(49, 130, 206, 0.9)',    // Azul claro
+    'rgba(229, 62, 62, 0.9)',     // Vermelho
+    'rgba(245, 158, 11, 0.9)',    // Laranja
+    'rgba(139, 92, 246, 0.9)',    // Roxo
+    'rgba(236, 72, 153, 0.9)',    // Rosa
+    'rgba(14, 165, 233, 0.9)',    // Azul ciano
+    'rgba(34, 197, 94, 0.9)',     // Verde claro
+    'rgba(251, 146, 60, 0.9)',    // Laranja claro
+    'rgba(168, 85, 247, 0.9)',    // Roxo claro
+    'rgba(244, 63, 94, 0.9)',     // Vermelho rosa
+];
 
-// Gráfico de Comparação
-const comparisonCtx = document.getElementById('comparisonChart');
-if (comparisonCtx && areasLabels.length > 0) {
-    new Chart(comparisonCtx, {
-        type: 'bar',
-        data: {
-            labels: areasLabels,
-            datasets: [
-                {
-                    label: 'Concluídos',
-                    data: areasConcluidos,
-                    backgroundColor: colors.concluido.bg,
-                    borderColor: colors.concluido.border,
-                    borderWidth: 2,
-                    borderRadius: 8
-                },
-                {
-                    label: 'Rejeitados',
-                    data: areasRejeitados,
-                    backgroundColor: colors.rejeitado.bg,
-                    borderColor: colors.rejeitado.border,
-                    borderWidth: 2,
-                    borderRadius: 8
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        font: { size: 13, weight: '600' },
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 15,
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: false }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                    ticks: {
-                        callback: function(value) {
-                            return formatCurrency(value);
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
+// Cores para status
+const statusColors = {
+    concluido: {
+        bg: 'rgba(56, 161, 105, 0.8)',
+        border: 'rgba(56, 161, 105, 1)',
+        light: 'rgba(56, 161, 105, 0.2)'
+    },
+    emProcesso: {
+        bg: 'rgba(49, 130, 206, 0.8)',
+        border: 'rgba(49, 130, 206, 1)',
+        light: 'rgba(49, 130, 206, 0.2)'
+    },
+    rejeitado: {
+        bg: 'rgba(229, 62, 62, 0.8)',
+        border: 'rgba(229, 62, 62, 1)',
+        light: 'rgba(229, 62, 62, 0.2)'
+    }
+};
 
-// Gráfico de Pizza
+// Gráfico de Donut - Distribuição por Tipo de Despesa (com cores diferenciadas)
 const tipoDespesaCtx = document.getElementById('tipoDespesaChart');
 if (tipoDespesaCtx && tiposLabels.length > 0) {
-    const pieColors = [
-        'rgba(56, 161, 105, 0.8)',
-        'rgba(49, 130, 206, 0.8)',
-        'rgba(229, 62, 62, 0.8)',
-        'rgba(237, 137, 54, 0.8)',
-        'rgba(155, 89, 182, 0.8)',
-        'rgba(52, 73, 94, 0.8)',
-        'rgba(16, 185, 129, 0.8)',
-        'rgba(245, 101, 101, 0.8)'
-    ];
-    
     new Chart(tipoDespesaCtx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: tiposLabels,
             datasets: [{
                 data: tiposValores,
-                backgroundColor: pieColors.slice(0, tiposLabels.length),
+                backgroundColor: tipoDespesaColors.slice(0, tiposLabels.length),
                 borderColor: '#ffffff',
-                borderWidth: 3
+                borderWidth: 3,
+                hoverOffset: 12,
+                hoverBorderWidth: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { size: 12, weight: '500' },
+                        padding: 15,
+                        usePointStyle: true,
+                        color: '#2c3e50',
+                        boxWidth: 12,
+                        boxHeight: 12
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#34495e',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': ' + formatCurrency(value) + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 1000
+            }
+        }
+    });
+}
+
+// Gráfico de Pizza - Distribuição de Status Geral
+const statusGeralCtx = document.getElementById('statusGeralChart');
+if (statusGeralCtx && (statusGeralData.concluidos > 0 || statusGeralData.emProcesso > 0 || statusGeralData.rejeitados > 0)) {
+    new Chart(statusGeralCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Concluídos', 'Em Processo', 'Rejeitados'],
+            datasets: [{
+                data: [statusGeralData.concluidos, statusGeralData.emProcesso, statusGeralData.rejeitados],
+                backgroundColor: [
+                    statusColors.concluido.bg,
+                    statusColors.emProcesso.bg,
+                    statusColors.rejeitado.bg
+                ],
+                borderColor: [
+                    statusColors.concluido.border,
+                    statusColors.emProcesso.border,
+                    statusColors.rejeitado.border
+                ],
+                borderWidth: 3,
+                hoverOffset: 10
             }]
         },
         options: {
@@ -1066,12 +1009,17 @@ if (tipoDespesaCtx && tiposLabels.length > 0) {
                     labels: {
                         font: { size: 12, weight: '500' },
                         padding: 15,
-                        usePointStyle: true
+                        usePointStyle: true,
+                        color: '#2c3e50'
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
                     padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
                     callbacks: {
                         label: function(context) {
                             const label = context.label || '';
@@ -1088,9 +1036,9 @@ if (tipoDespesaCtx && tiposLabels.length > 0) {
 }
 
 // Gráfico de Linha - Evolução Mensal
-const mesesCtx = document.getElementById('mesesChart');
-if (mesesCtx && mesesLabels.length > 0) {
-    new Chart(mesesCtx, {
+const evolucaoMensalCtx = document.getElementById('evolucaoMensalChart');
+if (evolucaoMensalCtx && mesesLabels.length > 0) {
+    new Chart(evolucaoMensalCtx, {
         type: 'line',
         data: {
             labels: mesesLabels,
@@ -1098,42 +1046,42 @@ if (mesesCtx && mesesLabels.length > 0) {
                 {
                     label: 'Concluídos',
                     data: mesesConcluidos,
-                    borderColor: colors.concluido.border,
-                    backgroundColor: colors.concluido.light,
+                    borderColor: statusColors.concluido.border,
+                    backgroundColor: statusColors.concluido.light,
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
                     pointRadius: 5,
                     pointHoverRadius: 7,
-                    pointBackgroundColor: colors.concluido.border,
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2
-                },
-                {
-                    label: 'Rejeitados',
-                    data: mesesRejeitados,
-                    borderColor: colors.rejeitado.border,
-                    backgroundColor: colors.rejeitado.light,
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: colors.rejeitado.border,
+                    pointBackgroundColor: statusColors.concluido.border,
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2
                 },
                 {
                     label: 'Em Processo',
                     data: mesesEmProcesso,
-                    borderColor: colors.emProcesso.border,
-                    backgroundColor: colors.emProcesso.light,
+                    borderColor: statusColors.emProcesso.border,
+                    backgroundColor: statusColors.emProcesso.light,
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
                     pointRadius: 5,
                     pointHoverRadius: 7,
-                    pointBackgroundColor: colors.emProcesso.border,
+                    pointBackgroundColor: statusColors.emProcesso.border,
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Rejeitados',
+                    data: mesesRejeitados,
+                    borderColor: statusColors.rejeitado.border,
+                    backgroundColor: statusColors.rejeitado.light,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: statusColors.rejeitado.border,
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2
                 }
@@ -1151,8 +1099,12 @@ if (mesesCtx && mesesLabels.length > 0) {
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
                     padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
                     callbacks: {
                         label: function(context) {
                             return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
@@ -1162,22 +1114,232 @@ if (mesesCtx && mesesLabels.length > 0) {
             },
             scales: {
                 x: {
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        font: { size: 12, weight: '500' }
-                    }
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: { font: { size: 12, weight: '500' } }
                 },
                 y: {
                     beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
                         font: { size: 12, weight: '500' },
                         callback: function(value) {
                             return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras - Comparação por Área
+const comparacaoAreasCtx = document.getElementById('comparacaoAreasChart');
+if (comparacaoAreasCtx && areasLabels.length > 0) {
+    // Limitar a 15 áreas para melhor visualização
+    const maxAreas = 15;
+    const labelsLimit = areasLabels.slice(0, maxAreas);
+    const concluidosLimit = areasConcluidos.slice(0, maxAreas);
+    const rejeitadosLimit = areasRejeitados.slice(0, maxAreas);
+    
+    new Chart(comparacaoAreasCtx, {
+        type: 'bar',
+        data: {
+            labels: labelsLimit,
+            datasets: [
+                {
+                    label: 'Concluídos',
+                    data: concluidosLimit,
+                    backgroundColor: statusColors.concluido.bg,
+                    borderColor: statusColors.concluido.border,
+                    borderWidth: 2,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Rejeitados',
+                    data: rejeitadosLimit,
+                    backgroundColor: statusColors.rejeitado.bg,
+                    borderColor: statusColors.rejeitado.border,
+                    borderWidth: 2,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 13, weight: '600' },
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras Horizontais - Top Áreas por Valor Total
+const topAreasCtx = document.getElementById('topAreasChart');
+if (topAreasCtx && estatisticasPorArea.length > 0) {
+    // Ordenar por valor total e pegar top 10
+    const sortedAreas = [...estatisticasPorArea].sort((a, b) => b.total_geral - a.total_geral).slice(0, 10);
+    const topLabels = sortedAreas.map(a => a.centro_label);
+    const topValores = sortedAreas.map(a => a.total_geral);
+    
+    new Chart(topAreasCtx, {
+        type: 'bar',
+        data: {
+            labels: topLabels,
+            datasets: [{
+                label: 'Valor Total',
+                data: topValores,
+                backgroundColor: 'rgba(52, 73, 94, 0.8)',
+                borderColor: 'rgba(52, 73, 94, 1)',
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return 'Valor Total: ' + formatCurrency(context.parsed.x);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras - Taxa de Aprovação por Área
+const taxaAprovacaoCtx = document.getElementById('taxaAprovacaoChart');
+if (taxaAprovacaoCtx && estatisticasPorArea.length > 0) {
+    // Ordenar por taxa de aprovação e pegar top 10
+    const sortedByTaxa = [...estatisticasPorArea]
+        .filter(a => a.count_geral > 0)
+        .sort((a, b) => b.taxa_aprovacao - a.taxa_aprovacao)
+        .slice(0, 10);
+    const taxaLabels = sortedByTaxa.map(a => a.centro_label);
+    const taxaValores = sortedByTaxa.map(a => a.taxa_aprovacao);
+    
+    new Chart(taxaAprovacaoCtx, {
+        type: 'bar',
+        data: {
+            labels: taxaLabels,
+            datasets: [{
+                label: 'Taxa de Aprovação (%)',
+                data: taxaValores,
+                backgroundColor: 'rgba(56, 161, 105, 0.8)',
+                borderColor: 'rgba(56, 161, 105, 1)',
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return 'Taxa de Aprovação: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return value + '%';
                         }
                     }
                 }

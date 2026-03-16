@@ -17,6 +17,37 @@
         margin-bottom: 2rem;
         position: relative;
     }
+    .tour-button {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255, 255, 255, 0.15);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        backdrop-filter: blur(10px);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .tour-button:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    @media (max-width: 768px) {
+        .tour-button {
+            position: static;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+    }
     .welcome-logo {
         margin-bottom: 1.5rem;
     }
@@ -167,7 +198,10 @@
 {% endblock %}
 {% block content %}
 <div class="home-container">
-    <div class="welcome-hero">
+    <div class="welcome-hero" id="welcome-hero">
+        <button class="tour-button" id="iniciar-tour-btn" onclick="iniciarTour()">
+            🎯 Iniciar Tour
+        </button>
         <div class="welcome-logo">
             <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
         </div>
@@ -184,51 +218,51 @@
         </div>
     </div>
 
-    <div class="quick-actions">
+    <div class="quick-actions" id="quick-actions">
         {% if is_gestor_admin %}
-        <a href="{% url 'intra:dashboard_gestor' %}" class="action-card">
+        <a href="{% url 'intra:dashboard_gestor' %}" class="action-card" data-tour-step="1" data-tour-title="📊 Dashboard" data-tour-text="Acesse o Dashboard para visualizar estatísticas, gráficos e relatórios completos de todos os reembolsos do sistema. Aqui você encontra métricas importantes como valores pagos, taxas de aprovação e gastos por área.">
             <span class="action-card-icon">📊</span>
             <h3>Dashboard</h3>
             <p>Visualize estatísticas e relatórios de reembolsos.</p>
         </a>
-        <a href="/aprovar-reembolsos/" class="action-card">
+        <a href="/aprovar-reembolsos/" class="action-card" data-tour-step="2" data-tour-title="✅ Aprovar Reembolsos" data-tour-text="Aqui você pode revisar, aprovar ou rejeitar todas as solicitações de reembolso pendentes. Analise os documentos anexados antes de tomar uma decisão. Você também pode visualizar os detalhes completos de cada solicitação.">
             <span class="action-card-icon">✅</span>
             <h3>Aprovar Reembolsos</h3>
             <p>Visualize e gerencie todas as solicitações de reembolso pendentes de aprovação.</p>
         </a>
-        <a href="{% url 'intra:ultimos_reembolsos' %}" class="action-card">
+        <a href="{% url 'intra:ultimos_reembolsos' %}" class="action-card" data-tour-step="3" data-tour-title="📋 Últimos Reembolsos" data-tour-text="Visualize o histórico completo de todas as solicitações, com filtros avançados por data, status, centro de custo e tipo de despesa. As solicitações são organizadas em três categorias: Em Processo, Concluídos e Rejeitados.">
             <span class="action-card-icon">📋</span>
             <h3>Últimos Reembolsos</h3>
             <p>Acompanhe o histórico completo de todas as solicitações de reembolso.</p>
         </a>
         {% elif is_gestor_simples %}
-        <a href="{% url 'intra:reembolso' %}" class="action-card">
+        <a href="{% url 'intra:reembolso' %}" class="action-card" data-tour-step="1" data-tour-title="➕ Criar Reembolso" data-tour-text="Crie uma nova solicitação de reembolso preenchendo os dados gerais (centro de custo e gestor), adicionando itens de despesa com códigos corretos e anexando os comprovantes necessários. Você pode adicionar múltiplos itens em uma única solicitação.">
             <span class="action-card-icon">➕</span>
             <h3>Reembolso</h3>
             <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
         </a>
-        <a href="/meus-reembolsos/" class="action-card">
+        <a href="/meus-reembolsos/" class="action-card" data-tour-step="2" data-tour-title="📄 Meus Reembolsos" data-tour-text="Acompanhe todas as suas solicitações de reembolso, veja o status de cada uma (pendente, aprovado, rejeitado, concluído) e acesse os detalhes quando necessário. Você também pode baixar o PDF de cada solicitação.">
             <span class="action-card-icon">📄</span>
             <h3>Meus Reembolsos</h3>
             <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
         </a>
-        <a href="/aprovar-reembolsos/" class="action-card">
+        <a href="/aprovar-reembolsos/" class="action-card" data-tour-step="3" data-tour-title="✅ Aprovar Reembolsos" data-tour-text="Como gestor, você pode aprovar ou rejeitar as solicitações dos seus solicitantes. Revise cuidadosamente os documentos anexados antes de aprovar. Você também pode visualizar todos os detalhes e itens de cada solicitação.">
             <span class="action-card-icon">✅</span>
             <h3>Aprovar Reembolsos</h3>
             <p>Visualize e gerencie as solicitações de reembolso dos seus solicitantes.</p>
         </a>
-        <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="action-card">
+        <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="action-card" data-tour-step="4" data-tour-title="📋 Últimos Reembolsos" data-tour-text="Visualize todas as solicitações relacionadas à sua gestão, incluindo as que você aprovou, rejeitou ou que estão em processo. Use os filtros para encontrar solicitações específicas rapidamente.">
             <span class="action-card-icon">📋</span>
             <h3>Últimos Reembolsos</h3>
             <p>Acompanhe todas as solicitações relacionadas à sua gestão.</p>
         </a>
         {% else %}
-        <a href="{% url 'intra:reembolso' %}" class="action-card">
+        <a href="{% url 'intra:reembolso' %}" class="action-card" data-tour-step="1" data-tour-title="➕ Solicitar Reembolso" data-tour-text="Crie uma nova solicitação de reembolso preenchendo todos os campos obrigatórios: dados gerais (centro de custo e gestor), itens de despesa com códigos corretos e anexando os comprovantes necessários. Você pode adicionar múltiplos itens em uma única solicitação.">
             <span class="action-card-icon">➕</span>
             <h3>Solicitar Reembolso</h3>
             <p>Crie uma nova solicitação de reembolso de despesas de forma rápida e simples.</p>
         </a>
-        <a href="/meus-reembolsos/" class="action-card">
+        <a href="/meus-reembolsos/" class="action-card" data-tour-step="2" data-tour-title="📄 Meus Reembolsos" data-tour-text="Acompanhe o status de todas as suas solicitações. Você pode ver se estão pendentes, aprovadas, rejeitadas ou concluídas. Clique em cada uma para ver os detalhes completos e baixar o PDF quando disponível.">
             <span class="action-card-icon">📄</span>
             <h3>Meus Reembolsos</h3>
             <p>Consulte o histórico e status de todas as suas solicitações de reembolso.</p>
@@ -236,7 +270,7 @@
         {% endif %}
     </div>
 
-    <div class="info-banner">
+    <div class="info-banner" id="info-banner" data-tour-step="{% if is_gestor_admin %}4{% elif is_gestor_simples %}5{% else %}3{% endif %}" data-tour-title="💡 Dicas Importantes" data-tour-text="{% if is_gestor_admin %}Como gestor administrativo, você tem acesso completo a todas as funcionalidades. Use o Dashboard para acompanhar métricas importantes e mantenha-se atualizado sobre todos os reembolsos do sistema. Revise cuidadosamente os documentos antes de aprovar ou rejeitar solicitações.{% elif is_gestor_simples %}Como gestor, você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar. Mantenha seus dados bancários atualizados no seu perfil.{% else %}Mantenha seus dados bancários atualizados no seu perfil (acesse pelo menu lateral) e certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso. Anexe sempre os comprovantes necessários para agilizar a aprovação.{% endif %}">
         <p><strong>💡 Dica:</strong> 
         {% if is_gestor_admin %}
             Como gestor administrativo, você tem acesso completo a todas as funcionalidades do sistema. Use o Dashboard para acompanhar métricas e estatísticas importantes.
@@ -247,5 +281,462 @@
         {% endif %}
         </p>
     </div>
+    
+    <!-- Caixa de boas-vindas do tour (invisível até o tour começar) -->
+    <div id="tour-welcome-box" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000000; background: #ffffff; color: #2c3e50; padding: 3rem 2.5rem; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 500px; width: 90%; text-align: center; pointer-events: auto; border: 2px solid #e1e8ed;">
+        <h2 style="margin: 0 0 1rem; font-size: 1.5rem; color: #34495e; font-weight: 700;">Bem-vindo! 👋</h2>
+        <p style="margin: 0 0 1.5rem; font-size: 1rem; line-height: 1.6; color: #7f8c8d;">
+            {% if is_gestor_admin %}
+                Olá! Você é um Gestor Administrativo. Este tour vai te mostrar as principais funcionalidades disponíveis para você no sistema. Clique em 'Próximo' para começar!
+            {% elif is_gestor_simples %}
+                Olá! Você é um Gestor. Este tour vai te mostrar como usar o sistema para aprovar reembolsos e criar suas próprias solicitações. Vamos começar!
+            {% else %}
+                Olá! Este tour vai te ajudar a entender como solicitar reembolsos e acompanhar suas solicitações. Vamos começar!
+            {% endif %}
+        </p>
+    </div>
 </div>
+
+<!-- Intro.js CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/minified/introjs.min.css">
+
+<!-- Intro.js JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/minified/intro.min.js"></script>
+
+<script>
+function iniciarTour() {
+    // Verificar se o tour já foi completado (usando localStorage)
+    const tourKey = 'tour_completo_{{ user.id }}_{% if is_gestor_admin %}admin{% elif is_gestor_simples %}gestor{% else %}solicitante{% endif %}';
+    
+    // Mostrar caixa de boas-vindas
+    const welcomeBox = document.getElementById('tour-welcome-box');
+    if (!welcomeBox) {
+        console.error('Caixa de boas-vindas não encontrada');
+        return;
+    }
+    
+    // Garantir que está visível e centralizada
+    welcomeBox.style.display = 'block';
+    welcomeBox.style.pointerEvents = 'auto';
+    welcomeBox.style.position = 'fixed';
+    welcomeBox.style.top = '50%';
+    welcomeBox.style.left = '50%';
+    welcomeBox.style.transform = 'translate(-50%, -50%)';
+    welcomeBox.style.zIndex = '1000000';
+    
+    // Criar overlay escuro
+    let overlay = document.getElementById('tour-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'tour-overlay';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 999998; pointer-events: auto;';
+        document.body.appendChild(overlay);
+    } else {
+        overlay.style.display = 'block';
+    }
+    
+    // Coletar todos os elementos com data-tour-step
+    const steps = [];
+    const elementos = document.querySelectorAll('[data-tour-step]');
+    
+    // Ordenar elementos por data-tour-step
+    const elementosOrdenados = Array.from(elementos).sort((a, b) => {
+        return parseInt(a.getAttribute('data-tour-step')) - parseInt(b.getAttribute('data-tour-step'));
+    });
+    
+    // Criar steps para o intro.js (começando do segundo step, pois o primeiro é a caixa de boas-vindas)
+    elementosOrdenados.forEach((elemento, index) => {
+        // Verificar se é o info-banner (dicas importantes) - sempre colocar acima
+        const isInfoBanner = elemento.id === 'info-banner' || elemento.classList.contains('info-banner');
+        
+        const step = {
+            element: elemento,
+            intro: elemento.getAttribute('data-tour-text'),
+            title: elemento.getAttribute('data-tour-title'),
+            position: isInfoBanner ? 'top' : 'top', // Sempre acima
+            scrollTo: isInfoBanner ? 'off' : 'element' // Desabilitar scroll automático para info-banner
+        };
+        steps.push(step);
+    });
+    
+    // Variável para controlar se já passou do primeiro step
+    let primeiroStepCompleto = false;
+    
+    // Função para avançar do primeiro step (caixa de boas-vindas) para o segundo
+    function avancarDoPrimeiroStep(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        if (!primeiroStepCompleto) {
+            primeiroStepCompleto = true;
+            welcomeBox.style.display = 'none';
+            if (overlay && overlay.parentNode) {
+                overlay.remove();
+            }
+            
+            // Configurações do intro.js
+            const intro = introJs();
+            
+            intro.setOptions({
+                steps: steps,
+                showProgress: true,
+                showBullets: true,
+                exitOnOverlayClick: false,
+                exitOnEsc: true,
+                nextLabel: 'Próximo →',
+                prevLabel: '← Anterior',
+                skipLabel: '', // Remover botão de pular
+                doneLabel: 'Finalizar',
+                tooltipClass: 'customTooltip',
+                highlightClass: 'customHighlight',
+                buttonClass: 'introjs-button',
+                showStepNumbers: false
+            });
+            
+            // Quando o tour for completado
+            intro.oncomplete(function() {
+                localStorage.setItem(tourKey, 'true');
+            });
+            
+            // Quando o tour for cancelado (ESC)
+            intro.onexit(function() {
+                welcomeBox.style.display = 'none';
+                if (overlay && overlay.parentNode) {
+                    overlay.remove();
+                }
+            });
+            
+            // Função para reposicionar tooltip do info-banner centralizado, mas um pouco para baixo e à esquerda
+            function reposicionarTooltipInfoBanner() {
+                const tooltip = document.querySelector('.introjs-tooltip');
+                if (tooltip) {
+                    // Remover todas as classes de posicionamento
+                    tooltip.classList.remove('introjs-tooltip-bottom', 'introjs-tooltip-left', 'introjs-tooltip-right', 'introjs-tooltip-top');
+                    
+                    // Posição centralizada (60% vertical) com pequenos deslocamentos para baixo (20px) e à esquerda (70px)
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.top = '60%';
+                    tooltip.style.left = '50%';
+                    tooltip.style.right = 'auto';
+                    tooltip.style.bottom = 'auto';
+                    tooltip.style.transform = 'translate(calc(-50% - 70px), calc(-50% + 20px))'; // 70px à esquerda, 20px para baixo
+                    tooltip.style.margin = '0';
+                    tooltip.style.marginTop = '0';
+                    tooltip.style.marginBottom = '0';
+                    tooltip.style.marginLeft = '0';
+                    tooltip.style.marginRight = '0';
+                    tooltip.style.maxWidth = '90%';
+                    tooltip.style.maxHeight = '80vh';
+                    tooltip.style.overflowY = 'auto';
+                    tooltip.style.zIndex = '1000002';
+                    tooltip.style.pointerEvents = 'auto';
+                    
+                    // Remover qualquer offset que possa estar sendo aplicado
+                    const tooltipParent = tooltip.parentElement;
+                    if (tooltipParent) {
+                        tooltipParent.style.position = 'fixed';
+                        tooltipParent.style.top = '60%';
+                        tooltipParent.style.left = '50%';
+                        tooltipParent.style.transform = 'translate(calc(-50% - 70px), calc(-50% + 20px))';
+                    }
+                    
+                    // Remover seta do tooltip
+                    const arrow = tooltip.querySelector('.introjs-arrow');
+                    if (arrow) {
+                        arrow.style.display = 'none';
+                    }
+                    
+                    // Garantir que os botões sejam clicáveis
+                    const buttons = tooltip.querySelectorAll('button, a');
+                    buttons.forEach(function(btn) {
+                        btn.style.pointerEvents = 'auto';
+                        btn.style.zIndex = '1000003';
+                    });
+                }
+            }
+            
+            // Quando mudar de step - ajustar scroll para info-banner
+            intro.onchange(function(targetElement) {
+                if (targetElement) {
+                    const isInfoBanner = targetElement.id === 'info-banner' || targetElement.classList.contains('info-banner');
+                    if (isInfoBanner) {
+                        // Reposicionar tooltip centralizado, mas um pouco para baixo e à esquerda
+                        reposicionarTooltipInfoBanner();
+                        setTimeout(reposicionarTooltipInfoBanner, 50);
+                        setTimeout(reposicionarTooltipInfoBanner, 100);
+                        setTimeout(reposicionarTooltipInfoBanner, 200);
+                        setTimeout(reposicionarTooltipInfoBanner, 300);
+                        setTimeout(reposicionarTooltipInfoBanner, 500);
+                        
+                        // Usar setInterval para continuar reposicionando enquanto estiver no info-banner
+                        const reposicionarInterval = setInterval(function() {
+                            const currentElement = document.querySelector('.introjs-showElement, .introjs-relativePosition');
+                            if (currentElement && (currentElement.id === 'info-banner' || currentElement.classList.contains('info-banner'))) {
+                                reposicionarTooltipInfoBanner();
+                            } else {
+                                clearInterval(reposicionarInterval);
+                            }
+                        }, 100);
+                        
+                        // Limpar intervalo após 10 segundos
+                        setTimeout(function() {
+                            clearInterval(reposicionarInterval);
+                        }, 10000);
+                    } else {
+                        // Para outros elementos, resetar estilos do tooltip
+                        const tooltip = document.querySelector('.introjs-tooltip');
+                        if (tooltip) {
+                            tooltip.style.position = '';
+                            tooltip.style.top = '';
+                            tooltip.style.left = '';
+                            tooltip.style.right = '';
+                            tooltip.style.bottom = '';
+                            tooltip.style.transform = '';
+                            tooltip.style.maxWidth = '';
+                            tooltip.style.zIndex = '';
+                            tooltip.style.marginTop = '';
+                            tooltip.style.marginBottom = '';
+                            
+                            // Restaurar seta
+                            const arrow = tooltip.querySelector('.introjs-arrow');
+                            if (arrow) {
+                                arrow.style.display = '';
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Iniciar o tour a partir do segundo step
+            intro.start();
+        }
+    }
+    
+    // Remover botão anterior se existir
+    const botaoAnterior = welcomeBox.querySelector('button');
+    if (botaoAnterior) {
+        botaoAnterior.remove();
+    }
+    
+    // Adicionar botão "Próximo" na caixa de boas-vindas
+    const botaoProximo = document.createElement('button');
+    botaoProximo.textContent = 'Próximo →';
+    botaoProximo.style.cssText = 'background: #34495e; color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.2s; margin-top: 1rem; pointer-events: auto;';
+    botaoProximo.onmouseover = function() { 
+        this.style.transform = 'translateY(-2px)'; 
+        this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)'; 
+    };
+    botaoProximo.onmouseout = function() { 
+        this.style.transform = 'translateY(0)'; 
+        this.style.boxShadow = 'none'; 
+    };
+    botaoProximo.onclick = avancarDoPrimeiroStep;
+    botaoProximo.addEventListener('click', avancarDoPrimeiroStep, true);
+    welcomeBox.appendChild(botaoProximo);
+    
+    // Permitir fechar com ESC também no primeiro step
+    function fecharComEsc(e) {
+        if (e.key === 'Escape' && !primeiroStepCompleto) {
+            welcomeBox.style.display = 'none';
+            if (overlay && overlay.parentNode) {
+                overlay.remove();
+            }
+            document.removeEventListener('keydown', fecharComEsc);
+        }
+    }
+    document.addEventListener('keydown', fecharComEsc);
+}
+
+// Não mostrar tour automaticamente - apenas quando o usuário clicar no botão
+</script>
+
+<style>
+/* Estilos customizados para o intro.js */
+.customTooltip {
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.introjs-tooltip {
+    min-width: 300px;
+    max-width: 500px;
+}
+
+.introjs-tooltip-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #34495e;
+    margin-bottom: 0.5rem;
+}
+
+.introjs-tooltiptext {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #2c3e50;
+}
+
+.introjs-button {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.introjs-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.introjs-nextbutton {
+    background: #7f8c8d;
+    color: white;
+    border: none;
+}
+
+.introjs-nextbutton:hover {
+    background: #95a5a6;
+}
+
+.introjs-prevbutton {
+    background: #ecf0f1;
+    color: #34495e;
+    border: 1px solid #bdc3c7;
+}
+
+.introjs-skipbutton {
+    display: none !important; /* Esconder botão de pular */
+}
+
+.introjs-donebutton {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    color: white;
+    border: none;
+}
+
+.customHighlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 
+                0 0 0 4px #34495e,
+                0 0 20px rgba(52, 73, 94, 0.6),
+                0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 8px;
+    transform: scale(1.02) !important;
+    transition: all 0.3s ease !important;
+    z-index: 1000001 !important;
+    position: relative !important;
+}
+
+/* Ajustar z-index da caixa de boas-vindas */
+#tour-welcome-box {
+    z-index: 1000000 !important;
+}
+
+#tour-welcome-box button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Destacar elementos durante o tour */
+.introjs-showElement {
+    z-index: 1000001 !important;
+}
+
+.introjs-relativePosition {
+    z-index: 1000001 !important;
+}
+
+/* Adicionar brilho aos cards durante o tour */
+.introjs-helperLayer {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Destacar os action-cards durante o tour */
+.action-card.introjs-showElement,
+.action-card.introjs-relativePosition {
+    box-shadow: 0 0 0 4px #34495e,
+                0 0 20px rgba(52, 73, 94, 0.6),
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 4px 12px rgba(52, 73, 94, 0.3) !important;
+    transform: scale(1.05) !important;
+    border-left-width: 6px !important;
+    border-left-color: #34495e !important;
+    z-index: 1000001 !important;
+    position: relative !important;
+}
+
+/* Destacar o info-banner durante o tour */
+.info-banner.introjs-showElement,
+.info-banner.introjs-relativePosition {
+    box-shadow: 0 0 0 4px #34495e,
+                0 0 20px rgba(52, 73, 94, 0.6),
+                0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    transform: scale(1.03) !important;
+    border-left-width: 6px !important;
+    border-left-color: #34495e !important;
+    z-index: 1000001 !important;
+    position: relative !important;
+}
+
+/* Ajustar posição dos tooltips para ficarem mais acima */
+.introjs-tooltip {
+    margin-top: -50px !important;
+}
+
+/* Posição específica para o info-banner (dicas importantes) - centralizado, mas um pouco para baixo e à esquerda */
+.info-banner.introjs-showElement ~ .introjs-tooltip,
+.info-banner.introjs-relativePosition ~ .introjs-tooltip,
+.introjs-tooltip:has(+ .info-banner),
+.introjs-tooltipReferenceLayer:has(.info-banner) + .introjs-tooltip {
+    position: fixed !important;
+    top: 60% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(calc(-50% - 70px), calc(-50% + 20px)) !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 90% !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    z-index: 1000002 !important;
+}
+
+/* Forçar que tooltips relacionados ao info-banner apareçam centralizados com deslocamento */
+.introjs-helperLayer:has(+ .introjs-tooltip) ~ .introjs-tooltip,
+.introjs-tooltipReferenceLayer:has(.info-banner) + .introjs-tooltip,
+.introjs-tooltip[data-step*="info"] {
+    position: fixed !important;
+    top: 60% !important;
+    left: 50% !important;
+    transform: translate(calc(-50% - 70px), calc(-50% + 20px)) !important;
+    margin: 0 !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+}
+
+/* Quando o elemento ativo for o info-banner, posicionar tooltip centralizado com deslocamento */
+body:has(.info-banner.introjs-showElement) .introjs-tooltip,
+body:has(.info-banner.introjs-relativePosition) .introjs-tooltip {
+    position: fixed !important;
+    top: 60% !important;
+    left: 50% !important;
+    transform: translate(calc(-50% - 70px), calc(-50% + 20px)) !important;
+    margin: 0 !important;
+}
+
+/* Garantir que o elemento info-banner fique visível no topo */
+.introjs-showElement.info-banner {
+    scroll-margin-top: 0;
+}
+
+/* Quando o info-banner estiver destacado, garantir que a página não faça scroll */
+body.introjs-fixParent {
+    overflow: hidden !important;
+}
+</style>
+
 {% endblock %}

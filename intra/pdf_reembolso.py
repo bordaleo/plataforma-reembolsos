@@ -272,20 +272,17 @@ def _gerar_folha_rosto(solicitacao):
     if itens:
         c.setFont("Helvetica", 7)  # Fonte menor para dados
         for i, item in enumerate(itens):
-            # Programa (centro de custo) - apenas na primeira linha, mostrar completo
-            if i == 0:
-                programa = solicitacao.centro_custo or "-"
-                # Calcular largura disponível até a próxima coluna
-                largura_disponivel = col_cod - col_programa - 5 * mm
-                # Tentar mostrar completo, se não couber usar "..." no final
-                if c.stringWidth(programa, "Helvetica", 7) > largura_disponivel:
-                    # Reduzir até caber
-                    while len(programa) > 0 and c.stringWidth(programa + "...", "Helvetica", 7) > largura_disponivel:
-                        programa = programa[:-1]
-                    programa = programa + "..."
-                c.drawString(col_programa, y, programa)
-            else:
-                c.drawString(col_programa, y, "-")
+            # Programa (centro de custo) - mostrar em todos os itens
+            programa = solicitacao.centro_custo or "-"
+            # Calcular largura disponível até a próxima coluna
+            largura_disponivel = col_cod - col_programa - 5 * mm
+            # Tentar mostrar completo, se não couber usar "..." no final
+            if c.stringWidth(programa, "Helvetica", 7) > largura_disponivel:
+                # Reduzir até caber
+                while len(programa) > 0 and c.stringWidth(programa + "...", "Helvetica", 7) > largura_disponivel:
+                    programa = programa[:-1]
+                programa = programa + "..."
+            c.drawString(col_programa, y, programa)
             
             # Código de despesa (apenas o código, sem descrição na tabela)
             cod_desp = item.cod_despesa or "-"
@@ -503,21 +500,32 @@ def _gerar_folha_rosto(solicitacao):
     if y < 20 * mm:
         y = 20 * mm
     
-    # Data e assinaturas na mesma linha (alinhadas) - DEPOIS das orientações
+    # Data um pouco mais para baixo e para a direita
+    data_y = y - 10 * mm  # Mover data mais para baixo
+    data_x = margin_right - -5 * mm  # Mover data um pouco para a direita
     c.setFont("Helvetica", 9)
-    c.drawRightString(margin_right, y, f"São Paulo, {data_ext}")
+    c.drawRightString(data_x, data_y, f"São Paulo, {data_ext}")
     
     # Linhas para assinaturas
     linha_y = y + 5 * mm  # Linha acima do texto (mais próxima)
     linha_largura = 50 * mm  # Largura da linha
     
-    # Linha para Assinatura - Solicitante
-    c.line(margin_left, linha_y, margin_left + linha_largura, linha_y)
-    c.drawString(margin_left, y, "Assinatura - Solicitante")
+    # Obter nome do solicitante (já obtido anteriormente)
+    # nome_solicitante já está definido na linha 378
     
-    # Linha para Assinatura - Gestor
+    # Obter nome do gestor
+    nome_gestor = solicitacao.nome_gestor or "-"
+    
+    # Linha para Assinatura - Solicitante (com nome)
+    c.line(margin_left, linha_y, margin_left + linha_largura, linha_y)
+    c.setFont("Helvetica", 9)
+    texto_solicitante = f"Assinatura - {nome_solicitante}"
+    c.drawString(margin_left, y, texto_solicitante)
+    
+    # Linha para Assinatura - Gestor (com nome)
     c.line(margin_left + 70 * mm, linha_y, margin_left + 70 * mm + linha_largura, linha_y)
-    c.drawString(margin_left + 70 * mm, y, "Assinatura - Gestor")
+    texto_gestor = f"Assinatura - {nome_gestor}"
+    c.drawString(margin_left + 70 * mm, y, texto_gestor)
     
     c.showPage()
     c.save()

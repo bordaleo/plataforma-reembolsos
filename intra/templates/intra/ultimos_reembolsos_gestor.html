@@ -1739,7 +1739,7 @@
                             html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
                             if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
                             if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
-                            if (data.pix_cpf) html += '<span style="display: block;">CPF: ' + escapeHtml(data.pix_cpf) + '</span>';
+                            if (data.pix_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.pix_cpf) + '</span>';
                             html += '</div>';
                         } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                             html += '<div style="margin-top: 0.5rem;">';
@@ -1751,6 +1751,7 @@
                                 html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
                             }
                             if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                            if (data.transf_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.transf_cpf) + '</span>';
                             html += '</div>';
                         }
                         html += '</div>';
@@ -1885,7 +1886,32 @@
                             html += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + escapeHtml(hist.data) + '</span>';
                             html += '</div>';
                             if (hist.descricao) {
-                                html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(hist.descricao) + '</p>';
+                                var descricao = hist.descricao || '';
+                                // Se contém "Alterações realizadas:", separar cada alteração por linha
+                                if (descricao.indexOf('Alterações realizadas:') !== -1) {
+                                    var partes = descricao.split('Alterações realizadas:');
+                                    var textoAntes = escapeHtml(partes[0]);
+                                    var alteracoes = partes[1] || '';
+                                    
+                                    html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + textoAntes + '</p>';
+                                    
+                                    if (alteracoes) {
+                                        // Separar por ponto e vírgula e criar uma lista
+                                        var listaAlteracoes = alteracoes.split(';').map(function(a) { return a.trim(); }).filter(function(a) { return a.length > 0; });
+                                        if (listaAlteracoes.length > 0) {
+                                            html += '<div style="margin: 0.5rem 0; padding-left: 1rem;">';
+                                            html += '<strong style="color: #34495e; font-size: 0.9rem;">Alterações realizadas:</strong>';
+                                            html += '<ul style="margin: 0.5rem 0 0; padding-left: 1.5rem; color: #2c3e50; font-size: 0.9rem; line-height: 1.8;">';
+                                            listaAlteracoes.forEach(function(alt) {
+                                                html += '<li style="margin-bottom: 0.25rem;">' + escapeHtml(alt) + '</li>';
+                                            });
+                                            html += '</ul>';
+                                            html += '</div>';
+                                        }
+                                    }
+                                } else {
+                                    html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(descricao) + '</p>';
+                                }
                             }
                             html += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + escapeHtml(hist.usuario) + '</p>';
                             html += '</div>';
@@ -1954,7 +1980,7 @@
                             html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
                             if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
                             if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
-                            if (data.pix_cpf) html += '<span style="display: block;">CPF: ' + escapeHtml(data.pix_cpf) + '</span>';
+                            if (data.pix_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.pix_cpf) + '</span>';
                             html += '</div>';
                         } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                             html += '<div style="margin-top: 0.5rem;">';
@@ -1966,6 +1992,7 @@
                                 html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
                             }
                             if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                            if (data.transf_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.transf_cpf) + '</span>';
                             html += '</div>';
                         }
                         html += '</div>';
@@ -2154,7 +2181,32 @@
                             html += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + escapeHtml(hist.data) + '</span>';
                             html += '</div>';
                             if (hist.descricao) {
-                                html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(hist.descricao) + '</p>';
+                                var descricao = hist.descricao || '';
+                                // Se contém "Alterações realizadas:", separar cada alteração por linha
+                                if (descricao.indexOf('Alterações realizadas:') !== -1) {
+                                    var partes = descricao.split('Alterações realizadas:');
+                                    var textoAntes = escapeHtml(partes[0]);
+                                    var alteracoes = partes[1] || '';
+                                    
+                                    html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + textoAntes + '</p>';
+                                    
+                                    if (alteracoes) {
+                                        // Separar por ponto e vírgula e criar uma lista
+                                        var listaAlteracoes = alteracoes.split(';').map(function(a) { return a.trim(); }).filter(function(a) { return a.length > 0; });
+                                        if (listaAlteracoes.length > 0) {
+                                            html += '<div style="margin: 0.5rem 0; padding-left: 1rem;">';
+                                            html += '<strong style="color: #34495e; font-size: 0.9rem;">Alterações realizadas:</strong>';
+                                            html += '<ul style="margin: 0.5rem 0 0; padding-left: 1.5rem; color: #2c3e50; font-size: 0.9rem; line-height: 1.8;">';
+                                            listaAlteracoes.forEach(function(alt) {
+                                                html += '<li style="margin-bottom: 0.25rem;">' + escapeHtml(alt) + '</li>';
+                                            });
+                                            html += '</ul>';
+                                            html += '</div>';
+                                        }
+                                    }
+                                } else {
+                                    html += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + escapeHtml(descricao) + '</p>';
+                                }
                             }
                             html += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + escapeHtml(hist.usuario) + '</p>';
                             html += '</div>';
@@ -2226,7 +2278,7 @@
                         html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>PIX</span></div>';
                         if (data.pix_chave) html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + escapeHtml(data.pix_chave) + '</span></div>';
                         if (data.pix_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.pix_banco) + '</span></div>';
-                        if (data.pix_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF</strong><span>' + escapeHtml(data.pix_cpf) + '</span></div>';
+                        if (data.pix_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.pix_cpf) + '</span></div>';
                     } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                         html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>Transferência Bancária</span></div>';
                         if (data.transf_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.transf_banco) + '</span></div>';
@@ -2236,6 +2288,7 @@
                             html += '<div class="detalhe-solicitacao-item"><strong>Tipo de Conta</strong><span>' + tipoConta + '</span></div>';
                         }
                         if (data.transf_conta_numero) html += '<div class="detalhe-solicitacao-item"><strong>Conta</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                        if (data.transf_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.transf_cpf) + '</span></div>';
                     }
                     html += '</div>';
                 }

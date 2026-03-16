@@ -509,7 +509,7 @@
                 </div>
             </div>
         </div>
-        <button type="button" class="btn btn-secondary add-linha" id="btn-add-linha">+ Adicionar linha</button>
+        <button type="button" class="btn btn-secondary add-linha" id="btn-add-linha">+ Adicionar Item</button>
         <div style="text-align: center; margin: 1.5rem 0 0;">
             <p id="valor-total-container" class="valor-total-container">
                 <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
@@ -550,9 +550,9 @@
                        placeholder="Nome do banco">
             </div>
             <div class="form-group">
-                <label for="pix_cpf">CPF <span style="color: #e74c3c;">*</span></label>
+                <label for="pix_cpf">CPF/CNPJ <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="pix_cpf" id="pix_cpf" class="form-control" 
-                       placeholder="000.000.000-00" maxlength="14">
+                       placeholder="CPF ou CNPJ" maxlength="18">
             </div>
         </div>
 
@@ -583,6 +583,11 @@
                 <label for="transf_conta_numero">Conta Corrente ou Poupança <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_conta_numero" id="transf_conta_numero" class="form-control" 
                        placeholder="00000-0" maxlength="30">
+            </div>
+            <div class="form-group">
+                <label for="transf_cpf">CPF/CNPJ <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="transf_cpf" id="transf_cpf" class="form-control" 
+                       placeholder="CPF ou CNPJ" maxlength="18">
             </div>
         </div>
     </div>
@@ -980,10 +985,12 @@
             var transfAgencia = document.getElementById('transf_agencia');
             var transfContaTipo = document.getElementById('transf_conta_tipo');
             var transfContaNumero = document.getElementById('transf_conta_numero');
+            var transfCpf = document.getElementById('transf_cpf');
             if (transfBanco) transfBanco.removeAttribute('required');
             if (transfAgencia) transfAgencia.removeAttribute('required');
             if (transfContaTipo) transfContaTipo.removeAttribute('required');
             if (transfContaNumero) transfContaNumero.removeAttribute('required');
+            if (transfCpf) transfCpf.removeAttribute('required');
         } else if (forma === 'TRANSFERENCIA') {
             if (camposPix) camposPix.style.display = 'none';
             if (camposTransferencia) camposTransferencia.style.display = 'block';
@@ -999,10 +1006,12 @@
             var transfAgencia = document.getElementById('transf_agencia');
             var transfContaTipo = document.getElementById('transf_conta_tipo');
             var transfContaNumero = document.getElementById('transf_conta_numero');
+            var transfCpf = document.getElementById('transf_cpf');
             if (transfBanco) transfBanco.setAttribute('required', 'required');
             if (transfAgencia) transfAgencia.setAttribute('required', 'required');
             if (transfContaTipo) transfContaTipo.setAttribute('required', 'required');
             if (transfContaNumero) transfContaNumero.setAttribute('required', 'required');
+            if (transfCpf) transfCpf.setAttribute('required', 'required');
         } else {
             if (camposPix) camposPix.style.display = 'none';
             if (camposTransferencia) camposTransferencia.style.display = 'none';
@@ -1071,10 +1080,12 @@
                 var transfAgencia = document.getElementById('transf_agencia');
                 var transfContaTipo = document.getElementById('transf_conta_tipo');
                 var transfContaNumero = document.getElementById('transf_conta_numero');
+                var transfCpf = document.getElementById('transf_cpf');
                 if (transfBanco && perfilData.banco_transf) transfBanco.value = perfilData.banco_transf;
                 if (transfAgencia && perfilData.agencia) transfAgencia.value = perfilData.agencia;
                 if (transfContaTipo && perfilData.conta_tipo) transfContaTipo.value = perfilData.conta_tipo;
                 if (transfContaNumero && perfilData.conta_numero) transfContaNumero.value = perfilData.conta_numero;
+                if (transfCpf && perfilData.cpf_transferencia) transfCpf.value = perfilData.cpf_transferencia;
             }
             
             // Feedback visual
@@ -1085,23 +1096,53 @@
         });
     }
     
-    // Máscara para CPF
+    // Função para aplicar máscara de CPF ou CNPJ
+    function aplicarMascaraCPFCNPJ(value) {
+        var numeros = value.replace(/\D/g, '');
+        
+        // Se tiver 11 dígitos ou menos, aplicar máscara de CPF
+        if (numeros.length <= 11) {
+            if (numeros.length <= 3) {
+                return numeros;
+            } else if (numeros.length <= 6) {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3);
+            } else if (numeros.length <= 9) {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+            } else {
+                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9, 11);
+            }
+        } else {
+            // Se tiver mais de 11 dígitos, aplicar máscara de CNPJ
+            if (numeros.length <= 14) {
+                if (numeros.length <= 2) {
+                    return numeros;
+                } else if (numeros.length <= 5) {
+                    return numeros.substring(0, 2) + '.' + numeros.substring(2);
+                } else if (numeros.length <= 8) {
+                    return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5);
+                } else if (numeros.length <= 12) {
+                    return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8);
+                } else {
+                    return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8, 12) + '-' + numeros.substring(12, 14);
+                }
+            }
+        }
+        return value;
+    }
+    
+    // Máscara para CPF/CNPJ no PIX
     var pixCpf = document.getElementById('pix_cpf');
     if (pixCpf) {
         pixCpf.addEventListener('input', function(e) {
-            var value = e.target.value.replace(/\D/g, '');
-            if (value.length <= 11) {
-                if (value.length <= 3) {
-                    value = value;
-                } else if (value.length <= 6) {
-                    value = value.substring(0, 3) + '.' + value.substring(3);
-                } else if (value.length <= 9) {
-                    value = value.substring(0, 3) + '.' + value.substring(3, 6) + '.' + value.substring(6);
-                } else {
-                    value = value.substring(0, 3) + '.' + value.substring(3, 6) + '.' + value.substring(6, 9) + '-' + value.substring(9, 11);
-                }
-                e.target.value = value;
-            }
+            e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
+        });
+    }
+    
+    // Máscara para CPF/CNPJ na Transferência
+    var transfCpf = document.getElementById('transf_cpf');
+    if (transfCpf) {
+        transfCpf.addEventListener('input', function(e) {
+            e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
         });
     }
     
@@ -1120,6 +1161,7 @@
             transf_agencia: '{{ solicitacao_editar.transf_agencia|default:"" }}',
             transf_conta_tipo: '{{ solicitacao_editar.transf_conta_tipo|default:"" }}',
             transf_conta_numero: '{{ solicitacao_editar.transf_conta_numero|default:"" }}',
+            transf_cpf: '{{ solicitacao_editar.transf_cpf|default:"" }}',
             itens: [
                 {% for item in solicitacao_editar.itens.all %}
                 {
@@ -1174,10 +1216,12 @@
                 var transfAgencia = document.getElementById('transf_agencia');
                 var transfContaTipo = document.getElementById('transf_conta_tipo');
                 var transfContaNumero = document.getElementById('transf_conta_numero');
+                var transfCpf = document.getElementById('transf_cpf');
                 if (transfBanco && sol.transf_banco) transfBanco.value = sol.transf_banco;
                 if (transfAgencia && sol.transf_agencia) transfAgencia.value = sol.transf_agencia;
                 if (transfContaTipo && sol.transf_conta_tipo) transfContaTipo.value = sol.transf_conta_tipo;
                 if (transfContaNumero && sol.transf_conta_numero) transfContaNumero.value = sol.transf_conta_numero;
+                if (transfCpf && sol.transf_cpf) transfCpf.value = sol.transf_cpf;
             }
         }
         

@@ -718,7 +718,7 @@
                             pagamentoHtml += '<p><strong>Forma de Pagamento:</strong> PIX</p>';
                             if (data.pix_chave) pagamentoHtml += '<p><strong>Chave PIX:</strong> ' + (data.pix_chave || '-') + '</p>';
                             if (data.pix_banco) pagamentoHtml += '<p><strong>Banco:</strong> ' + (data.pix_banco || '-') + '</p>';
-                            if (data.pix_cpf) pagamentoHtml += '<p><strong>CPF:</strong> ' + (data.pix_cpf || '-') + '</p>';
+                            if (data.pix_cpf) pagamentoHtml += '<p><strong>CPF/CNPJ:</strong> ' + (data.pix_cpf || '-') + '</p>';
                             pagamentoHtml += '</div>';
                         } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                             pagamentoHtml = '<div class="detalhe-campos">';
@@ -730,6 +730,7 @@
                                 pagamentoHtml += '<p><strong>Tipo de Conta:</strong> ' + tipoConta + '</p>';
                             }
                             if (data.transf_conta_numero) pagamentoHtml += '<p><strong>Conta:</strong> ' + (data.transf_conta_numero || '-') + '</p>';
+                            if (data.transf_cpf) pagamentoHtml += '<p><strong>CPF/CNPJ:</strong> ' + (data.transf_cpf || '-') + '</p>';
                             pagamentoHtml += '</div>';
                         }
                     } else {
@@ -754,6 +755,26 @@
                         statusBg = '#bee3f8';
                         statusColor = '#3182ce';
                         statusIcon = '⏳';
+                    } else if (data.status_descritivo === 'aguardando_pagamento') {
+                        statusLabel = 'Aprovado - Aguardando pagamento';
+                        statusBg = '#d1ecf1';
+                        statusColor = '#0c5460';
+                        statusIcon = '⏳';
+                    } else if (data.status_descritivo === 'pagamento_agendado') {
+                        statusLabel = 'Solicitação aprovada - Pagamento agendado';
+                        statusBg = '#d1ecf1';
+                        statusColor = '#0c5460';
+                        statusIcon = '📅';
+                    } else if (data.status_descritivo === 'pago_aguardando_assinaturas') {
+                        statusLabel = '⏳ Pago - Aguardando assinaturas';
+                        statusBg = '#fff3cd';
+                        statusColor = '#856404';
+                        statusIcon = '⏳';
+                    } else if (data.status_descritivo === 'assinado_todas_partes') {
+                        statusLabel = '✓ Assinado por todas as partes';
+                        statusBg = '#d4edda';
+                        statusColor = '#155724';
+                        statusIcon = '✓';
                     } else if (data.status_descritivo === 'aprovado') {
                         statusLabel = 'Aprovado';
                         statusBg = '#c6f6d5';
@@ -769,12 +790,18 @@
                         statusBg = '#d5f4e6';
                         statusColor = '#1e8449';
                         statusIcon = '✓';
+                    } else {
+                        // Fallback para status desconhecido
+                        statusLabel = data.status_descritivo || 'Status desconhecido';
+                        statusBg = '#e1e8ed';
+                        statusColor = '#7f8c8d';
+                        statusIcon = '?';
                     }
                     
                     var statusHtml = '<div style="background: ' + statusBg + '; border-left: 4px solid ' + statusColor + '; padding: 1rem 1.25rem; border-radius: 6px;"><div style="display: flex; align-items: center; gap: 0.5rem;"><span style="font-size: 1.5rem;">' + statusIcon + '</span><strong style="color: ' + statusColor + '; font-size: 1.1rem;">' + statusLabel + '</strong></div>';
                     
                     // Adicionar informações de assinatura DocuSign se aguardando assinatura
-                    if (data.status_descritivo === 'aguardando_assinatura' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
+                    if (data.status_descritivo === 'pago_aguardando_assinaturas' && data.status_docusign && data.status_docusign.aguardando_assinatura && data.status_docusign.aguardando_assinatura.length > 0) {
                         var nomesAguardando = data.status_docusign.aguardando_assinatura.map(function(s) { return s.nome; }).join(', ');
                         statusHtml += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);"><small style="color: #856404;">Aguardando assinatura de: ' + nomesAguardando + '</small></div>';
                     }
@@ -804,7 +831,32 @@
                             historicoHtml += '<span style="color: #7f8c8d; font-size: 0.85rem;">' + (hist.data || '') + '</span>';
                             historicoHtml += '</div>';
                             if (hist.descricao) {
-                                historicoHtml += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + (hist.descricao || '') + '</p>';
+                                var descricao = hist.descricao || '';
+                                // Se contém "Alterações realizadas:", separar cada alteração por linha
+                                if (descricao.indexOf('Alterações realizadas:') !== -1) {
+                                    var partes = descricao.split('Alterações realizadas:');
+                                    var textoAntes = partes[0];
+                                    var alteracoes = partes[1] || '';
+                                    
+                                    historicoHtml += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + textoAntes + '</p>';
+                                    
+                                    if (alteracoes) {
+                                        // Separar por ponto e vírgula e criar uma lista
+                                        var listaAlteracoes = alteracoes.split(';').map(function(a) { return a.trim(); }).filter(function(a) { return a.length > 0; });
+                                        if (listaAlteracoes.length > 0) {
+                                            historicoHtml += '<div style="margin: 0.5rem 0; padding-left: 1rem;">';
+                                            historicoHtml += '<strong style="color: #34495e; font-size: 0.9rem;">Alterações realizadas:</strong>';
+                                            historicoHtml += '<ul style="margin: 0.5rem 0 0; padding-left: 1.5rem; color: #2c3e50; font-size: 0.9rem; line-height: 1.8;">';
+                                            listaAlteracoes.forEach(function(alt) {
+                                                historicoHtml += '<li style="margin-bottom: 0.25rem;">' + alt + '</li>';
+                                            });
+                                            historicoHtml += '</ul>';
+                                            historicoHtml += '</div>';
+                                        }
+                                    }
+                                } else {
+                                    historicoHtml += '<p style="margin: 0.25rem 0; color: #2c3e50; font-size: 0.9rem; line-height: 1.5;">' + descricao + '</p>';
+                                }
                             }
                             historicoHtml += '<p style="margin: 0.25rem 0 0; color: #7f8c8d; font-size: 0.85rem;">Por: ' + (hist.usuario || 'Sistema') + '</p>';
                             historicoHtml += '</div>';

@@ -26,7 +26,7 @@ from django.core.cache import cache
 # Configurar logger para debug
 logger = logging.getLogger(__name__)
 
-from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm, EditarPagamentoForm
+from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm, EditarPagamentoForm, TrocarSenhaForm
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso
 from .pdf_reembolso import gerar_pdf
 from .docusign_integration import enviar_documento_para_assinatura, baixar_pdf_assinado, consultar_status_envelope
@@ -1491,7 +1491,16 @@ def meu_perfil(request):
     """Visualização e edição das informações do perfil do usuário."""
     perfil, _ = PerfilSolicitante.objects.get_or_create(user=request.user)
     
-    if request.method == 'POST':
+    # Processar formulário de trocar senha
+    senha_form = TrocarSenhaForm(user=request.user, data=request.POST if 'trocar_senha' in request.POST else None)
+    if 'trocar_senha' in request.POST and senha_form.is_valid():
+        request.user.set_password(senha_form.cleaned_data['nova_senha'])
+        request.user.save()
+        messages.success(request, "Senha alterada com sucesso!")
+        return redirect("intra:meu_perfil")
+    
+    # Processar formulário de editar pagamento
+    if request.method == 'POST' and 'editar_pagamento' in request.POST:
         form = EditarPagamentoForm(request.POST, instance=perfil)
         if form.is_valid():
             form.save()
@@ -1500,9 +1509,14 @@ def meu_perfil(request):
     else:
         form = EditarPagamentoForm(instance=perfil)
     
+    # Se não foi POST de trocar senha, criar formulário vazio
+    if 'trocar_senha' not in request.POST:
+        senha_form = TrocarSenhaForm(user=request.user)
+    
     return render(request, "intra/meu_perfil.html", {
         "perfil": perfil,
-        "form": form
+        "form": form,
+        "senha_form": senha_form
     })
 
 
@@ -1817,6 +1831,7 @@ def reembolso_detalhe_gestor_json(request, pk):
         "transf_agencia": sol.transf_agencia or "",
         "transf_conta_tipo": sol.transf_conta_tipo or "",
         "transf_conta_numero": sol.transf_conta_numero or "",
+        "transf_cpf": sol.transf_cpf or "",
         "nome_gestor": sol.nome_gestor or "",  # Nome do gestor indicado na solicitação
         "data_pagamento_programada": sol.data_pagamento_programada.strftime("%d/%m/%Y") if (sol.data_pagamento_programada and is_gestor_admin) else None,  # Data programada para pagamento (apenas para gestor admin)
         "historico": historico,
@@ -1951,6 +1966,7 @@ def reembolso_detalhe_json(request, pk):
         "transf_agencia": sol.transf_agencia or "",
         "transf_conta_tipo": sol.transf_conta_tipo or "",
         "transf_conta_numero": sol.transf_conta_numero or "",
+        "transf_cpf": sol.transf_cpf or "",
         "nome_gestor": sol.nome_gestor or "",  # Nome do gestor indicado na solicitação
         "historico": historico,
     })
@@ -2157,6 +2173,13 @@ def reembolso_decidir(request, pk):
                 sol.aprovado_em_gestor = timezone.now()
                 sol.motivo_rejeicao_gestor = ""
                 sol.save()
+                # Registrar no histórico
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Aprovada pelo gestor",
+                    descricao=f"Solicitação aprovada pelo gestor. Valor total: R$ {sol.valor_total:.2f}",
+                    usuario=request.user
+                )
                 # Enviar e-mail ao solicitante informando aprovação do gestor
                 _enviar_email_aprovacao_gestor(sol, aprovado=True)
                 # Enviar e-mail ao gestor administrativo informando nova solicitação aprovada
@@ -2194,6 +2217,13 @@ def reembolso_decidir(request, pk):
                 sol.aprovado_em_gestor_admin = timezone.now()
                 sol.motivo_rejeicao_gestor_admin = ""
                 sol.save()
+                # Registrar no histórico
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Aprovada pelo gestor administrativo",
+                    descricao=f"Solicitação aprovada pelo gestor administrativo. Valor total: R$ {sol.valor_total:.2f}. Aguardando pagamento.",
+                    usuario=request.user
+                )
                 # Enviar e-mail ao solicitante e ao gestor informando aprovação
                 _enviar_email_aprovacao_final(sol, aprovado=True)
                 messages.success(request, "Solicitação aprovada pelo gestor administrativo. Aguardando pagamento.")
@@ -3356,6 +3386,45 @@ def dashboard_gestor(request):
     areas_ordenadas_rejeitados = sorted(estatisticas_por_area, key=lambda x: x['rejeitado_count'], reverse=True)
     areas_ordenadas_taxa_rejeicao = sorted(estatisticas_por_area, key=lambda x: x['taxa_rejeicao'], reverse=True)
     
+    # Dados adicionais para gráficos avançados
+    # Comparação de custos médios por centro
+    custos_medios_por_centro = []
+    for area in estatisticas_por_area:
+        if area['count_geral'] > 0:
+            custo_medio = area['total_geral'] / area['count_geral']
+            custos_medios_por_centro.append({
+                'centro': area['centro_label'],
+                'custo_medio': float(custo_medio),
+                'total': area['total_geral'],
+                'count': area['count_geral']
+            })
+    
+    # Ordenar por custo médio
+    custos_medios_por_centro.sort(key=lambda x: x['custo_medio'], reverse=True)
+    
+    # Dados para gráfico de radar (performance por área)
+    radar_labels = [item['centro_label'] for item in estatisticas_por_area[:10]]  # Top 10 áreas
+    radar_data_concluidos = [item['taxa_aprovacao'] for item in estatisticas_por_area[:10]]
+    radar_data_rejeitados = [item['taxa_rejeicao'] for item in estatisticas_por_area[:10]]
+    
+    # Dados para gráfico de barras empilhadas (status por centro)
+    stacked_centros = [item['centro_label'] for item in estatisticas_por_area[:15]]  # Top 15
+    stacked_concluidos = [item['concluido_total'] for item in estatisticas_por_area[:15]]
+    stacked_em_processo = [item['em_processo_total'] for item in estatisticas_por_area[:15]]
+    stacked_rejeitados = [item['rejeitado_total'] for item in estatisticas_por_area[:15]]
+    
+    # Dados para gráfico de diferença de custos entre centros
+    diferenca_custos = []
+    if len(custos_medios_por_centro) > 1:
+        custo_max = max(custos_medios_por_centro, key=lambda x: x['custo_medio'])['custo_medio']
+        for item in custos_medios_por_centro:
+            diferenca = custo_max - item['custo_medio']
+            diferenca_custos.append({
+                'centro': item['centro'],
+                'diferenca': float(diferenca),
+                'custo_medio': item['custo_medio']
+            })
+    
     context = {
         'total_concluido': float(total_concluido),
         'total_em_processo': float(total_em_processo),
@@ -3428,6 +3497,22 @@ def dashboard_gestor(request):
         'areas_ordenadas_concluidos': areas_ordenadas_concluidos,
         'areas_ordenadas_rejeitados': areas_ordenadas_rejeitados,
         'areas_ordenadas_taxa_rejeicao': areas_ordenadas_taxa_rejeicao,
+        # Estatísticas por área para gráficos
+        'estatisticas_por_area_json': json.dumps(estatisticas_por_area),
+        # Dados para gráficos avançados
+        'custos_medios_por_centro': custos_medios_por_centro,
+        'diferenca_custos': diferenca_custos,
+        'radar_labels_json': json.dumps(radar_labels),
+        'radar_data_concluidos_json': json.dumps(radar_data_concluidos),
+        'radar_data_rejeitados_json': json.dumps(radar_data_rejeitados),
+        'stacked_centros_json': json.dumps(stacked_centros),
+        'stacked_concluidos_json': json.dumps(stacked_concluidos),
+        'stacked_em_processo_json': json.dumps(stacked_em_processo),
+        'stacked_rejeitados_json': json.dumps(stacked_rejeitados),
+        'custos_medios_labels_json': json.dumps([item['centro'] for item in custos_medios_por_centro]),
+        'custos_medios_valores_json': json.dumps([item['custo_medio'] for item in custos_medios_por_centro]),
+        'diferenca_custos_labels_json': json.dumps([item['centro'] for item in diferenca_custos]),
+        'diferenca_custos_valores_json': json.dumps([item['diferenca'] for item in diferenca_custos]),
     }
     
     return render(request, "intra/dashboard_gestor.html", context)
@@ -3620,20 +3705,39 @@ def reembolso(request):
             transf_agencia = request.POST.get("transf_agencia", "").strip()
             transf_conta_tipo = request.POST.get("transf_conta_tipo", "").strip()
             transf_conta_numero = request.POST.get("transf_conta_numero", "").strip()
+            transf_cpf = request.POST.get("transf_cpf", "").strip()
             # Capturar nome do gestor
             nome_gestor = request.POST.get("nome_gestor", "").strip()
             
             if sol:
                 # Atualizar solicitação existente
                 alteracoes = []
+                num_itens_antigos = len(itens_antigos)
+                num_itens_novos = len([i for i in itens_dados if i.get("tipo_despesa")])
+                
+                # Verificar motivo de rejeição anterior
+                motivo_rejeicao_anterior = ""
+                if sol.motivo_rejeicao_gestor:
+                    motivo_rejeicao_anterior = f"Motivo da rejeição pelo gestor: {sol.motivo_rejeicao_gestor}"
+                elif sol.motivo_rejeicao_gestor_admin:
+                    motivo_rejeicao_anterior = f"Motivo da rejeição pelo gestor administrativo: {sol.motivo_rejeicao_gestor_admin}"
+                
                 if sol.centro_custo != centro_custo:
                     alteracoes.append(f"Centro de custo alterado de '{sol.centro_custo}' para '{centro_custo}'")
                 if float(sol.valor_total) != valor_total:
-                    alteracoes.append(f"Valor total alterado de R$ {sol.valor_total} para R$ {valor_total}")
+                    alteracoes.append(f"Valor total alterado de R$ {sol.valor_total:.2f} para R$ {valor_total:.2f}")
                 if sol.nome_gestor != nome_gestor:
                     alteracoes.append(f"Nome do gestor alterado de '{sol.nome_gestor or '—'}' para '{nome_gestor or '—'}'")
                 if sol.forma_pagamento != forma_pagamento:
                     alteracoes.append(f"Forma de pagamento alterada de '{sol.forma_pagamento or '—'}' para '{forma_pagamento or '—'}'")
+                
+                # Verificar mudanças nos itens
+                if num_itens_antigos != num_itens_novos:
+                    alteracoes.append(f"Número de itens alterado de {num_itens_antigos} para {num_itens_novos}")
+                    if num_itens_novos > num_itens_antigos:
+                        alteracoes.append(f"Item(ns) adicionado(s): {num_itens_novos - num_itens_antigos}")
+                    else:
+                        alteracoes.append(f"Item(ns) removido(s): {num_itens_antigos - num_itens_novos}")
                 
                 sol.centro_custo = centro_custo
                 sol.cod_despesa = ""  # Não é mais obrigatório no nível da solicitação
@@ -3646,13 +3750,16 @@ def reembolso(request):
                 sol.transf_agencia = transf_agencia if transf_agencia else None
                 sol.transf_conta_tipo = transf_conta_tipo if transf_conta_tipo else None
                 sol.transf_conta_numero = transf_conta_numero if transf_conta_numero else None
+                sol.transf_cpf = transf_cpf if transf_cpf else None
                 sol.nome_gestor = nome_gestor if nome_gestor else None
                 sol.save()
                 
                 # Registrar no histórico
-                descricao_historico = "Solicitação editada e reenviada."
+                descricao_historico = "Solicitação editada e reenviada após rejeição."
+                if motivo_rejeicao_anterior:
+                    descricao_historico += " " + motivo_rejeicao_anterior
                 if alteracoes:
-                    descricao_historico += " Alterações: " + "; ".join(alteracoes)
+                    descricao_historico += " Alterações realizadas: " + "; ".join(alteracoes)
                 HistoricoReembolso.objects.create(
                     solicitacao=sol,
                     acao="Solicitação editada",
@@ -3674,6 +3781,7 @@ def reembolso(request):
                 transf_agencia=transf_agencia if transf_agencia else None,
                 transf_conta_tipo=transf_conta_tipo if transf_conta_tipo else None,
                 transf_conta_numero=transf_conta_numero if transf_conta_numero else None,
+                transf_cpf=transf_cpf if transf_cpf else None,
                 nome_gestor=nome_gestor if nome_gestor else None,
             )
             for item in itens_dados:
@@ -3776,13 +3884,7 @@ def reembolso(request):
                 sol.aprovado_por_gestor = request.user  # Auto-aprovado
                 sol.aprovado_em_gestor = timezone.now()
                 sol.save()
-                # Registrar no histórico
-                HistoricoReembolso.objects.create(
-                    solicitacao=sol,
-                    acao="Solicitação criada",
-                    descricao="Solicitação de reembolso criada e enviada para aprovação.",
-                    usuario=request.user
-                )
+                # Registrar no histórico (já foi criado antes, então não precisa criar novamente)
                 # Enviar e-mail aos gestores administrativos
                 _enviar_email_nova_solicitacao_gestor_admin(sol, request)
             else:

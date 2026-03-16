@@ -49,6 +49,7 @@
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         border-left: 4px solid #34495e;
         transition: all 0.3s;
+        cursor: pointer;
     }
     
     .kpi-card:hover {
@@ -318,11 +319,325 @@
         padding: 1.25rem;
         border-left: 3px solid #34495e;
         transition: all 0.3s;
+        cursor: pointer;
     }
     
     .insight-card:hover {
         transform: translateX(4px);
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background: #e8ecf0;
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        position: relative;
+        width: 1000px;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #34495e;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #7f8c8d;
+        padding: 0.5rem;
+        line-height: 1;
+        transition: color 0.3s;
+    }
+    
+    .modal-close:hover {
+        color: #e53e3e;
+    }
+    
+    .modal-body {
+        overflow-x: auto;
+    }
+    
+    /* Estilos para tabela de solicitações no modal */
+    .tabela-reembolsos {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #ffffff;
+        table-layout: auto;
+    }
+    
+    .tabela-reembolsos th {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        font-weight: 700;
+        padding: 1rem 1.25rem;
+        text-align: left;
+        font-size: 0.95rem;
+        letter-spacing: 0.3px;
+        border: none;
+    }
+    
+    .tabela-reembolsos th.valor {
+        color: #ffffff !important;
+    }
+    
+    .tabela-reembolsos th:first-child {
+        border-top-left-radius: 8px;
+    }
+    
+    .tabela-reembolsos th:last-child {
+        border-top-right-radius: 8px;
+    }
+    
+    .tabela-reembolsos td {
+        padding: 1rem 1.25rem;
+        border-bottom: 2px solid #e1e8ed;
+        font-size: 0.9rem;
+        color: #2c3e50;
+        vertical-align: middle;
+    }
+    
+    .tabela-reembolsos .acoes {
+        white-space: nowrap;
+    }
+    
+    .tabela-reembolsos tbody tr {
+        transition: background-color 0.2s;
+    }
+    
+    .tabela-reembolsos tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tabela-reembolsos tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .tabela-reembolsos .valor {
+        text-align: left;
+        white-space: nowrap;
+        font-weight: 500;
+    }
+    
+    .btn-ver-solicitacao {
+        background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+        color: #ffffff;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-ver-solicitacao:hover {
+        background: linear-gradient(135deg, #2c5282 0%, #2a4365 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .status-concluido {
+        background: #c6f6d5;
+        color: #22543d;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-em-processo {
+        background: #bee3f8;
+        color: #2c5282;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-rejeitado {
+        background: #fed7d7;
+        color: #742a2a;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-aguardando-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fef3c7;
+        color: #d69e2e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-aguardando-gestor-admin {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #bee3f8;
+        color: #3182ce;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-aguardando-pagamento {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #bee3f8;
+        color: #2b6cb0;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-pago-aguardando-assinaturas {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-assinado-todas-partes {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #c6f6d5;
+        color: #38a169;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-rejeitado-gestor {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-rejeitado-gestor-admin {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #fed7d7;
+        color: #e53e3e;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .btn-pdf {
+        background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        color: #ffffff;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-block;
+        transition: all 0.3s;
+    }
+    
+    .btn-pdf:hover {
+        background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .id-clicavel, .solicitante-clicavel {
+        color: #3182ce;
+        text-decoration: none;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    
+    .id-clicavel:hover, .solicitante-clicavel:hover {
+        color: #2c5282;
+        text-decoration: underline;
+    }
+    
+    /* Estilos para modal de detalhes da solicitação */
+    .detalhe-solicitacao {
+        display: grid;
+        gap: 1.5rem;
+    }
+    
+    .detalhe-solicitacao-item {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #34495e;
+    }
+    
+    .detalhe-solicitacao-item strong {
+        display: block;
+        color: #34495e;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .detalhe-solicitacao-item span {
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+    
+    #modal-ver-solicitacao {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1001;
+        justify-content: center;
+        align-items: center;
     }
     
     .insight-card h3 {
@@ -586,27 +901,27 @@
 
     <!-- KPIs Principais -->
     <div class="kpi-grid">
-        <div class="kpi-card total">
+        <div class="kpi-card total" onclick="openSolicitacoesModal('total')">
             <h3>📈 Total Geral</h3>
             <p class="valor">R$ {{ total_geral_valor|currency_br }}</p>
             <p class="count">{{ total_geral_count }} reembolso{{ total_geral_count|pluralize }} no total</p>
         </div>
         
-        <div class="kpi-card concluido">
+        <div class="kpi-card concluido" onclick="openSolicitacoesModal('concluidos')">
             <h3>✅ Concluídos</h3>
             <p class="valor">R$ {{ total_concluido|currency_br }}</p>
             <p class="count">{{ count_concluido }} reembolso{{ count_concluido|pluralize }}</p>
             <span class="percentual">{{ taxa_aprovacao }}% do total</span>
         </div>
         
-        <div class="kpi-card em-processo">
+        <div class="kpi-card em-processo" onclick="openSolicitacoesModal('em_processo')">
             <h3>⏳ Em Processo</h3>
             <p class="valor">R$ {{ total_em_processo|currency_br }}</p>
             <p class="count">{{ count_em_processo }} reembolso{{ count_em_processo|pluralize }}</p>
             <span class="percentual">{{ taxa_em_processo }}% do total</span>
         </div>
         
-        <div class="kpi-card rejeitado">
+        <div class="kpi-card rejeitado" onclick="openSolicitacoesModal('rejeitados')">
             <h3>❌ Rejeitados</h3>
             <p class="valor">R$ {{ total_rejeitado|currency_br }}</p>
             <p class="count">{{ count_rejeitado }} reembolso{{ count_rejeitado|pluralize }}</p>
@@ -620,21 +935,21 @@
         <h2>💡 Insights e Análises</h2>
         <div class="insights-grid">
             {% if area_mais_concluidos %}
-            <div class="insight-card">
+            <div class="insight-card" data-table-type="concluidos" onclick="openTableModal('concluidos')">
                 <h3>🏆 Área com Mais Concluídos</h3>
                 <p><span class="highlight">{{ area_mais_concluidos.centro_label }}</span> lidera com <strong>{{ area_mais_concluidos.concluido_count }}</strong> reembolsos concluídos, totalizando <strong>R$ {{ area_mais_concluidos.concluido_total|currency_br }}</strong>.</p>
             </div>
             {% endif %}
             
             {% if area_mais_rejeitados %}
-            <div class="insight-card">
+            <div class="insight-card" data-table-type="rejeitados" onclick="openTableModal('rejeitados')">
                 <h3>⚠️ Área com Mais Rejeitados</h3>
                 <p><span class="highlight">{{ area_mais_rejeitados.centro_label }}</span> apresenta <strong>{{ area_mais_rejeitados.rejeitado_count }}</strong> reembolsos rejeitados, totalizando <strong>R$ {{ area_mais_rejeitados.rejeitado_total|currency_br }}</strong>.</p>
             </div>
             {% endif %}
             
             {% if area_maior_taxa_rejeicao and area_maior_taxa_rejeicao.taxa_rejeicao > 0 %}
-            <div class="insight-card">
+            <div class="insight-card" data-table-type="taxa_rejeicao" onclick="openTableModal('taxa_rejeicao')">
                 <h3>📊 Maior Taxa de Rejeição</h3>
                 <p><span class="highlight">{{ area_maior_taxa_rejeicao.centro_label }}</span> possui a maior taxa de rejeição com <strong>{{ area_maior_taxa_rejeicao.taxa_rejeicao|floatformat:1 }}%</strong> dos reembolsos rejeitados.</p>
             </div>
@@ -844,12 +1159,212 @@
     </div>
 </div>
 
+<!-- Modal para exibir tabelas -->
+<div id="tableModal" class="modal-overlay" onclick="closeTableModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2 id="modalTitle"></h2>
+            <button class="modal-close" onclick="closeTableModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Conteúdo da tabela será inserido aqui via JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal para exibir solicitações -->
+<div id="solicitacoesModal" class="modal-overlay" onclick="closeSolicitacoesModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 95%; width: 1400px;">
+        <div class="modal-header">
+            <h2 id="solicitacoesModalTitle"></h2>
+            <button class="modal-close" onclick="closeSolicitacoesModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="solicitacoesModalBody">
+            <p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando solicitações...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalhes da solicitação (reutilizado de ultimos_reembolsos_gestor) -->
+<div id="modal-ver-solicitacao" class="modal-overlay" style="display: none;" onclick="closeDetalhesSolicitacao(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 90%; width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Detalhes da Solicitação</h2>
+            <button class="modal-close" onclick="closeDetalhesSolicitacao()">&times;</button>
+        </div>
+        <div class="modal-body" id="solicitacao-content">
+            <!-- Conteúdo será inserido via JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dados do Solicitante -->
+<div id="modal-dados-solicitante" class="modal-overlay" style="display: none;" onclick="closeDadosSolicitante(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 90%; width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Dados do Solicitante</h2>
+            <button class="modal-close" onclick="closeDadosSolicitante()">&times;</button>
+        </div>
+        <div class="modal-body" id="dados-solicitante-content">
+            <!-- Conteúdo será inserido via JavaScript -->
+        </div>
+    </div>
+</div>
+
 <script>
 // Dados dos gráficos
 const tiposLabels = {{ tipos_labels_json|safe|default:"[]" }};
 const tiposValores = {{ tipos_valores_json|safe|default:"[]" }};
 const areasLabels = {{ areas_labels_json|safe|default:"[]" }};
 const areasConcluidos = {{ areas_concluidos_json|safe|default:"[]" }};
+
+// Dados das tabelas ordenadas
+const areasOrdenadasConcluidos = {{ areas_ordenadas_concluidos_json|safe|default:"[]" }};
+const areasOrdenadasRejeitados = {{ areas_ordenadas_rejeitados_json|safe|default:"[]" }};
+const areasOrdenadasTaxaRejeicao = {{ areas_ordenadas_taxa_rejeicao_json|safe|default:"[]" }};
+
+// Função auxiliar para formatação de moeda
+function formatCurrency(value) {
+    return parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Funções para controlar o modal
+function openTableModal(tableType) {
+    const modal = document.getElementById('tableModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    let title = '';
+    let data = [];
+    let tableHTML = '';
+    
+    switch(tableType) {
+        case 'concluidos':
+            title = '🏆 Áreas com Mais Concluídos';
+            data = areasOrdenadasConcluidos.filter(area => area.concluido_count > 0);
+            tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Área</th>
+                            <th>Quantidade</th>
+                            <th>Valor Total</th>
+                            <th>Taxa de Aprovação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(area => `
+                            <tr>
+                                <td><strong>${area.centro_label || '-'}</strong></td>
+                                <td><span class="badge-status concluido">${area.concluido_count || 0}</span></td>
+                                <td><strong>R$ ${formatCurrency(area.concluido_total || 0)}</strong></td>
+                                <td><span class="stat-badge concluido">${(area.taxa_aprovacao || 0).toFixed(1)}%</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            break;
+        case 'rejeitados':
+            title = '⚠️ Áreas com Mais Rejeitados';
+            data = areasOrdenadasRejeitados.filter(area => area.rejeitado_count > 0);
+            tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Área</th>
+                            <th>Quantidade</th>
+                            <th>Valor Total</th>
+                            <th>Taxa de Rejeição</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(area => `
+                            <tr>
+                                <td><strong>${area.centro_label || '-'}</strong></td>
+                                <td><span class="badge-status rejeitado">${area.rejeitado_count || 0}</span></td>
+                                <td><strong>R$ ${formatCurrency(area.rejeitado_total || 0)}</strong></td>
+                                <td><span class="stat-badge rejeitado">${(area.taxa_rejeicao || 0).toFixed(1)}%</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            break;
+        case 'taxa_rejeicao':
+            title = '📊 Taxa de Rejeição por Área (Ranking)';
+            data = areasOrdenadasTaxaRejeicao.filter(area => area.count_geral > 0);
+            tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Ranking</th>
+                            <th>Área</th>
+                            <th>Total de Reembolsos</th>
+                            <th>Concluídos</th>
+                            <th>Rejeitados</th>
+                            <th>Em Processo</th>
+                            <th>Taxa de Rejeição</th>
+                            <th>Taxa de Aprovação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map((area, index) => `
+                            <tr>
+                                <td><strong>#${index + 1}</strong></td>
+                                <td><strong>${area.centro_label || '-'}</strong></td>
+                                <td>${area.count_geral || 0}</td>
+                                <td>
+                                    <span class="badge-status concluido">${area.concluido_count || 0}</span>
+                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.concluido_total || 0)}</small>
+                                </td>
+                                <td>
+                                    <span class="badge-status rejeitado">${area.rejeitado_count || 0}</span>
+                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.rejeitado_total || 0)}</small>
+                                </td>
+                                <td>
+                                    <span class="badge-status em-processo">${area.em_processo_count || 0}</span>
+                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.em_processo_total || 0)}</small>
+                                </td>
+                                <td><span class="stat-badge rejeitado">${(area.taxa_rejeicao || 0).toFixed(1)}%</span></td>
+                                <td><span class="stat-badge concluido">${(area.taxa_aprovacao || 0).toFixed(1)}%</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            break;
+    }
+    
+    if (data.length === 0) {
+        tableHTML = '<div class="no-data">Nenhum dado disponível</div>';
+    }
+    
+    modalTitle.textContent = title;
+    modalBody.innerHTML = tableHTML;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTableModal(event) {
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+    const modal = document.getElementById('tableModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Fechar modal com tecla ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('tableModal');
+        if (modal && modal.classList.contains('active')) {
+            closeTableModal();
+        }
+    }
+});
+
 const areasRejeitados = {{ areas_rejeitados_json|safe|default:"[]" }};
 const areasEmProcesso = {{ areas_em_processo_json|safe|default:"[]" }};
 const mesesLabels = {{ meses_labels_json|safe|default:"[]" }};
@@ -1347,5 +1862,479 @@ if (taxaAprovacaoCtx && estatisticasPorArea.length > 0) {
         }
     });
 }
+
+// Variável global para armazenar o statusType atual e página atual
+let currentStatusType = null;
+let currentPage = 1;
+
+// Funções para modal de solicitações
+function openSolicitacoesModal(statusType, page = 1) {
+    const modal = document.getElementById('solicitacoesModal');
+    const modalTitle = document.getElementById('solicitacoesModalTitle');
+    const modalBody = document.getElementById('solicitacoesModalBody');
+    
+    currentStatusType = statusType;
+    currentPage = page;
+    
+    // Títulos por tipo
+    const titles = {
+        'total': '📈 Total Geral de Solicitações',
+        'concluidos': '✅ Solicitações Concluídas',
+        'em_processo': '⏳ Solicitações em Processo',
+        'rejeitados': '❌ Solicitações Rejeitadas'
+    };
+    
+    modalTitle.textContent = titles[statusType] || 'Solicitações';
+    modalBody.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando solicitações...</p>';
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Capturar filtros atuais da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams();
+    params.append('status_type', statusType);
+    params.append('page', page);
+    
+    // Adicionar filtros se existirem
+    if (urlParams.get('data_inicio')) params.append('data_inicio', urlParams.get('data_inicio'));
+    if (urlParams.get('data_fim')) params.append('data_fim', urlParams.get('data_fim'));
+    if (urlParams.get('centro_custo')) params.append('centro_custo', urlParams.get('centro_custo'));
+    if (urlParams.get('tipo_despesa')) params.append('tipo_despesa', urlParams.get('tipo_despesa'));
+    if (urlParams.get('id')) params.append('id', urlParams.get('id'));
+    
+    // Buscar dados via AJAX
+    fetch('{% url "intra:dashboard_solicitacoes_json" %}?' + params.toString())
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                modalBody.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                return;
+            }
+            
+            if (!data.solicitacoes || data.solicitacoes.length === 0) {
+                modalBody.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Nenhuma solicitação encontrada.</p>';
+                return;
+            }
+            
+            // Renderizar tabela
+            let tableHTML = '<div style="overflow-x: auto;">';
+            tableHTML += '<table class="tabela-reembolsos">';
+            tableHTML += '<thead><tr>';
+            
+            // Definir colunas baseado no tipo
+            if (statusType === 'concluidos') {
+                tableHTML += '<th>Ver Solicitação</th>';
+                tableHTML += '<th>ID</th>';
+                tableHTML += '<th>Solicitante</th>';
+                tableHTML += '<th>Data de Conclusão</th>';
+                tableHTML += '<th>Centro de custo</th>';
+                tableHTML += '<th class="valor">Valor total</th>';
+                tableHTML += '<th>Status</th>';
+                tableHTML += '<th>Status do contrato</th>';
+            } else if (statusType === 'rejeitados') {
+                tableHTML += '<th>Ver Solicitação</th>';
+                tableHTML += '<th>ID</th>';
+                tableHTML += '<th>Solicitante</th>';
+                tableHTML += '<th>Data de Rejeição</th>';
+                tableHTML += '<th>Centro de custo</th>';
+                tableHTML += '<th class="valor">Valor total</th>';
+                tableHTML += '<th>Status</th>';
+                tableHTML += '<th>Status do contrato</th>';
+            } else if (statusType === 'em_processo') {
+                tableHTML += '<th>Ver Solicitação</th>';
+                tableHTML += '<th>ID</th>';
+                tableHTML += '<th>Solicitante</th>';
+                tableHTML += '<th>Data de Criação</th>';
+                tableHTML += '<th>Centro de custo</th>';
+                tableHTML += '<th class="valor">Valor total</th>';
+                tableHTML += '<th>Status</th>';
+                tableHTML += '<th>Status do contrato</th>';
+            } else { // total
+                tableHTML += '<th>Ver Solicitação</th>';
+                tableHTML += '<th>ID</th>';
+                tableHTML += '<th>Solicitante</th>';
+                tableHTML += '<th>Data de Criação</th>';
+                tableHTML += '<th>Centro de custo</th>';
+                tableHTML += '<th class="valor">Valor total</th>';
+                tableHTML += '<th>Status</th>';
+                tableHTML += '<th>Status do contrato</th>';
+            }
+            
+            tableHTML += '</tr></thead>';
+            tableHTML += '<tbody>';
+            
+            data.solicitacoes.forEach(function(sol) {
+                tableHTML += '<tr>';
+                tableHTML += '<td class="acoes">';
+                tableHTML += '<button type="button" class="btn-ver-solicitacao" data-pk="' + sol.pk + '">Ver</button>';
+                tableHTML += '</td>';
+                tableHTML += '<td><a href="#" class="id-clicavel" data-pk="' + sol.pk + '"><strong>#' + sol.pk + '</strong></a></td>';
+                tableHTML += '<td><a href="#" class="solicitante-clicavel" data-pk="' + sol.pk + '">' + escapeHtml(sol.nome_solicitante || '—') + '</a></td>';
+                tableHTML += '<td>' + escapeHtml(sol.data_exibicao || '—') + '</td>';
+                tableHTML += '<td>' + escapeHtml(sol.centro_custo || '—') + '</td>';
+                tableHTML += '<td class="valor">R$ ' + formatarValor(sol.valor_total || 0) + '</td>';
+                
+                // Status formatado (igual a ultimos_reembolsos_gestor)
+                let statusHTML = formatarStatus(sol.status_descritivo || '');
+                tableHTML += '<td>' + statusHTML + '</td>';
+                tableHTML += '<td class="acoes">';
+                tableHTML += '<a href="/reembolso/' + sol.pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>';
+                tableHTML += '</td>';
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody>';
+            tableHTML += '</table>';
+            tableHTML += '</div>';
+            
+            // Adicionar paginação
+            if (data.num_pages > 1) {
+                tableHTML += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">';
+                tableHTML += '<div style="color: #7f8c8d; font-size: 0.9rem;">';
+                tableHTML += 'Mostrando ' + ((data.page - 1) * 10 + 1) + ' a ' + Math.min(data.page * 10, data.total) + ' de ' + data.total + ' solicitação' + (data.total !== 1 ? 'ões' : '');
+                tableHTML += '</div>';
+                tableHTML += '<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">';
+                
+                // Primeira página
+                if (data.has_previous) {
+                    tableHTML += '<button onclick="openSolicitacoesModal(\'' + statusType + '\', 1)" style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #ffffff; color: #34495e; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s;">« Primeira</button>';
+                    tableHTML += '<button onclick="openSolicitacoesModal(\'' + statusType + '\', ' + data.previous_page_number + ')" style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #ffffff; color: #34495e; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s;">‹ Anterior</button>';
+                } else {
+                    tableHTML += '<button disabled style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #f5f7fa; color: #95a5a6; border-radius: 4px; cursor: not-allowed; font-weight: 600;">« Primeira</button>';
+                    tableHTML += '<button disabled style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #f5f7fa; color: #95a5a6; border-radius: 4px; cursor: not-allowed; font-weight: 600;">‹ Anterior</button>';
+                }
+                
+                // Página atual
+                tableHTML += '<span style="padding: 0.5rem 1rem; background: #34495e; color: #ffffff; border-radius: 4px; font-weight: 600;">Página ' + data.page + ' de ' + data.num_pages + '</span>';
+                
+                // Próxima página
+                if (data.has_next) {
+                    tableHTML += '<button onclick="openSolicitacoesModal(\'' + statusType + '\', ' + data.next_page_number + ')" style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #ffffff; color: #34495e; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s;">Próxima ›</button>';
+                    tableHTML += '<button onclick="openSolicitacoesModal(\'' + statusType + '\', ' + data.num_pages + ')" style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #ffffff; color: #34495e; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s;">Última »</button>';
+                } else {
+                    tableHTML += '<button disabled style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #f5f7fa; color: #95a5a6; border-radius: 4px; cursor: not-allowed; font-weight: 600;">Próxima ›</button>';
+                    tableHTML += '<button disabled style="padding: 0.5rem 1rem; border: 1px solid #e1e8ed; background: #f5f7fa; color: #95a5a6; border-radius: 4px; cursor: not-allowed; font-weight: 600;">Última »</button>';
+                }
+                
+                tableHTML += '</div>';
+                tableHTML += '</div>';
+            }
+            
+            modalBody.innerHTML = tableHTML;
+            
+            // Adicionar event listeners aos botões criados dinamicamente
+            attachSolicitacaoListeners();
+        })
+        .catch(error => {
+            console.error('Erro ao carregar solicitações:', error);
+            modalBody.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar solicitações. Tente novamente.</p>';
+        });
+}
+
+function closeSolicitacoesModal(event) {
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+    const modal = document.getElementById('solicitacoesModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Função auxiliar para escapar HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Função auxiliar para formatar valores
+function formatarValor(valor) {
+    return parseFloat(valor || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Função para formatar status (igual a ultimos_reembolsos_gestor)
+function formatarStatus(statusDescritivo) {
+    if (!statusDescritivo) return '<span class="status-em-processo">—</span>';
+    
+    let statusClass = '';
+    let statusText = '';
+    
+    if (statusDescritivo === 'aguardando_gestor') {
+        statusText = 'Aguardando aprovação de gestor';
+        statusClass = 'status-aguardando-gestor';
+    } else if (statusDescritivo === 'aguardando_gestor_admin') {
+        statusText = 'Aguardando aprovação de gestor administrativo';
+        statusClass = 'status-aguardando-gestor-admin';
+    } else if (statusDescritivo === 'aprovado' || statusDescritivo === 'aguardando_pagamento') {
+        statusText = 'Aprovado - Aguardando pagamento';
+        statusClass = 'status-aguardando-pagamento';
+    } else if (statusDescritivo === 'pagamento_agendado') {
+        statusText = 'Solicitação aprovada - Pagamento agendado';
+        statusClass = 'status-aguardando-pagamento';
+    } else if (statusDescritivo === 'pago_aguardando_assinaturas') {
+        statusText = 'Pago - Aguardando assinaturas';
+        statusClass = 'status-pago-aguardando-assinaturas';
+    } else if (statusDescritivo === 'assinado_todas_partes') {
+        statusText = 'Assinado por todas as partes';
+        statusClass = 'status-assinado-todas-partes';
+    } else if (statusDescritivo === 'rejeitado_gestor') {
+        statusText = 'Rejeitado pelo gestor';
+        statusClass = 'status-rejeitado-gestor';
+    } else if (statusDescritivo === 'rejeitado_gestor_admin') {
+        statusText = 'Rejeitado pelo gestor administrativo';
+        statusClass = 'status-rejeitado-gestor-admin';
+    } else if (statusDescritivo === 'concluido') {
+        statusText = 'Concluído';
+        statusClass = 'status-concluido';
+    } else {
+        // Fallback: formatar o status_descritivo
+        statusText = statusDescritivo.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+        statusClass = 'status-em-processo';
+    }
+    
+    return '<span class="' + statusClass + '">' + escapeHtml(statusText) + '</span>';
+}
+
+// Função para abrir detalhes da solicitação (reutilizada de ultimos_reembolsos_gestor)
+function abrirDetalhesSolicitacao(pk) {
+    const modalVerSolicitacao = document.getElementById('modal-ver-solicitacao');
+    const solicitacaoContent = document.getElementById('solicitacao-content');
+    
+    if (!modalVerSolicitacao || !solicitacaoContent) {
+        console.error('Modal de detalhes não encontrado');
+        return;
+    }
+    
+    solicitacaoContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+    modalVerSolicitacao.style.display = 'flex';
+    modalVerSolicitacao.setAttribute('aria-hidden', 'false');
+    
+    // Buscar dados completos via AJAX
+    fetch('/reembolso/' + pk + '/detalhe-gestor/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                return;
+            }
+            
+            var html = '<div style="text-align: right; margin-bottom: 1.5rem;">';
+            html += '<a href="/reembolso/' + pk + '/pdf/" class="btn-pdf" target="_blank" rel="noopener" style="padding: 0.5rem 1rem; font-size: 0.95rem;">Visualizar PDF</a>';
+            html += '</div>';
+            
+            html += '<div class="detalhe-solicitacao">';
+            html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
+            html += '<div class="detalhe-solicitacao-item"><strong>Data</strong><span>' + (data.criado_em || '—') + '</span></div>';
+            html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + (data.centro_custo || '—') + '</span></div>';
+            
+            // Itens de despesa
+            html += '<div class="detalhe-solicitacao-item" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;"><strong>Itens de Despesa</strong>';
+            html += '<div style="margin-top: 1rem;">';
+            if (data.itens && data.itens.length > 0) {
+                data.itens.forEach(function(item, index) {
+                    html += '<div style="background: #f8f9fa; border: 1px solid #e1e8ed; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">';
+                    html += '<div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e1e8ed;">';
+                    html += '<span style="background: #34495e; color: white; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; margin-right: 0.75rem;">Item ' + (index + 1) + '</span>';
+                    html += '<span style="font-weight: 600; color: #34495e;">' + escapeHtml(item.tipo_despesa || '—') + '</span>';
+                    html += '<span style="margin-left: auto; font-weight: 700; color: #27ae60; font-size: 1.1rem;">R$ ' + formatarValor(item.valor || 0) + '</span>';
+                    html += '</div>';
+                    
+                    if (item.cod_despesa_com_descricao || item.cod_despesa) {
+                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> ';
+                        html += '<span style="color: #2c3e50;">' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span></div>';
+                    }
+                    
+                    if (item.data_despesa) {
+                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem;">Data da despesa:</strong> ';
+                        html += '<span style="color: #2c3e50;">' + escapeHtml(item.data_despesa) + '</span></div>';
+                    }
+                    
+                    if (item.descricao) {
+                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
+                        html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span></div>';
+                    }
+                    
+                    if (item.anexo_url) {
+                        html += '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e1e8ed;">';
+                        html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">📎 Anexo:</strong> ';
+                        html += '<a href="' + escapeHtml(item.anexo_url) + '" target="_blank" rel="noopener" style="color: #3498db; text-decoration: none; font-weight: 600;">';
+                        html += escapeHtml(item.anexo_nome || 'Visualizar anexo') + '</a></div>';
+                    }
+                    
+                    html += '</div>';
+                });
+            } else {
+                html += '<span>—</span>';
+            }
+            html += '</div></div>';
+            
+            html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
+            html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
+            
+            // Forma de Pagamento (igual a ultimos_reembolsos_gestor)
+            if (data.forma_pagamento) {
+                html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong>';
+                if (data.forma_pagamento === 'PIX') {
+                    html += '<div style="margin-top: 0.5rem;">';
+                    html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>PIX</strong></span>';
+                    if (data.pix_chave) html += '<span style="display: block; margin-bottom: 0.25rem;">Chave PIX: ' + escapeHtml(data.pix_chave) + '</span>';
+                    if (data.pix_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.pix_banco) + '</span>';
+                    if (data.pix_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.pix_cpf) + '</span>';
+                    html += '</div>';
+                } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                    html += '<div style="margin-top: 0.5rem;">';
+                    html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>Transferência Bancária</strong></span>';
+                    if (data.transf_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
+                    if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
+                    if (data.transf_conta_tipo) {
+                        var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                        html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
+                    }
+                    if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                    if (data.transf_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.transf_cpf) + '</span>';
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            solicitacaoContent.innerHTML = html;
+        })
+        .catch(function() {
+            solicitacaoContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+        });
+}
+
+function closeDetalhesSolicitacao(event) {
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+    const modal = document.getElementById('modal-ver-solicitacao');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+}
+
+// Função para mostrar dados do solicitante
+function mostrarDadosSolicitante(pk) {
+    const modalDadosSolicitante = document.getElementById('modal-dados-solicitante');
+    const dadosSolicitanteContent = document.getElementById('dados-solicitante-content');
+    
+    if (!modalDadosSolicitante || !dadosSolicitanteContent) {
+        console.error('Modal de dados do solicitante não encontrado');
+        return;
+    }
+    
+    dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+    modalDadosSolicitante.style.display = 'flex';
+    modalDadosSolicitante.setAttribute('aria-hidden', 'false');
+    
+    // Buscar dados via AJAX
+    fetch('/reembolso/' + pk + '/detalhe-gestor/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + data.error + '</p>';
+                return;
+            }
+            
+            var solicitante = data.solicitante || {};
+            var html = '<div class="detalhe-solicitacao">';
+            html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + escapeHtml(solicitante.nome || solicitante.email || '—') + '</span></div>';
+            html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + escapeHtml(solicitante.email || '—') + '</span></div>';
+            
+            // Adicionar dados de pagamento da solicitação específica
+            if (data.forma_pagamento) {
+                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
+                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Forma de Pagamento desta Solicitação</h4>';
+                if (data.forma_pagamento === 'PIX') {
+                    html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>PIX</span></div>';
+                    if (data.pix_chave) html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + escapeHtml(data.pix_chave) + '</span></div>';
+                    if (data.pix_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.pix_banco) + '</span></div>';
+                    if (data.pix_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.pix_cpf) + '</span></div>';
+                } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                    html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>Transferência Bancária</span></div>';
+                    if (data.transf_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.transf_banco) + '</span></div>';
+                    if (data.transf_agencia) html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + escapeHtml(data.transf_agencia) + '</span></div>';
+                    if (data.transf_conta_tipo) {
+                        var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                        html += '<div class="detalhe-solicitacao-item"><strong>Tipo de Conta</strong><span>' + tipoConta + '</span></div>';
+                    }
+                    if (data.transf_conta_numero) html += '<div class="detalhe-solicitacao-item"><strong>Conta</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                    if (data.transf_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.transf_cpf) + '</span></div>';
+                }
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            dadosSolicitanteContent.innerHTML = html;
+        })
+        .catch(function() {
+            dadosSolicitanteContent.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+        });
+}
+
+function closeDadosSolicitante(event) {
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+    const modal = document.getElementById('modal-dados-solicitante');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+}
+
+// Função para anexar listeners aos botões de solicitação (usando event delegation)
+function attachSolicitacaoListeners() {
+    // Usar event delegation para garantir que funcione mesmo com elementos dinâmicos
+    const modalBody = document.getElementById('solicitacoesModalBody');
+    if (modalBody) {
+        // Remover listeners antigos e adicionar novos
+        modalBody.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('btn-ver-solicitacao')) {
+                const pk = e.target.getAttribute('data-pk');
+                if (pk) {
+                    abrirDetalhesSolicitacao(pk);
+                }
+            } else if (e.target && (e.target.classList.contains('id-clicavel') || e.target.closest('.id-clicavel'))) {
+                e.preventDefault();
+                const link = e.target.classList.contains('id-clicavel') ? e.target : e.target.closest('.id-clicavel');
+                const pk = link.getAttribute('data-pk');
+                if (pk) {
+                    abrirDetalhesSolicitacao(pk);
+                }
+            } else if (e.target && (e.target.classList.contains('solicitante-clicavel') || e.target.closest('.solicitante-clicavel'))) {
+                e.preventDefault();
+                const link = e.target.classList.contains('solicitante-clicavel') ? e.target : e.target.closest('.solicitante-clicavel');
+                const pk = link.getAttribute('data-pk');
+                if (pk) {
+                    mostrarDadosSolicitante(pk);
+                }
+            }
+        });
+    }
+}
+
+// Fechar modal com tecla ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const solicitacoesModal = document.getElementById('solicitacoesModal');
+        if (solicitacoesModal && solicitacoesModal.classList.contains('active')) {
+            closeSolicitacoesModal();
+        }
+        const detalhesModal = document.getElementById('modal-ver-solicitacao');
+        if (detalhesModal && detalhesModal.style.display === 'flex') {
+            closeDetalhesSolicitacao();
+        }
+        const dadosSolicitanteModal = document.getElementById('modal-dados-solicitante');
+        if (dadosSolicitanteModal && dadosSolicitanteModal.style.display === 'flex') {
+            closeDadosSolicitante();
+        }
+    }
+});
 </script>
 {% endblock %}

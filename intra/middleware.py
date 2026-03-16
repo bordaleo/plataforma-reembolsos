@@ -36,7 +36,8 @@ class ExigeCadastroCompletoMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not request.user.is_authenticated:
+        # Proteção contra request sem user (caso raro, mas pode acontecer)
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
             return self.get_response(request)
         # Gestor não precisa preencher dados no primeiro login
         if _is_gestor(request.user):
@@ -44,7 +45,11 @@ class ExigeCadastroCompletoMiddleware:
         path = request.path
         if any(path.startswith(p) for p in _PATH_PODE_NAO_TER_CADASTRO):
             return self.get_response(request)
-        perfil, _ = PerfilSolicitante.objects.get_or_create(user=request.user)
-        if not perfil.dados_completos:
-            return redirect(reverse("intra:completar_cadastro") + "?next=" + path)
+        try:
+            perfil, _ = PerfilSolicitante.objects.get_or_create(user=request.user)
+            if not perfil.dados_completos:
+                return redirect(reverse("intra:completar_cadastro") + "?next=" + path)
+        except Exception:
+            # Em caso de erro, permitir continuar para não bloquear o acesso
+            pass
         return self.get_response(request)

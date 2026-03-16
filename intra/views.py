@@ -3497,6 +3497,10 @@ def dashboard_gestor(request):
         'areas_ordenadas_concluidos': areas_ordenadas_concluidos,
         'areas_ordenadas_rejeitados': areas_ordenadas_rejeitados,
         'areas_ordenadas_taxa_rejeicao': areas_ordenadas_taxa_rejeicao,
+        # Áreas ordenadas em JSON para JavaScript
+        'areas_ordenadas_concluidos_json': json.dumps(areas_ordenadas_concluidos),
+        'areas_ordenadas_rejeitados_json': json.dumps(areas_ordenadas_rejeitados),
+        'areas_ordenadas_taxa_rejeicao_json': json.dumps(areas_ordenadas_taxa_rejeicao),
         # Estatísticas por área para gráficos
         'estatisticas_por_area_json': json.dumps(estatisticas_por_area),
         # Dados para gráficos avançados
@@ -3516,6 +3520,177 @@ def dashboard_gestor(request):
     }
     
     return render(request, "intra/dashboard_gestor.html", context)
+
+
+@login_required
+def dashboard_solicitacoes_json(request):
+    """Retorna solicitações filtradas por status em JSON para o modal do dashboard."""
+    if not _is_gestor(request.user):
+        return JsonResponse({"error": "Acesso restrito a Gestores Administrativos."}, status=403)
+    
+    status_type = request.GET.get('status_type', 'total')  # total, concluidos, em_processo, rejeitados
+    
+    # Capturar filtros do GET (mesmos filtros do dashboard)
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    centro_custo_filtro = request.GET.get('centro_custo', '')
+    tipo_despesa_filtro = request.GET.get('tipo_despesa', '')
+    id_filtro = request.GET.get('id', '').strip()
+    
+    # Construir filtros comuns
+    filtros_comuns = Q()
+    
+    if id_filtro:
+        try:
+            id_valor = int(id_filtro)
+            filtros_comuns &= Q(pk=id_valor)
+        except ValueError:
+            pass
+    
+    if data_inicio:
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            filtros_comuns &= Q(criado_em__date__gte=data_inicio_obj)
+        except ValueError:
+            pass
+    
+    if data_fim:
+        try:
+            data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            filtros_comuns &= Q(criado_em__date__lte=data_fim_obj)
+        except ValueError:
+            pass
+    
+    if centro_custo_filtro:
+        filtros_comuns &= Q(centro_custo=centro_custo_filtro)
+    
+    # Aplicar filtro de tipo de despesa via itens
+    if tipo_despesa_filtro:
+        filtros_itens = Q(tipo_despesa=tipo_despesa_filtro)
+        if data_inicio:
+            try:
+                data_inicio_obj = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                filtros_itens &= Q(solicitacao__criado_em__date__gte=data_inicio_obj)
+            except ValueError:
+                pass
+        if data_fim:
+            try:
+                data_fim_obj = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                filtros_itens &= Q(solicitacao__criado_em__date__lte=data_fim_obj)
+            except ValueError:
+                pass
+        if centro_custo_filtro:
+            filtros_itens &= Q(solicitacao__centro_custo=centro_custo_filtro)
+        if id_filtro:
+            try:
+                id_valor = int(id_filtro)
+                filtros_itens &= Q(solicitacao__pk=id_valor)
+            except ValueError:
+                pass
+        solicitacoes_ids = ItemReembolso.objects.filter(filtros_itens).values_list('solicitacao_id', flat=True).distinct()
+        filtros_comuns &= Q(pk__in=solicitacoes_ids)
+    
+    # Construir filtros específicos por status
+    if status_type == 'concluidos':
+        filtros = filtros_comuns & (
+            Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
+        )
+        queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+            "user__perfil_solicitante"
+        ).filter(filtros).order_by('-concluido_em', '-criado_em')
+    elif status_type == 'em_processo':
+        filtros = filtros_comuns & (
+            (
+                Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False) &
+                ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+            ) | Q(
+                status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+                pago=False,
+                concluido=False
+            )
+        )
+        queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+            "user__perfil_solicitante"
+        ).filter(filtros).order_by('-criado_em')
+    elif status_type == 'rejeitados':
+        filtros = filtros_comuns & Q(
+            status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+        )
+        queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+            "user__perfil_solicitante"
+        ).filter(filtros).order_by('-aprovado_em_gestor_admin', '-criado_em')
+    else:  # total
+        queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
+            "user__perfil_solicitante"
+        ).filter(filtros_comuns).order_by('-criado_em')
+    
+    # Paginação - 10 por página
+    page_number = request.GET.get('page', 1)
+    try:
+        page_number = int(page_number)
+    except (ValueError, TypeError):
+        page_number = 1
+    
+    paginator = Paginator(queryset, 10)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except:
+        page_obj = paginator.get_page(1)
+    
+    # Serializar dados
+    solicitacoes = []
+    for sol in page_obj:
+        perfil = sol.user.perfil_solicitante if hasattr(sol.user, 'perfil_solicitante') else None
+        nome_solicitante = perfil.nome_solicitante if perfil else sol.user.get_full_name() or sol.user.email
+        
+        # Converter datas para timezone local (como feito em outras views)
+        criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
+        concluido_em_brasilia = localtime(sol.concluido_em) if sol.concluido_em else None
+        aprovado_em_gestor_admin_brasilia = localtime(sol.aprovado_em_gestor_admin) if sol.aprovado_em_gestor_admin else None
+        
+        # Determinar data apropriada
+        if status_type == 'concluidos':
+            if concluido_em_brasilia:
+                data_exibicao = concluido_em_brasilia.strftime("%d/%m/%Y %H:%M")
+            elif criado_em_brasilia:
+                data_exibicao = criado_em_brasilia.strftime("%d/%m/%Y %H:%M")
+            else:
+                data_exibicao = "—"
+        elif status_type == 'rejeitados':
+            if aprovado_em_gestor_admin_brasilia:
+                data_exibicao = aprovado_em_gestor_admin_brasilia.strftime("%d/%m/%Y %H:%M")
+            elif criado_em_brasilia:
+                data_exibicao = criado_em_brasilia.strftime("%d/%m/%Y %H:%M")
+            else:
+                data_exibicao = "—"
+        else:
+            if criado_em_brasilia:
+                data_exibicao = criado_em_brasilia.strftime("%d/%m/%Y %H:%M")
+            else:
+                data_exibicao = "—"
+        
+        # Determinar status descritivo
+        status_descritivo = _get_status_descritivo(sol)
+        
+        solicitacoes.append({
+            'pk': sol.pk,
+            'nome_solicitante': nome_solicitante,
+            'data_exibicao': data_exibicao,
+            'centro_custo': sol.centro_custo or '-',
+            'valor_total': float(sol.valor_total),
+            'status_descritivo': status_descritivo,
+        })
+    
+    return JsonResponse({
+        'solicitacoes': solicitacoes,
+        'total': paginator.count,
+        'page': page_obj.number,
+        'num_pages': paginator.num_pages,
+        'has_previous': page_obj.has_previous(),
+        'has_next': page_obj.has_next(),
+        'previous_page_number': page_obj.previous_page_number() if page_obj.has_previous() else None,
+        'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
+    })
 
 
 @login_required

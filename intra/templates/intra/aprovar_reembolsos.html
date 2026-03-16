@@ -1440,15 +1440,6 @@
                 html += '<div class="detalhe-solicitacao-item"><strong>Nome</strong><span>' + (solicitante.nome || solicitante.email || '—') + '</span></div>';
                 html += '<div class="detalhe-solicitacao-item"><strong>E-mail</strong><span>' + (solicitante.email || '—') + '</span></div>';
                 
-                html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';
-                html += '<h4 style="margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700; color: #34495e;">Dados Bancários (Cadastro)</h4>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + (solicitante.banco || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + (solicitante.agencia || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Tipo de conta</strong><span>' + (solicitante.conta_tipo || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Conta Corrente ou Poupança</strong><span>' + (solicitante.conta_numero || '—') + '</span></div>';
-                html += '<div class="detalhe-solicitacao-item"><strong>Chave PIX</strong><span>' + (solicitante.chave_pix || '—') + '</span></div>';
-                html += '</div>';
-                
                 // Adicionar dados de pagamento da solicitação específica
                 if (data.forma_pagamento) {
                     html += '<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;">';

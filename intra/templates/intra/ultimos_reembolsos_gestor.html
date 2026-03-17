@@ -68,6 +68,34 @@
         white-space: nowrap;
         text-align: center;
     }
+    /* Centralizar colunas de Status */
+    .tabela-reembolsos th:nth-child(6),
+    .tabela-reembolsos th:nth-child(7),
+    .tabela-reembolsos td:nth-child(6),
+    .tabela-reembolsos td:nth-child(7),
+    .tabela-reembolsos th:nth-child(7),
+    .tabela-reembolsos th:nth-child(8),
+    .tabela-reembolsos td:nth-child(7),
+    .tabela-reembolsos td:nth-child(8) {
+        text-align: center;
+    }
+    .tabela-reembolsos td:nth-child(6) > *,
+    .tabela-reembolsos td:nth-child(7) > *,
+    .tabela-reembolsos td:nth-child(8) > * {
+        display: inline-block;
+        text-align: center;
+    }
+    /* Centralizar conteúdo de status em qualquer posição */
+    .tabela-reembolsos td:has(.status-aguardando-gestor),
+    .tabela-reembolsos td:has(.status-aguardando-gestor-admin),
+    .tabela-reembolsos td:has(.status-aguardando-pagamento),
+    .tabela-reembolsos td:has(.status-pago-aguardando-assinaturas),
+    .tabela-reembolsos td:has(.status-rejeitado),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor-admin),
+    .tabela-reembolsos td:has(.status-concluido) {
+        text-align: center;
+    }
     .btn-ver-solicitacao {
         background: #e8e8e8;
         color: #34495e;
@@ -159,12 +187,14 @@
     }
     .status-rejeitado {
         display: inline-block;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 1.5rem;
         background-color: #fed7d7;
         color: #e53e3e;
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.9rem;
+        min-width: 200px;
+        text-align: center;
     }
     .status-aguardando-assinatura {
         display: inline-block;
@@ -242,12 +272,14 @@
     }
     .status-concluido {
         display: inline-block;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 1.5rem;
         background-color: #d5f4e6;
         color: #1e8449;
         border-radius: 6px;
         font-weight: 600;
         font-size: 0.9rem;
+        min-width: 200px;
+        text-align: center;
     }
     .id-clicavel {
         color: #34495e;
@@ -857,12 +889,8 @@
 
 <!-- Botões para mostrar/esconder tabelas -->
 <div style="margin-bottom: 2.5rem;">
-    <div class="categorias-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="categorias-header" style="margin-bottom: 1rem;">
         <h2 style="margin: 0; font-size: 1.3rem; font-weight: 700; color: #34495e;">Categorias</h2>
-        <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="btn btn-secondary" onclick="limparFiltros(); return false;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%); padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s; border: none; cursor: pointer;">
-            <span style="font-size: 1.1rem;">⌫</span>
-            <span>Limpar Filtros</span>
-        </a>
     </div>
     <div style="display: flex; gap: 1rem; flex-wrap: nowrap; justify-content: space-between; padding: 1.5rem; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border: 1px solid #e1e8ed;" class="categorias-buttons">
         <button id="btn-em-processo" class="btn-tabela" data-tabela="em-processo">
@@ -950,7 +978,9 @@
         
         <div class="filters-actions">
             <button type="submit" class="btn btn-primary">Filtrar</button>
-            <a href="{% url 'intra:ultimos_reembolsos_gestor' %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...'); return true;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);">⌫ Limpar</a>
+            {% if active_filter_badges %}
+            <a href="{% url 'intra:ultimos_reembolsos_gestor' %}{% if tabela_atual %}?tabela_atual={{ tabela_atual }}{% endif %}" class="btn btn-secondary" onclick="showLoading('Limpando filtros...'); return true;" style="background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);">⌫ Limpar</a>
+            {% endif %}
         </div>
     </form>
     
@@ -984,8 +1014,8 @@
                     <th>Solicitante</th>
                     <th>Data de Criação</th>
                     <th class="valor">Valor total</th>
-                    <th>Status</th>
-                    <th>Status do contrato</th>
+                    <th style="text-align: center;">Status</th>
+                    <th style="text-align: center;">Status do contrato</th>
                 </tr>
             </thead>
             <tbody>
@@ -1000,7 +1030,7 @@
                     </td>
                     <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
-                    <td>
+                    <td style="text-align: center;">
                         {% if s.status_descritivo == 'aguardando_gestor_admin' %}
                             <span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>
                         {% elif s.status_descritivo == 'aguardando_pagamento' %}
@@ -1017,8 +1047,6 @@
                                     {% endfor %}
                                 </span>
                             {% endif %}
-                        {% elif s.status_descritivo == 'assinado_todas_partes' %}
-                            <span class="status-assinado-todas-partes">Assinado por todas as partes</span>
                         {% elif s.status_descritivo == 'aguardando_gestor' %}
                             <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
                         {% elif s.status_descritivo == 'rejeitado_gestor' %}
@@ -1078,8 +1106,6 @@
                                     </span>
                                 </div>
                             {% endif %}
-                        {% elif s.status_descritivo == 'assinado_todas_partes' %}
-                            <span class="status-assinado-todas-partes">Assinado por todas as partes</span>
                         {% elif s.status_descritivo == 'aguardando_gestor' %}
                             <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
                         {% elif s.status_descritivo == 'rejeitado_gestor' %}
@@ -1149,8 +1175,8 @@
                     <th>Data de Rejeição</th>
                     <th>Centro de custo</th>
                     <th class="valor">Valor total</th>
-                    <th>Status</th>
-                    <th>Status do contrato</th>
+                    <th style="text-align: center;">Status</th>
+                    <th style="text-align: center;">Status do contrato</th>
                 </tr>
             </thead>
             <tbody>
@@ -1166,7 +1192,7 @@
                     <td>{{ s.aprovado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td>{{ s.centro_custo }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
-                    <td><span class="status-rejeitado">Rejeitado</span></td>
+                    <td style="text-align: center;"><span class="status-rejeitado">Rejeitado</span></td>
                     <td class="acoes">
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                     </td>
@@ -1263,8 +1289,8 @@
                     <th>Data de Conclusão</th>
                     <th>Centro de custo</th>
                     <th class="valor">Valor total</th>
-                    <th>Status</th>
-                    <th>Status do contrato</th>
+                    <th style="text-align: center;">Status</th>
+                    <th style="text-align: center;">Status do contrato</th>
                 </tr>
             </thead>
             <tbody>
@@ -1280,7 +1306,7 @@
                     <td>{{ s.concluido_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td>{{ s.centro_custo }}</td>
                     <td class="valor">R$ {{ s.valor_total|floatformat:2 }}</td>
-                    <td><span class="status-concluido">Concluído</span></td>
+                    <td style="text-align: center;"><span class="status-concluido">Concluído</span></td>
                     <td class="acoes">
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                     </td>
@@ -1508,8 +1534,7 @@
             opcoes = [
                 ['AGUARDANDO_PAGAMENTO', 'Aprovado - Aguardando pagamento'],
                 ['PAGAMENTO_AGENDADO', 'Solicitação aprovada - Pagamento agendado'],
-                ['PAGO_AGUARDANDO_ASSINATURAS', 'Pago - Aguardando assinaturas'],
-                ['ASSINADO_TODAS_PARTES', 'Assinado por todas as partes']
+                ['PAGO_AGUARDANDO_ASSINATURAS', 'Pago - Aguardando assinaturas']
             ];
         }
         
@@ -1562,7 +1587,7 @@
                 tabelaId = 'rejeitados';
             } else {
                 // AGUARDANDO_PAGAMENTO, PAGAMENTO_AGENDADO, 
-                // PAGO_AGUARDANDO_ASSINATURAS, ASSINADO_TODAS_PARTES -> em-processo
+                // PAGO_AGUARDANDO_ASSINATURAS -> em-processo
                 tabelaId = 'em-processo';
             }
             
@@ -1577,10 +1602,15 @@
         return true;
     }
     
-    // Função para limpar filtros
     function limparFiltros() {
         showLoading('Limpando filtros...');
-        window.location.href = "{% url 'intra:ultimos_reembolsos_gestor' %}";
+        var urlParams = new URLSearchParams(window.location.search);
+        var tabelaAtual = urlParams.get('tabela_atual');
+        var url = "{% url 'intra:ultimos_reembolsos_gestor' %}";
+        if (tabelaAtual) {
+            url += '?tabela_atual=' + tabelaAtual;
+        }
+        window.location.href = url;
     }
     
     // Mostrar primeira tabela por padrão ao carregar a página (se não houver tabela_atual na URL)
@@ -1706,8 +1736,8 @@
                             // Descrição
                             if (item.descricao) {
                                 html += '<div style="margin-bottom: 0.75rem;">';
-                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
-                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span>';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
+                                html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span>';
                                 html += '</div>';
                             }
                             
@@ -1796,12 +1826,6 @@
                         statusBg = '#e6f3ff';
                         statusColor = '#3182ce';
                         statusIcon = '📝';
-                    } else if (data.status_descritivo === 'assinado_todas_partes') {
-                        statusLabel = 'Assinado por todas as partes';
-                        statusClass = 'status-assinado';
-                        statusBg = '#c6f6d5';
-                        statusColor = '#38a169';
-                        statusIcon = '✓';
                     } else if (data.status_descritivo === 'concluido') {
                         statusLabel = 'Concluído';
                         statusClass = 'status-concluido';
@@ -2029,8 +2053,8 @@
                             // Descrição
                             if (item.descricao) {
                                 html += '<div style="margin-bottom: 0.75rem;">';
-                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
-                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span>';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
+                                html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span>';
                                 html += '</div>';
                             }
                             
@@ -2091,12 +2115,6 @@
                         statusBg = '#e6f3ff';
                         statusColor = '#3182ce';
                         statusIcon = '📝';
-                    } else if (data.status_descritivo === 'assinado_todas_partes') {
-                        statusLabel = 'Assinado por todas as partes';
-                        statusClass = 'status-assinado';
-                        statusBg = '#c6f6d5';
-                        statusColor = '#38a169';
-                        statusIcon = '✓';
                     } else if (data.status_descritivo === 'concluido') {
                         statusLabel = 'Concluído';
                         statusClass = 'status-concluido';

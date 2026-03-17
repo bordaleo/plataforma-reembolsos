@@ -56,6 +56,58 @@ def _formatar_valor(valor):
         return "-"
 
 
+def _quebrar_texto(canvas_obj, texto, x, y, largura_max, fonte="Helvetica", tamanho=7):
+    """
+    Quebra um texto longo em múltiplas linhas dentro de uma largura máxima.
+    Retorna a posição Y final após escrever todas as linhas.
+    """
+    if not texto or texto == "-":
+        return y
+    
+    # Dividir o texto em palavras
+    palavras = texto.split()
+    linhas = []
+    linha_atual = ""
+    
+    for palavra in palavras:
+        # Testar se a palavra cabe na linha atual
+        teste_linha = linha_atual + (" " if linha_atual else "") + palavra
+        largura_teste = canvas_obj.stringWidth(teste_linha, fonte, tamanho)
+        
+        if largura_teste <= largura_max:
+            linha_atual = teste_linha
+        else:
+            # Se a linha atual não está vazia, adicionar às linhas e começar nova
+            if linha_atual:
+                linhas.append(linha_atual)
+            # Se a palavra sozinha é maior que a largura, quebrar ela
+            if canvas_obj.stringWidth(palavra, fonte, tamanho) > largura_max:
+                # Quebrar palavra em caracteres
+                for char in palavra:
+                    teste_char = linha_atual + char
+                    if canvas_obj.stringWidth(teste_char, fonte, tamanho) <= largura_max:
+                        linha_atual = teste_char
+                    else:
+                        if linha_atual:
+                            linhas.append(linha_atual)
+                        linha_atual = char
+            else:
+                linha_atual = palavra
+    
+    # Adicionar última linha
+    if linha_atual:
+        linhas.append(linha_atual)
+    
+    # Desenhar todas as linhas
+    y_atual = y
+    for linha in linhas:
+        canvas_obj.setFont(fonte, tamanho)
+        canvas_obj.drawString(x, y_atual, linha)
+        y_atual -= 3.5 * mm  # Espaçamento entre linhas
+    
+    return y_atual
+
+
 def gerar_pdf(solicitacao):
     """
     Gera o PDF da solicitação de reembolso conforme o modelo.
@@ -305,26 +357,25 @@ def _gerar_folha_rosto(solicitacao):
                 tipo_label = tipo_label + "..."
             c.drawString(col_classif, y, tipo_label)
             
-            # Descrição do item - mostrar completo, adaptar ao espaço disponível
+            # Descrição do item - quebrar em múltiplas linhas se necessário
             descricao_item = (item.descricao or "-").strip()
             largura_desc = col_km - col_desc - 3 * mm
-            if c.stringWidth(descricao_item, "Helvetica", 7) > largura_desc:
-                # Reduzir até caber
-                desc_original = descricao_item
-                while len(descricao_item) > 0 and c.stringWidth(descricao_item + "...", "Helvetica", 7) > largura_desc:
-                    descricao_item = descricao_item[:-1]
-                descricao_item = descricao_item + "..."
-            c.drawString(col_desc, y, descricao_item)
+            y_desc_final = _quebrar_texto(c, descricao_item, col_desc, y, largura_desc, "Helvetica", 7)
             
-            # KM
+            # KM - alinhar com a primeira linha da descrição
             km_str = _formatar_valor(item.km) if item.km is not None else "-"
             c.drawString(col_km, y, km_str)
             
-            # Valor - garantir que apareça completo
+            # Valor - alinhar com a primeira linha da descrição
             val_str = _formatar_valor(item.valor)
             c.drawString(col_valor, y, val_str)
             
-            y -= 4 * mm
+            # Se a descrição ocupou mais de uma linha, usar o Y final (mais baixo)
+            # Caso contrário, usar o espaçamento padrão
+            if y_desc_final < y - 4 * mm:
+                y = y_desc_final
+            else:
+                y -= 4 * mm
             y_table_bottom = y
             
             # Limitar altura da tabela para não sobrepor orientações

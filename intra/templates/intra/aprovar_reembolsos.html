@@ -65,6 +65,29 @@
     .tabela-reembolsos .acoes {
         text-align: center;
     }
+    /* Centralizar colunas de Status */
+    .tabela-reembolsos th:nth-child(6),
+    .tabela-reembolsos th:nth-child(7),
+    .tabela-reembolsos td:nth-child(6),
+    .tabela-reembolsos td:nth-child(7) {
+        text-align: center;
+    }
+    .tabela-reembolsos td:nth-child(6) > *,
+    .tabela-reembolsos td:nth-child(7) > * {
+        display: inline-block;
+        text-align: center;
+    }
+    /* Centralizar conteúdo de status em qualquer posição */
+    .tabela-reembolsos td:has(.status-aguardando-gestor),
+    .tabela-reembolsos td:has(.status-aguardando-gestor-admin),
+    .tabela-reembolsos td:has(.status-aguardando-pagamento),
+    .tabela-reembolsos td:has(.status-pago-aguardando-assinaturas),
+    .tabela-reembolsos td:has(.status-rejeitado),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor-admin),
+    .tabela-reembolsos td:has(.status-concluido) {
+        text-align: center;
+    }
     .acoes-vertical {
         display: flex;
         flex-direction: column;
@@ -306,10 +329,12 @@
     .status-rejeitado {
         color: #e53e3e;
         font-weight: 600;
-        padding: 0.375rem 0.75rem;
+        padding: 0.5rem 1.5rem;
         background: #fed7d7;
         border-radius: 4px;
         display: inline-block;
+        min-width: 200px;
+        text-align: center;
     }
     .status-aguardando-assinatura {
         color: #856404;
@@ -338,10 +363,12 @@
     .status-concluido {
         color: #0c5460;
         font-weight: 600;
-        padding: 0.375rem 0.75rem;
+        padding: 0.5rem 1.5rem;
         background: #d1ecf1;
         border-radius: 4px;
         display: inline-block;
+        min-width: 200px;
+        text-align: center;
     }
     .messages {
         list-style: none;
@@ -750,8 +777,8 @@
                 <th>Data de Envio</th>
                 <th>Solicitante</th>
                 <th>Centro de custo</th>
-                <th>Status do contrato</th>
-                <th>Status</th>
+                <th style="text-align: center;">Status do contrato</th>
+                <th style="text-align: center;">Status</th>
                 <th>Ações</th>
             </tr>
         </thead>
@@ -776,7 +803,7 @@
                 <td class="acoes">
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                 </td>
-                <td>
+                <td style="text-align: center;">
                     {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_gestor_admin' %}<span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>{% endif %}
                     {% if s.status_descritivo == 'aguardando_pagamento' %}<span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>{% endif %}
@@ -792,7 +819,6 @@
                             </small>
                         {% endif %}
                     {% endif %}
-                    {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
                     {% if s.status_descritivo == 'rejeitado_gestor' %}<span class="status-rejeitado">Rejeitado pelo gestor</span>{% endif %}
                     {% if s.status_descritivo == 'rejeitado_gestor_admin' %}<span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>{% endif %}
                     {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
@@ -869,7 +895,6 @@
                             </small>
                         {% endif %}
                     {% endif %}
-                    {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
                     {% if s.status_descritivo == 'rejeitado_gestor' %}<span class="status-rejeitado">Rejeitado pelo gestor</span>{% endif %}
                     {% if s.status_descritivo == 'rejeitado_gestor_admin' %}<span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>{% endif %}
                     {% if s.status_descritivo == 'concluido' %}<span class="status-concluido">Concluído</span>{% endif %}
@@ -1190,8 +1215,8 @@
                             // Descrição
                             if (item.descricao) {
                                 html += '<div style="margin-bottom: 0.75rem;">';
-                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
-                                html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span>';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
+                                html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span>';
                                 html += '</div>';
                             }
                             
@@ -1280,12 +1305,6 @@
                         statusBg = '#e6f3ff';
                         statusColor = '#3182ce';
                         statusIcon = '📝';
-                    } else if (data.status_descritivo === 'assinado_todas_partes') {
-                        statusLabel = 'Assinado por todas as partes';
-                        statusClass = 'status-assinado';
-                        statusBg = '#c6f6d5';
-                        statusColor = '#38a169';
-                        statusIcon = '✓';
                     } else if (data.status_descritivo === 'concluido') {
                         statusLabel = 'Concluído';
                         statusClass = 'status-concluido';

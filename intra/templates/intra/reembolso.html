@@ -70,13 +70,8 @@
         margin-bottom: 1.5rem;
         transition: all 0.2s;
     }
-    .linha-despesa .form-group:last-child {
+    .linha-despesa .acoes-linha-container {
         grid-column: 1 / -1;
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e1e8ed;
     }
     @media (max-width: 1200px) {
         .linha-despesa {
@@ -312,35 +307,137 @@
     }
     .valor-total-container {
         margin: 0;
-        padding: 1.1rem 3rem;
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
-        border-radius: 8px;
-        font-size: 1.15rem;
+        padding: 1.25rem 2rem;
+        background: linear-gradient(135deg, #27ae60 0%, #229954 50%, #1e8449 100%);
+        border-radius: 10px;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #ffffff;
         text-align: center;
-        display: inline-block;
-        width: auto;
+        display: block;
+        width: 100%;
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        margin-bottom: 1.5rem;
     }
     .valor-total-container span {
         color: #ffffff;
-        font-size: 1.25rem;
+        font-size: 1.4rem;
+        font-weight: 800;
     }
     .card-submit {
         padding: 0;
-        margin: 0;
+        margin: 2rem 0 0 0;
         border: none;
         box-shadow: none;
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-top: 1rem;
+        z-index: 100;
     }
     .card-submit .btn-primary {
         width: 100%;
-        padding: 1.75rem 2rem;
-        font-size: 1.15rem;
+        padding: 1.5rem 2rem;
+        font-size: 1.2rem;
         font-weight: 700;
         display: block;
-        border-radius: 0;
+        border-radius: 10px;
         margin: 0;
         letter-spacing: 0.5px;
+        background: #34495e;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.2);
+        transition: all 0.3s;
+        border: none;
+    }
+    .card-submit .btn-primary:hover {
+        background: #2c3e50;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(52, 73, 94, 0.3);
+    }
+    .acoes-linha-container {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 2px solid #e1e8ed;
+    }
+    .btn-add-container {
+        display: flex;
+        justify-content: center;
+        margin: 2rem 0;
+        padding: 1.5rem 0;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 2px dashed #bdc3c7;
+        transition: all 0.3s;
+    }
+    .btn-add-container:hover {
+        background: #ecf0f1;
+        border-color: #34495e;
+    }
+    .add-linha {
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #ffffff;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .add-linha::before {
+        content: "➕";
+        font-size: 1.3rem;
+    }
+    .add-linha:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+    }
+    .btn-remover {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 50%, #a93226 100%);
+        color: #ffffff;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-remover::before {
+        content: "🗑️";
+        font-size: 1rem;
+    }
+    .btn-remover:hover {
+        background: linear-gradient(135deg, #c0392b 0%, #a93226 50%, #922b21 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+    .contador-itens {
+        background: #ecf0f1;
+        color: #34495e;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .contador-itens::before {
+        content: "📋";
     }
     .modal-overlay {
         display: none;
@@ -397,6 +494,30 @@
         gap: 0.75rem;
         margin-top: 1.5rem;
         justify-content: flex-end;
+    }
+    .modal-alerta {
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        min-width: 400px;
+        max-width: 90%;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        text-align: center;
+    }
+    .modal-alerta h3 {
+        margin: 0 0 1rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #e74c3c;
+    }
+    .modal-alerta p {
+        margin: 0 0 1.5rem;
+        color: #2c3e50;
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .modal-alerta .modal-botoes {
+        justify-content: center;
     }
     .campos-pagamento {
         margin-top: 1.5rem;
@@ -458,8 +579,9 @@
     </div>
 
     <div class="card">
-        <div class="card-header">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
             <h2>Itens de Despesa</h2>
+            <span class="contador-itens" id="contador-itens">1 item</span>
         </div>
         <div id="linhas-container">
             <div class="linha-despesa" data-index="0">
@@ -487,7 +609,7 @@
                 </div>
                 <div class="form-group">
                     <label>Descrição <span style="color: #e74c3c;">*</span></label>
-                    <input type="text" name="descricao_0" placeholder="Descrição do item" required class="form-control">
+                    <input type="text" name="descricao_0" placeholder="Descrição do item" required class="form-control" maxlength="300">
                 </div>
                 <div class="form-group">
                     <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
@@ -503,17 +625,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>&nbsp;</label>
-                    <button type="button" class="btn btn-secondary btn-remover" title="Remover linha">Remover</button>
+                <div class="acoes-linha-container" style="display: none;">
+                    <div></div>
+                    <button type="button" class="btn-remover" title="Remover este item">Remover Item</button>
                 </div>
             </div>
         </div>
-        <button type="button" class="btn btn-secondary add-linha" id="btn-add-linha">+ Adicionar Item</button>
-        <div style="text-align: center; margin: 1.5rem 0 0;">
-            <p id="valor-total-container" class="valor-total-container">
-                <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
-            </p>
+        <div class="btn-add-container">
+            <button type="button" class="add-linha" id="btn-add-linha">Adicionar Item</button>
+        </div>
+        <div id="valor-total-container" class="valor-total-container">
+            <strong>Total: <span id="valor-total">R$ 0,00</span></strong>
         </div>
     </div>
 
@@ -610,6 +732,17 @@
         <div class="modal-botoes">
             <button type="button" class="btn btn-secondary" id="modal-cancelar">Cancelar</button>
             <button type="button" class="btn btn-primary" id="modal-confirmar">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Popup de Alerta - Nenhuma Alteração -->
+<div id="modal-sem-alteracoes" class="modal-overlay" aria-hidden="true">
+    <div class="modal-alerta">
+        <h3>⚠️ Nenhuma Alteração Detectada</h3>
+        <p>Você não fez nenhuma alteração na solicitação. Para reenviar, é necessário modificar pelo menos um campo.</p>
+        <div class="modal-botoes">
+            <button type="button" class="btn btn-primary" id="modal-alerta-fechar">Entendi</button>
         </div>
     </div>
 </div>
@@ -828,10 +961,10 @@
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control"></div>' +
+            '<div class="form-group"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control" maxlength="300"></div>' +
             '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div>' +
             '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
-            '<div class="form-group"><label>&nbsp;</label><button type="button" class="btn btn-secondary btn-remover">Remover</button></div>';
+            '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
         var inputAnexo = div.querySelector('input[name^="anexo_"]');
@@ -854,7 +987,10 @@
             aplicarMascaraValor(inputValor);
         }
         div.querySelector('.btn-remover').addEventListener('click', function() {
-            if (container.querySelectorAll('.linha-despesa').length > 1) div.remove();
+            if (container.querySelectorAll('.linha-despesa').length > 1) {
+                div.remove();
+                atualizarContadorItens();
+            }
             setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
         });
         container.appendChild(div);
@@ -863,7 +999,29 @@
         count++;
     }
 
-    btnAdd.addEventListener('click', novaLinha);
+    btnAdd.addEventListener('click', function() {
+        novaLinha();
+        atualizarContadorItens();
+    });
+
+    // Função para atualizar contador de itens e visibilidade do botão remover
+    function atualizarContadorItens() {
+        var contador = document.getElementById('contador-itens');
+        var numItens = container.querySelectorAll('.linha-despesa').length;
+        if (contador) {
+            contador.textContent = numItens + (numItens === 1 ? ' item' : ' itens');
+        }
+        
+        // Mostrar/ocultar botões de remover baseado no número de itens
+        var botoesRemover = container.querySelectorAll('.acoes-linha-container');
+        botoesRemover.forEach(function(acoesContainer) {
+            if (numItens > 1) {
+                acoesContainer.style.display = 'flex';
+            } else {
+                acoesContainer.style.display = 'none';
+            }
+        });
+    }
 
     // Adicionar listener para anexo opcional quando for Passagens de Ônibus na linha inicial
     var linhaInicial = container.querySelector('.linha-despesa');
@@ -888,10 +1046,16 @@
     document.querySelectorAll('.btn-remover').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var linhas = container.querySelectorAll('.linha-despesa');
-            if (linhas.length > 1) btn.closest('.linha-despesa').remove();
+            if (linhas.length > 1) {
+                btn.closest('.linha-despesa').remove();
+                atualizarContadorItens();
+            }
             setTimeout(function() { if (typeof atualizarTotal === 'function') atualizarTotal(); }, 0);
         });
     });
+    
+    // Inicializar contador
+    atualizarContadorItens();
 
     // Função para aplicar máscara de valor monetário
     function aplicarMascaraValor(input) {
@@ -1256,8 +1420,19 @@
                     if (typeof atualizarTotal === 'function') {
                         atualizarTotal();
                     }
-                }, 100);
+                    // Capturar valores iniciais após preencher todos os campos
+                    if (typeof obterValoresIniciais === 'function') {
+                        valoresIniciais = obterValoresIniciais();
+                    }
+                }, 500);
             }
+        } else {
+            // Se não houver itens, capturar valores iniciais após um delay menor
+            setTimeout(function() {
+                if (typeof obterValoresIniciais === 'function') {
+                    valoresIniciais = obterValoresIniciais();
+                }
+            }, 300);
         }
         
         function preencherLinha(linha, item, index) {
@@ -1356,13 +1531,185 @@
     {% endif %}
 })();
 
+// Função para obter valores iniciais do formulário (quando está editando)
+function obterValoresIniciais() {
+    var form = document.getElementById('form-reembolso');
+    if (!form) return null;
+    
+    var valores = {
+        centro_custo: form.querySelector('[name="centro_custo"]') ? form.querySelector('[name="centro_custo"]').value : '',
+        nome_gestor: form.querySelector('[name="nome_gestor"]') ? form.querySelector('[name="nome_gestor"]').value : '',
+        forma_pagamento: form.querySelector('[name="forma_pagamento"]') ? form.querySelector('[name="forma_pagamento"]').value : '',
+        pix_chave: form.querySelector('[name="pix_chave"]') ? form.querySelector('[name="pix_chave"]').value : '',
+        pix_banco: form.querySelector('[name="pix_banco"]') ? form.querySelector('[name="pix_banco"]').value : '',
+        pix_cpf: form.querySelector('[name="pix_cpf"]') ? form.querySelector('[name="pix_cpf"]').value : '',
+        transf_banco: form.querySelector('[name="transf_banco"]') ? form.querySelector('[name="transf_banco"]').value : '',
+        transf_agencia: form.querySelector('[name="transf_agencia"]') ? form.querySelector('[name="transf_agencia"]').value : '',
+        transf_conta_tipo: form.querySelector('[name="transf_conta_tipo"]') ? form.querySelector('[name="transf_conta_tipo"]').value : '',
+        transf_conta_numero: form.querySelector('[name="transf_conta_numero"]') ? form.querySelector('[name="transf_conta_numero"]').value : '',
+        transf_cpf: form.querySelector('[name="transf_cpf"]') ? form.querySelector('[name="transf_cpf"]').value : '',
+        itens: []
+    };
+    
+    // Capturar valores dos itens
+    var linhas = form.querySelectorAll('.linha-despesa');
+    linhas.forEach(function(linha, index) {
+        var item = {
+            data_despesa: linha.querySelector('[name^="data_despesa_"]') ? linha.querySelector('[name^="data_despesa_"]').value : '',
+            tipo_despesa: linha.querySelector('[name^="tipo_despesa_"]') ? linha.querySelector('[name^="tipo_despesa_"]').value : '',
+            cod_despesa: linha.querySelector('[name^="cod_despesa_"]') ? linha.querySelector('[name^="cod_despesa_"]').value : '',
+            descricao: linha.querySelector('[name^="descricao_"]') ? linha.querySelector('[name^="descricao_"]').value : '',
+            valor: linha.querySelector('[name^="valor_"]') ? linha.querySelector('[name^="valor_"]').value : '',
+            anexo_nome: ''
+        };
+        
+        // Verificar se há anexo existente
+        var anexoInfo = linha.querySelector('.anexo-info:not(.hidden)');
+        if (anexoInfo) {
+            var nomeArquivo = anexoInfo.querySelector('.nome-arquivo');
+            if (nomeArquivo) {
+                item.anexo_nome = nomeArquivo.textContent.trim();
+            }
+        } else {
+            var inputAnexo = linha.querySelector('input[type="file"][name^="anexo_"]');
+            if (inputAnexo && inputAnexo.files && inputAnexo.files.length > 0) {
+                item.anexo_nome = inputAnexo.files[0].name;
+            }
+        }
+        
+        valores.itens.push(item);
+    });
+    
+    return valores;
+}
+
+// Função para obter valores atuais do formulário
+function obterValoresAtuais() {
+    var form = document.getElementById('form-reembolso');
+    if (!form) return null;
+    
+    var valores = {
+        centro_custo: form.querySelector('[name="centro_custo"]') ? form.querySelector('[name="centro_custo"]').value : '',
+        nome_gestor: form.querySelector('[name="nome_gestor"]') ? form.querySelector('[name="nome_gestor"]').value : '',
+        forma_pagamento: form.querySelector('[name="forma_pagamento"]') ? form.querySelector('[name="forma_pagamento"]').value : '',
+        pix_chave: form.querySelector('[name="pix_chave"]') ? form.querySelector('[name="pix_chave"]').value : '',
+        pix_banco: form.querySelector('[name="pix_banco"]') ? form.querySelector('[name="pix_banco"]').value : '',
+        pix_cpf: form.querySelector('[name="pix_cpf"]') ? form.querySelector('[name="pix_cpf"]').value : '',
+        transf_banco: form.querySelector('[name="transf_banco"]') ? form.querySelector('[name="transf_banco"]').value : '',
+        transf_agencia: form.querySelector('[name="transf_agencia"]') ? form.querySelector('[name="transf_agencia"]').value : '',
+        transf_conta_tipo: form.querySelector('[name="transf_conta_tipo"]') ? form.querySelector('[name="transf_conta_tipo"]').value : '',
+        transf_conta_numero: form.querySelector('[name="transf_conta_numero"]') ? form.querySelector('[name="transf_conta_numero"]').value : '',
+        transf_cpf: form.querySelector('[name="transf_cpf"]') ? form.querySelector('[name="transf_cpf"]').value : '',
+        itens: []
+    };
+    
+    // Capturar valores dos itens
+    var linhas = form.querySelectorAll('.linha-despesa');
+    linhas.forEach(function(linha, index) {
+        var item = {
+            data_despesa: linha.querySelector('[name^="data_despesa_"]') ? linha.querySelector('[name^="data_despesa_"]').value : '',
+            tipo_despesa: linha.querySelector('[name^="tipo_despesa_"]') ? linha.querySelector('[name^="tipo_despesa_"]').value : '',
+            cod_despesa: linha.querySelector('[name^="cod_despesa_"]') ? linha.querySelector('[name^="cod_despesa_"]').value : '',
+            descricao: linha.querySelector('[name^="descricao_"]') ? linha.querySelector('[name^="descricao_"]').value : '',
+            valor: linha.querySelector('[name^="valor_"]') ? linha.querySelector('[name^="valor_"]').value : '',
+            anexo_nome: ''
+        };
+        
+        // Verificar se há anexo existente ou novo
+        var anexoInfo = linha.querySelector('.anexo-info:not(.hidden)');
+        if (anexoInfo) {
+            var nomeArquivo = anexoInfo.querySelector('.nome-arquivo');
+            if (nomeArquivo) {
+                item.anexo_nome = nomeArquivo.textContent.trim();
+            }
+        } else {
+            var inputAnexo = linha.querySelector('input[type="file"][name^="anexo_"]');
+            if (inputAnexo && inputAnexo.files && inputAnexo.files.length > 0) {
+                item.anexo_nome = inputAnexo.files[0].name;
+            }
+        }
+        
+        valores.itens.push(item);
+    });
+    
+    return valores;
+}
+
+// Função para comparar valores
+function compararValores(inicial, atual) {
+    // Comparar campos gerais
+    if (inicial.centro_custo !== atual.centro_custo) return false;
+    if (inicial.nome_gestor !== atual.nome_gestor) return false;
+    if (inicial.forma_pagamento !== atual.forma_pagamento) return false;
+    
+    // Comparar campos PIX
+    if (inicial.pix_chave !== atual.pix_chave) return false;
+    if (inicial.pix_banco !== atual.pix_banco) return false;
+    if (inicial.pix_cpf !== atual.pix_cpf) return false;
+    
+    // Comparar campos Transferência
+    if (inicial.transf_banco !== atual.transf_banco) return false;
+    if (inicial.transf_agencia !== atual.transf_agencia) return false;
+    if (inicial.transf_conta_tipo !== atual.transf_conta_tipo) return false;
+    if (inicial.transf_conta_numero !== atual.transf_conta_numero) return false;
+    if (inicial.transf_cpf !== atual.transf_cpf) return false;
+    
+    // Comparar itens
+    if (inicial.itens.length !== atual.itens.length) return false;
+    
+    for (var i = 0; i < inicial.itens.length; i++) {
+        var itemInicial = inicial.itens[i];
+        var itemAtual = atual.itens[i];
+        
+        if (itemInicial.data_despesa !== itemAtual.data_despesa) return false;
+        if (itemInicial.tipo_despesa !== itemAtual.tipo_despesa) return false;
+        if (itemInicial.cod_despesa !== itemAtual.cod_despesa) return false;
+        if (itemInicial.descricao !== itemAtual.descricao) return false;
+        if (itemInicial.valor !== itemAtual.valor) return false;
+        // Se o anexo mudou (novo arquivo foi selecionado)
+        if (itemInicial.anexo_nome !== itemAtual.anexo_nome) return false;
+    }
+    
+    return true; // Nenhuma alteração detectada
+}
+
+// Variável para armazenar valores iniciais
+var valoresIniciais = null;
+
 // Interceptar submit do formulário para remover required de campos ocultos
 // Executar quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
     var form = document.getElementById('form-reembolso');
     if (form) {
+        // Se estiver editando, capturar valores iniciais após um delay para garantir que os campos foram preenchidos
+        {% if solicitacao_editar %}
+        setTimeout(function() {
+            valoresIniciais = obterValoresIniciais();
+        }, 500); // Aguardar 500ms para garantir que os campos foram preenchidos
+        {% endif %}
+        
         // Usar capture phase e invalid event para interceptar antes da validação
         form.addEventListener('submit', function(e) {
+            // Se estiver editando, verificar se houve alterações
+            {% if solicitacao_editar %}
+            if (valoresIniciais) {
+                var valoresAtuais = obterValoresAtuais();
+                if (compararValores(valoresIniciais, valoresAtuais)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Mostrar modal de alerta
+                    var modalAlerta = document.getElementById('modal-sem-alteracoes');
+                    if (modalAlerta) {
+                        modalAlerta.classList.add('aberto');
+                        modalAlerta.setAttribute('aria-hidden', 'false');
+                    }
+                    
+                    return false;
+                }
+            }
+            {% endif %}
+            
             // Remover required de todos os inputs de anexo que estão ocultos ANTES da validação do navegador
             var inputsAnexo = form.querySelectorAll('input[type="file"][name^="anexo_"]');
             inputsAnexo.forEach(function(input) {
@@ -1397,6 +1744,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }, true);
+    }
+    
+    // Configurar botão de fechar modal de alerta
+    var btnFecharAlerta = document.getElementById('modal-alerta-fechar');
+    var modalAlerta = document.getElementById('modal-sem-alteracoes');
+    if (btnFecharAlerta && modalAlerta) {
+        btnFecharAlerta.addEventListener('click', function() {
+            modalAlerta.classList.remove('aberto');
+            modalAlerta.setAttribute('aria-hidden', 'true');
+        });
+        
+        modalAlerta.addEventListener('click', function(e) {
+            if (e.target === modalAlerta) {
+                modalAlerta.classList.remove('aberto');
+                modalAlerta.setAttribute('aria-hidden', 'true');
+            }
+        });
     }
 });
 </script>

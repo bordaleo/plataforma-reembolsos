@@ -13,7 +13,7 @@ from django.utils.timezone import localtime
 from django.utils.crypto import get_random_string
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from datetime import datetime, timedelta
 import json
 import html
@@ -95,9 +95,13 @@ def _get_status_assinatura_docusign(solicitacao, use_cache=True):
             if status_envelope and status_envelope != solicitacao.status_docusign:
                 solicitacao.status_docusign = status_envelope
                 if status_envelope.lower() in ['completed', 'signed']:
-                    if solicitacao.status != SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
-                        solicitacao.status = SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
-                solicitacao.save(update_fields=['status_docusign', 'status'])
+                    # Quando todas as partes assinarem, concluir automaticamente
+                    if solicitacao.status != SolicitacaoReembolso.STATUS_CONCLUIDO:
+                        solicitacao.status = SolicitacaoReembolso.STATUS_CONCLUIDO
+                        solicitacao.concluido = True
+                        if not solicitacao.concluido_em:
+                            solicitacao.concluido_em = timezone.now()
+                solicitacao.save(update_fields=['status_docusign', 'status', 'concluido', 'concluido_em'])
             return cached_result
     
     try:
@@ -111,15 +115,18 @@ def _get_status_assinatura_docusign(solicitacao, use_cache=True):
             solicitacao.status_docusign = status_envelope
             status_mudou = True
         
-        # Se todas as partes assinaram, atualizar status da solicitação
+        # Se todas as partes assinaram, concluir automaticamente
         if status_envelope.lower() in ['completed', 'signed']:
-            if solicitacao.status != SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES:
-                solicitacao.status = SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES
+            if solicitacao.status != SolicitacaoReembolso.STATUS_CONCLUIDO:
+                solicitacao.status = SolicitacaoReembolso.STATUS_CONCLUIDO
+                solicitacao.concluido = True
+                if not solicitacao.concluido_em:
+                    solicitacao.concluido_em = timezone.now()
                 status_mudou = True
         
         # Salvar se houve mudança
         if status_mudou:
-            solicitacao.save(update_fields=['status_docusign', 'status'])
+            solicitacao.save(update_fields=['status_docusign', 'status', 'concluido', 'concluido_em'])
         
         # Obter informações dos signatários
         signers_info = []
@@ -356,7 +363,7 @@ def _get_status_descritivo(solicitacao):
     """
     Retorna o status descritivo da solicitação baseado nos status_gestor e status_gestor_admin.
     Retorna: 'aguardando_gestor', 'aguardando_gestor_admin', 'aguardando_pagamento', 'pagamento_agendado', 
-             'pago_aguardando_assinaturas', 'assinado_todas_partes', 'rejeitado', 'concluido'
+             'pago_aguardando_assinaturas', 'rejeitado', 'concluido'
     """
     # Se foi concluído (verificar status ou campo concluido)
     if solicitacao.status == SolicitacaoReembolso.STATUS_CONCLUIDO or solicitacao.concluido:
@@ -375,7 +382,8 @@ def _get_status_descritivo(solicitacao):
         # Verificar status do DocuSign
         status_docusign = solicitacao.status_docusign or ''
         if status_docusign.lower() in ['completed', 'signed']:
-            return 'assinado_todas_partes'
+            # Quando todas as partes assinarem, está concluído automaticamente
+            return 'concluido'
         else:
             return 'pago_aguardando_assinaturas'
     
@@ -1526,8 +1534,21 @@ def meus_reembolsos(request):
     # Otimizar query com prefetch_related para itens
     solicitacoes = SolicitacaoReembolso.objects.filter(user=request.user).prefetch_related('itens').order_by('-criado_em')
     
-    # Converter para lista para processar em paralelo
-    solicitacoes_list = list(solicitacoes)
+    # Paginação - 10 por página
+    page_number = request.GET.get('page', 1)
+    try:
+        page_number = int(page_number)
+    except (ValueError, TypeError):
+        page_number = 1
+    
+    paginator = Paginator(solicitacoes, 10)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except (EmptyPage, InvalidPage):
+        page_obj = paginator.get_page(1)
+    
+    # Converter para lista para processar em paralelo apenas os itens da página atual
+    solicitacoes_list = list(page_obj)
     
     # Consultar status DocuSign em paralelo apenas para solicitações aprovadas pelo gestor admin
     solicitacoes_para_docusign = [
@@ -1537,7 +1558,7 @@ def meus_reembolsos(request):
     status_docusign_map = _get_status_assinatura_docusign_parallel(solicitacoes_para_docusign)
     
     # Converter datas para timezone de Brasília e coletar códigos de despesa dos itens
-    solicitacoes_com_data = []
+    # Os objetos em solicitacoes_list são os mesmos do page_obj, então as modificações serão refletidas
     for sol in solicitacoes_list:
         sol.criado_em_brasilia = localtime(sol.criado_em)
         # Coletar códigos de despesa únicos dos itens (já está em cache do prefetch_related)
@@ -1556,11 +1577,11 @@ def meus_reembolsos(request):
             sol.status_docusign_info = None
         # Adicionar status descritivo (agora com status DocuSign atualizado)
         sol.status_descritivo = _get_status_descritivo(sol)
-        solicitacoes_com_data.append(sol)
+    
     return render(
         request,
         "intra/meus_reembolsos.html",
-        {"solicitacoes": solicitacoes_com_data},
+        {"page_obj": page_obj},
     )
 
 
@@ -2727,8 +2748,7 @@ def dashboard_gestor(request):
             filtros_em_processo = Q(pk__in=[])
         elif status_filtro in [SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 
                                SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
-                               SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
-                               SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES]:
+                               SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS]:
             # Mostrar apenas em processo com esse status específico
             filtros_em_processo = filtros_comuns & Q(status=status_filtro, concluido=False)
             filtros_concluidos = Q(pk__in=[])
@@ -3343,6 +3363,47 @@ def dashboard_gestor(request):
     tipos_labels_chart = [item['tipo'] for item in gastos_por_tipo_formatado]
     tipos_valores = [item['valor'] for item in gastos_por_tipo_formatado]
     
+    # Dados para gráfico de Top Áreas por Tipo de Despesa
+    # Agregar gastos por centro de custo e tipo de despesa
+    gastos_por_area_tipo = ItemReembolso.objects.filter(
+        filtros_itens_tipo
+    ).values('solicitacao__centro_custo', 'tipo_despesa').annotate(
+        total=Sum('valor')
+    ).order_by('solicitacao__centro_custo', '-total')
+    
+    # Organizar dados por área
+    areas_por_tipo = {}
+    centros_custo_dict = dict(CENTROS_CUSTO)
+    
+    for item in gastos_por_area_tipo:
+        centro_custo = item['solicitacao__centro_custo']
+        tipo_despesa = item['tipo_despesa']
+        total = float(item['total'])
+        
+        if centro_custo not in areas_por_tipo:
+            areas_por_tipo[centro_custo] = {}
+        
+        tipo_label = tipos_labels.get(tipo_despesa, tipo_despesa)
+        if tipo_label not in areas_por_tipo[centro_custo]:
+            areas_por_tipo[centro_custo][tipo_label] = 0
+        areas_por_tipo[centro_custo][tipo_label] += total
+    
+    # Preparar dados para o gráfico: top áreas e seus tipos de despesa
+    areas_tipo_despesa_formatado = []
+    for centro_custo, tipos in areas_por_tipo.items():
+        centro_label = centros_custo_dict.get(centro_custo, centro_custo)
+        total_area = sum(tipos.values())
+        areas_tipo_despesa_formatado.append({
+            'centro_custo': centro_custo,
+            'centro_label': centro_label,
+            'tipos': tipos,
+            'total': total_area
+        })
+    
+    # Ordenar por total e pegar top 10
+    areas_tipo_despesa_formatado.sort(key=lambda x: x['total'], reverse=True)
+    areas_tipo_despesa_formatado = areas_tipo_despesa_formatado[:10]
+    
     # Calcular métricas de gestão (KPIs)
     total_geral_valor = total_concluido + total_em_processo + total_rejeitado
     total_geral_count = count_concluido + count_em_processo + count_rejeitado
@@ -3466,7 +3527,6 @@ def dashboard_gestor(request):
             (SolicitacaoReembolso.STATUS_REJEITADO, 'Rejeitado'),
             (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aguardando Pagamento'),
             (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando Assinaturas'),
-            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
         ],
         # Estatísticas por área
         'estatisticas_por_area': estatisticas_por_area,
@@ -3483,6 +3543,8 @@ def dashboard_gestor(request):
         'meses_em_processo_json': json.dumps(meses_em_processo),
         'tipos_labels_json': json.dumps(tipos_labels_chart),
         'tipos_valores_json': json.dumps(tipos_valores),
+        # Dados para gráfico de Top Áreas por Tipo de Despesa
+        'areas_tipo_despesa_json': json.dumps(areas_tipo_despesa_formatado),
         # Métricas de gestão (KPIs)
         'total_geral_valor': float(total_geral_valor),
         'total_geral_count': total_geral_count,
@@ -3992,7 +4054,6 @@ def reembolso(request):
                     # Debug antes de salvar
                     if anexo:
                         print(f"[DEBUG S3] Antes de salvar - Verificando storage do campo anexo")
-                        from intra.models import ItemReembolso
                         field = ItemReembolso._meta.get_field('anexo')
                         print(f"[DEBUG S3] Storage do campo: {field.storage}")
                         print(f"[DEBUG S3] Tipo do storage: {type(field.storage)}")
@@ -4442,7 +4503,6 @@ def ultimos_reembolsos(request):
             (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aprovado - Aguardando pagamento'),
             (SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, 'Solicitação aprovada - Pagamento agendado'),
             (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando assinaturas'),
-            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
         ]
     
     return render(
@@ -4819,7 +4879,6 @@ def ultimos_reembolsos_gestor(request):
             (SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO, 'Aprovado - Aguardando pagamento'),
             (SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, 'Solicitação aprovada - Pagamento agendado'),
             (SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS, 'Pago - Aguardando assinaturas'),
-            (SolicitacaoReembolso.STATUS_ASSINADO_TODAS_PARTES, 'Assinado por todas as partes'),
         ]
     
     return render(

@@ -261,6 +261,17 @@
         margin-bottom: 2rem;
     }
     
+    /* Forçar gráficos de Taxa lado a lado */
+    .chart-card.taxa-chart {
+        min-width: 0;
+    }
+    
+    @media (min-width: 1100px) {
+        .charts-section {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
     .chart-card {
         background: #ffffff;
         border-radius: 8px;
@@ -455,6 +466,35 @@
         font-weight: 500;
     }
     
+    /* Centralizar colunas de Status */
+    .tabela-reembolsos th:nth-child(6),
+    .tabela-reembolsos th:nth-child(7),
+    .tabela-reembolsos td:nth-child(6),
+    .tabela-reembolsos td:nth-child(7),
+    .tabela-reembolsos th:nth-child(7),
+    .tabela-reembolsos th:nth-child(8),
+    .tabela-reembolsos td:nth-child(7),
+    .tabela-reembolsos td:nth-child(8) {
+        text-align: center;
+    }
+    .tabela-reembolsos td:nth-child(6) > *,
+    .tabela-reembolsos td:nth-child(7) > *,
+    .tabela-reembolsos td:nth-child(8) > * {
+        display: inline-block;
+        text-align: center;
+    }
+    /* Centralizar conteúdo de status em qualquer posição */
+    .tabela-reembolsos td:has(.status-aguardando-gestor),
+    .tabela-reembolsos td:has(.status-aguardando-gestor-admin),
+    .tabela-reembolsos td:has(.status-aguardando-pagamento),
+    .tabela-reembolsos td:has(.status-pago-aguardando-assinaturas),
+    .tabela-reembolsos td:has(.status-rejeitado),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor),
+    .tabela-reembolsos td:has(.status-rejeitado-gestor-admin),
+    .tabela-reembolsos td:has(.status-concluido) {
+        text-align: center;
+    }
+    
     .btn-ver-solicitacao {
         background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
         color: #ffffff;
@@ -476,10 +516,13 @@
     .status-concluido {
         background: #c6f6d5;
         color: #22543d;
-        padding: 0.4rem 0.8rem;
+        padding: 0.5rem 1.5rem;
         border-radius: 20px;
         font-size: 0.85rem;
         font-weight: 600;
+        display: inline-block;
+        min-width: 200px;
+        text-align: center;
     }
     
     .status-em-processo {
@@ -494,10 +537,13 @@
     .status-rejeitado {
         background: #fed7d7;
         color: #742a2a;
-        padding: 0.4rem 0.8rem;
+        padding: 0.5rem 1.5rem;
         border-radius: 20px;
         font-size: 0.85rem;
         font-weight: 600;
+        display: inline-block;
+        min-width: 200px;
+        text-align: center;
     }
     
     .status-aguardando-gestor {
@@ -1008,24 +1054,47 @@
             {% endif %}
         </div>
 
-        <!-- Gráfico de Top Áreas por Valor Total -->
-        <div class="chart-card">
-            <h2>🏆 Top Áreas por Valor Total</h2>
+        <!-- Gráficos de Taxa lado a lado -->
+        <div class="chart-card taxa-chart">
+            <h2>📊 Taxa de Aprovação por Área</h2>
             {% if estatisticas_por_area %}
             <div class="chart-container">
-                <canvas id="topAreasChart"></canvas>
+                <canvas id="taxaAprovacaoChart"></canvas>
             </div>
             {% else %}
             <div class="no-data">Nenhum dado disponível</div>
             {% endif %}
         </div>
 
-        <!-- Gráfico de Taxa de Aprovação por Área -->
-        <div class="chart-card">
-            <h2>📊 Taxa de Aprovação por Área</h2>
+        <div class="chart-card taxa-chart">
+            <h2>📊 Taxa de Rejeição por Área</h2>
             {% if estatisticas_por_area %}
             <div class="chart-container">
-                <canvas id="taxaAprovacaoChart"></canvas>
+                <canvas id="taxaRejeicaoChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Valor Total por Área -->
+        <div class="chart-card">
+            <h2>💰 Valor Total por Área</h2>
+            {% if estatisticas_por_area %}
+            <div class="chart-container">
+                <canvas id="valorTotalAreaChart"></canvas>
+            </div>
+            {% else %}
+            <div class="no-data">Nenhum dado disponível</div>
+            {% endif %}
+        </div>
+
+        <!-- Gráfico de Valor Total por Tipo de Despesa -->
+        <div class="chart-card">
+            <h2>💰 Valor Total por Tipo de Despesa</h2>
+            {% if gastos_por_tipo %}
+            <div class="chart-container">
+                <canvas id="valorTotalTipoDespesaChart"></canvas>
             </div>
             {% else %}
             <div class="no-data">Nenhum dado disponível</div>
@@ -1225,7 +1294,7 @@ const areasOrdenadasTaxaRejeicao = {{ areas_ordenadas_taxa_rejeicao_json|safe|de
 
 // Função auxiliar para formatação de moeda
 function formatCurrency(value) {
-    return parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 // Funções para controlar o modal
@@ -1257,7 +1326,7 @@ function openTableModal(tableType) {
                             <tr>
                                 <td><strong>${area.centro_label || '-'}</strong></td>
                                 <td><span class="badge-status concluido">${area.concluido_count || 0}</span></td>
-                                <td><strong>R$ ${formatCurrency(area.concluido_total || 0)}</strong></td>
+                                <td><strong>${formatCurrency(area.concluido_total || 0)}</strong></td>
                                 <td><span class="stat-badge concluido">${(area.taxa_aprovacao || 0).toFixed(1)}%</span></td>
                             </tr>
                         `).join('')}
@@ -1283,7 +1352,7 @@ function openTableModal(tableType) {
                             <tr>
                                 <td><strong>${area.centro_label || '-'}</strong></td>
                                 <td><span class="badge-status rejeitado">${area.rejeitado_count || 0}</span></td>
-                                <td><strong>R$ ${formatCurrency(area.rejeitado_total || 0)}</strong></td>
+                                <td><strong>${formatCurrency(area.rejeitado_total || 0)}</strong></td>
                                 <td><span class="stat-badge rejeitado">${(area.taxa_rejeicao || 0).toFixed(1)}%</span></td>
                             </tr>
                         `).join('')}
@@ -1316,15 +1385,15 @@ function openTableModal(tableType) {
                                 <td>${area.count_geral || 0}</td>
                                 <td>
                                     <span class="badge-status concluido">${area.concluido_count || 0}</span>
-                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.concluido_total || 0)}</small>
+                                    <br><small style="color: #7f8c8d;">${formatCurrency(area.concluido_total || 0)}</small>
                                 </td>
                                 <td>
                                     <span class="badge-status rejeitado">${area.rejeitado_count || 0}</span>
-                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.rejeitado_total || 0)}</small>
+                                    <br><small style="color: #7f8c8d;">${formatCurrency(area.rejeitado_total || 0)}</small>
                                 </td>
                                 <td>
                                     <span class="badge-status em-processo">${area.em_processo_count || 0}</span>
-                                    <br><small style="color: #7f8c8d;">R$ ${formatCurrency(area.em_processo_total || 0)}</small>
+                                    <br><small style="color: #7f8c8d;">${formatCurrency(area.em_processo_total || 0)}</small>
                                 </td>
                                 <td><span class="stat-badge rejeitado">${(area.taxa_rejeicao || 0).toFixed(1)}%</span></td>
                                 <td><span class="stat-badge concluido">${(area.taxa_aprovacao || 0).toFixed(1)}%</span></td>
@@ -1372,11 +1441,11 @@ const mesesConcluidos = {{ meses_concluidos_json|safe|default:"[]" }};
 const mesesRejeitados = {{ meses_rejeitados_json|safe|default:"[]" }};
 const mesesEmProcesso = {{ meses_em_processo_json|safe|default:"[]" }};
 
-// Dados de status geral
+// Dados de status geral (usando contagens para porcentagens corretas)
 const statusGeralData = {
-    concluidos: {{ total_concluido|default:0 }},
-    emProcesso: {{ total_em_processo|default:0 }},
-    rejeitados: {{ total_rejeitado|default:0 }}
+    concluidos: {{ count_concluido|default:0 }},
+    emProcesso: {{ count_em_processo|default:0 }},
+    rejeitados: {{ count_rejeitado|default:0 }}
 };
 
 // Dados para gráficos de área
@@ -1541,7 +1610,7 @@ if (statusGeralCtx && (statusGeralData.concluidos > 0 || statusGeralData.emProce
                             const value = context.parsed || 0;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((value / total) * 100).toFixed(1);
-                            return label + ': ' + formatCurrency(value) + ' (' + percentage + '%)';
+                            return label + ': ' + value + ' reembolso' + (value !== 1 ? 's' : '') + ' (' + percentage + '%)';
                         }
                     }
                 }
@@ -1728,71 +1797,6 @@ if (comparacaoAreasCtx && areasLabels.length > 0) {
     });
 }
 
-// Gráfico de Barras Horizontais - Top Áreas por Valor Total
-const topAreasCtx = document.getElementById('topAreasChart');
-if (topAreasCtx && estatisticasPorArea.length > 0) {
-    // Ordenar por valor total e pegar top 10
-    const sortedAreas = [...estatisticasPorArea].sort((a, b) => b.total_geral - a.total_geral).slice(0, 10);
-    const topLabels = sortedAreas.map(a => a.centro_label);
-    const topValores = sortedAreas.map(a => a.total_geral);
-    
-    new Chart(topAreasCtx, {
-        type: 'bar',
-        data: {
-            labels: topLabels,
-            datasets: [{
-                label: 'Valor Total',
-                data: topValores,
-                backgroundColor: 'rgba(52, 73, 94, 0.8)',
-                borderColor: 'rgba(52, 73, 94, 1)',
-                borderWidth: 2,
-                borderRadius: 6
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
-                    padding: 15,
-                    titleFont: { size: 14, weight: '600' },
-                    bodyFont: { size: 13 },
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    callbacks: {
-                        label: function(context) {
-                            return 'Valor Total: ' + formatCurrency(context.parsed.x);
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                    ticks: {
-                        font: { size: 12, weight: '500' },
-                        callback: function(value) {
-                            return formatCurrency(value);
-                        }
-                    }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { 
-                        font: { size: 11, weight: '500' }
-                    }
-                }
-            }
-        }
-    });
-}
-
 // Gráfico de Barras - Taxa de Aprovação por Área
 const taxaAprovacaoCtx = document.getElementById('taxaAprovacaoChart');
 if (taxaAprovacaoCtx && estatisticasPorArea.length > 0) {
@@ -1855,6 +1859,215 @@ if (taxaAprovacaoCtx && estatisticasPorArea.length > 0) {
                         font: { size: 12, weight: '500' },
                         callback: function(value) {
                             return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras - Taxa de Rejeição por Área
+const taxaRejeicaoCtx = document.getElementById('taxaRejeicaoChart');
+if (taxaRejeicaoCtx && estatisticasPorArea.length > 0) {
+    // Ordenar por taxa de rejeição e pegar top 10
+    const sortedByTaxaRejeicao = [...estatisticasPorArea]
+        .filter(a => a.count_geral > 0)
+        .sort((a, b) => b.taxa_rejeicao - a.taxa_rejeicao)
+        .slice(0, 10);
+    const taxaLabelsRejeicao = sortedByTaxaRejeicao.map(a => a.centro_label);
+    const taxaValoresRejeicao = sortedByTaxaRejeicao.map(a => a.taxa_rejeicao);
+    
+    new Chart(taxaRejeicaoCtx, {
+        type: 'bar',
+        data: {
+            labels: taxaLabelsRejeicao,
+            datasets: [{
+                label: 'Taxa de Rejeição (%)',
+                data: taxaValoresRejeicao,
+                backgroundColor: 'rgba(229, 62, 62, 0.8)',
+                borderColor: 'rgba(229, 62, 62, 1)',
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return 'Taxa de Rejeição: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras - Valor Total por Área
+const valorTotalAreaCtx = document.getElementById('valorTotalAreaChart');
+if (valorTotalAreaCtx && estatisticasPorArea.length > 0) {
+    // Ordenar por valor total e pegar top 10
+    const sortedByValor = [...estatisticasPorArea]
+        .filter(a => a.total_geral > 0)
+        .sort((a, b) => b.total_geral - a.total_geral)
+        .slice(0, 10);
+    const valorLabels = sortedByValor.map(a => a.centro_label);
+    const valorValores = sortedByValor.map(a => a.total_geral);
+    
+    new Chart(valorTotalAreaCtx, {
+        type: 'bar',
+        data: {
+            labels: valorLabels,
+            datasets: [{
+                label: 'Valor Total (R$)',
+                data: valorValores,
+                backgroundColor: 'rgba(52, 73, 94, 0.8)',
+                borderColor: 'rgba(52, 73, 94, 1)',
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return 'Valor Total: ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de Barras - Valor Total por Tipo de Despesa
+const valorTotalTipoDespesaCtx = document.getElementById('valorTotalTipoDespesaChart');
+if (valorTotalTipoDespesaCtx && tiposLabels.length > 0 && tiposValores.length > 0) {
+    // Ordenar por valor e pegar top 10
+    const tiposComValores = tiposLabels.map((label, index) => ({
+        label: label,
+        valor: tiposValores[index] || 0
+    })).sort((a, b) => b.valor - a.valor).slice(0, 10);
+    
+    const tipoLabels = tiposComValores.map(t => t.label);
+    const tipoValores = tiposComValores.map(t => t.valor);
+    
+    new Chart(valorTotalTipoDespesaCtx, {
+        type: 'bar',
+        data: {
+            labels: tipoLabels,
+            datasets: [{
+                label: 'Valor Total (R$)',
+                data: tipoValores,
+                backgroundColor: tipoDespesaColors.slice(0, tipoLabels.length).map(color => color.replace('0.9', '0.8')),
+                borderColor: tipoDespesaColors.slice(0, tipoLabels.length).map(color => color.replace('0.9', '1')),
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(52, 73, 94, 0.95)',
+                    padding: 15,
+                    titleFont: { size: 14, weight: '600' },
+                    bodyFont: { size: 13 },
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    callbacks: {
+                        label: function(context) {
+                            return 'Valor Total: ' + formatCurrency(context.parsed.y);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 11, weight: '500' },
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        font: { size: 12, weight: '500' },
+                        callback: function(value) {
+                            return formatCurrency(value);
                         }
                     }
                 }
@@ -2074,9 +2287,6 @@ function formatarStatus(statusDescritivo) {
     } else if (statusDescritivo === 'pago_aguardando_assinaturas') {
         statusText = 'Pago - Aguardando assinaturas';
         statusClass = 'status-pago-aguardando-assinaturas';
-    } else if (statusDescritivo === 'assinado_todas_partes') {
-        statusText = 'Assinado por todas as partes';
-        statusClass = 'status-assinado-todas-partes';
     } else if (statusDescritivo === 'rejeitado_gestor') {
         statusText = 'Rejeitado pelo gestor';
         statusClass = 'status-rejeitado-gestor';
@@ -2150,8 +2360,8 @@ function abrirDetalhesSolicitacao(pk) {
                     }
                     
                     if (item.descricao) {
-                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> ';
-                        html += '<span style="color: #2c3e50;">' + escapeHtml(item.descricao) + '</span></div>';
+                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
+                        html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span></div>';
                     }
                     
                     if (item.anexo_url) {

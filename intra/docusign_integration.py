@@ -147,6 +147,13 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
         }
 
         # Construir lista de signatários
+        # Usando anchor strings com o texto completo que aparece no PDF
+        # O PDF contém "Assinatura - {nome_solicitante}" e "Assinatura - {nome_gestor}"
+        # O campo será posicionado acima da linha de assinatura (offset negativo em Y)
+        
+        # Texto completo que aparece no PDF para o solicitante
+        anchor_texto_solicitante = f"Assinatura - {nome_solicitante}"
+        
         signers = [
             {
                 "email": email_solicitante,
@@ -156,9 +163,11 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
                 "tabs": {
                     "signHereTabs": [
                         {
-                            "anchorString": "Assinatura - Solicitante",
-                            "anchorYOffset": "-25",
-                            "anchorUnits": "pixels"
+                            "anchorString": anchor_texto_solicitante,
+                            "anchorYOffset": "-15",  # Posicionar acima do texto (na linha)
+                            "anchorXOffset": "0",
+                            "anchorUnits": "pixels",
+                            "optional": "false"
                         }
                     ]
                 }
@@ -167,6 +176,9 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
 
         # Adicionar gestor como segundo signatário se fornecido
         if email_gestor and nome_gestor:
+            # Texto completo que aparece no PDF para o gestor
+            anchor_texto_gestor = f"Assinatura - {nome_gestor}"
+            
             signers.append({
                 "email": email_gestor,
                 "name": nome_gestor,
@@ -175,9 +187,11 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
                 "tabs": {
                     "signHereTabs": [
                         {
-                            "anchorString": "Assinatura - Gestor",
-                            "anchorYOffset": "-25",
-                            "anchorUnits": "pixels"
+                            "anchorString": anchor_texto_gestor,
+                            "anchorYOffset": "-15",  # Posicionar acima do texto (na linha)
+                            "anchorXOffset": "0",
+                            "anchorUnits": "pixels",
+                            "optional": "false"
                         }
                     ]
                 }

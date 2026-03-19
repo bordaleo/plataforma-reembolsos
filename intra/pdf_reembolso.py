@@ -56,6 +56,36 @@ def _formatar_valor(valor):
         return "-"
 
 
+def _linhas_quebra_pdf(canvas_obj, texto, largura_max, fonte="Helvetica", tamanho=7):
+    """Retorna lista de linhas (sem desenhar) - para pre-calcular espaco."""
+    if not texto or texto == "-":
+        return []
+    palavras = texto.split()
+    linhas = []
+    linha_atual = ""
+    for palavra in palavras:
+        teste_linha = linha_atual + (" " if linha_atual else "") + palavra
+        if canvas_obj.stringWidth(teste_linha, fonte, tamanho) <= largura_max:
+            linha_atual = teste_linha
+        else:
+            if linha_atual:
+                linhas.append(linha_atual)
+            if canvas_obj.stringWidth(palavra, fonte, tamanho) > largura_max:
+                linha_atual = ""
+                for char in palavra:
+                    if canvas_obj.stringWidth(linha_atual + char, fonte, tamanho) <= largura_max:
+                        linha_atual += char
+                    else:
+                        if linha_atual:
+                            linhas.append(linha_atual)
+                        linha_atual = char
+            else:
+                linha_atual = palavra
+    if linha_atual:
+        linhas.append(linha_atual)
+    return linhas
+
+
 def _quebrar_texto(canvas_obj, texto, x, y, largura_max, fonte="Helvetica", tamanho=7):
     """
     Quebra um texto longo em múltiplas linhas dentro de uma largura máxima.
@@ -323,7 +353,37 @@ def _gerar_folha_rosto(solicitacao):
     
     if itens:
         c.setFont("Helvetica", 7)  # Fonte menor para dados
-        for i, item in enumerate(itens):
+        y_min_tabela = 125 * mm
+        idx = 0
+        while idx < len(itens):
+            item = itens[idx]
+            # Pre-check: calcular linhas da descricao para saber se cabe
+            largura_desc_pre = col_km - col_desc - 3 * mm
+            desc_pre = (item.descricao or "-").strip()
+            linhas_pre = _linhas_quebra_pdf(c, desc_pre, largura_desc_pre) if desc_pre != "-" else []
+            n_linhas = max(1, len(linhas_pre))
+            y_previsto = y - max(4 * mm, n_linhas * 3.5 * mm)
+            # Se nao couber, criar nova pagina e refazer este item
+            if y_previsto < y_min_tabela:
+                c.showPage()
+                y = height - 30 * mm
+                c.setFont("Helvetica-Bold", 8)
+                c.drawString(margin_left, y, "Reembolso - itens (continuacao)")
+                y -= 6 * mm
+                c.setFont("Helvetica-Bold", 7)
+                c.drawString(col_programa, y, "Programa:")
+                c.drawString(col_cod, y, "COD. DESP.")
+                c.drawString(col_data, y, "DATA")
+                c.drawString(col_classif, y, "CLASSIF.")
+                c.drawString(col_desc, y, "DESCRICAO")
+                c.drawString(col_km, y, "km")
+                c.drawString(col_valor, y, "VALOR")
+                y -= 5 * mm
+                c.line(margin_left, y, col_valor + 20 * mm, y)
+                y -= 3 * mm
+                c.setFont("Helvetica", 7)
+                y_min_tabela = 35 * mm
+                continue
             # Programa (centro de custo) - mostrar em todos os itens
             programa = solicitacao.centro_custo or "-"
             # Calcular largura disponível até a próxima coluna
@@ -377,10 +437,7 @@ def _gerar_folha_rosto(solicitacao):
             else:
                 y -= 4 * mm
             y_table_bottom = y
-            
-            # Limitar altura da tabela para não sobrepor orientações
-            if y < 120 * mm:
-                break
+            idx += 1
     else:
         # Se não houver itens, mostrar apenas dados básicos
         c.setFont("Helvetica", 7)
@@ -447,20 +504,36 @@ def _gerar_folha_rosto(solicitacao):
         transf_banco = solicitacao.transf_banco or '-'
         transf_agencia = solicitacao.transf_agencia or '-'
         transf_conta_numero = solicitacao.transf_conta_numero or '-'
+        transf_cpf = solicitacao.transf_cpf or '-'
         
         # PIX pode ser do cadastro ou email do usuário como fallback
         pix_fallback = perfil.chave_pix if perfil and perfil.chave_pix else solicitacao.user.email or '-'
-        cpf_fallback = 'XXX.XXX.XXX-XX'
+        cpf_fallback = transf_cpf if transf_cpf != '-' else 'XXX.XXX.XXX-XX'
         
         c.drawString(margin_left, y, f"PIX: {pix_fallback}")
         y -= 5 * mm
         c.drawString(margin_left, y, f"CPF/CNPJ: {cpf_fallback}")
         y -= 5 * mm
+        # Mostrar o nome do banco (já está salvo, não precisa verificar se é "Outro")
         c.drawString(margin_left, y, f"Banco: {transf_banco}")
-        y -= 5 * mm
-        c.drawString(margin_left, y, f"Agência: {transf_agencia}")
-        y -= 5 * mm
-        c.drawString(margin_left, y, f"Conta: {transf_conta_numero}")
+        
+        # Se for Carteira Digital, mostrar os dados da carteira digital
+        if transf_banco == 'Carteira Digital':
+            y -= 5 * mm
+            if transf_conta_numero and transf_conta_numero != '-':
+                c.drawString(margin_left, y, f"Chave (E-mail, CPF ou Telefone): {transf_conta_numero}")
+        else:
+            # Para banco tradicional, mostrar agência e número da conta
+            if transf_agencia and transf_agencia != '-':
+                y -= 5 * mm
+                c.drawString(margin_left, y, f"Agência: {transf_agencia}")
+            if solicitacao.transf_conta_tipo:
+                y -= 5 * mm
+                tipo_conta = "Conta Corrente" if solicitacao.transf_conta_tipo == "CORRENTE" else "Poupança"
+                c.drawString(margin_left, y, f"Tipo de Conta: {tipo_conta}")
+            if transf_conta_numero and transf_conta_numero != '-':
+                y -= 5 * mm
+                c.drawString(margin_left, y, f"Conta: {transf_conta_numero}")
     else:
         # Fallback: usar dados do cadastro se não houver forma de pagamento definida
         if perfil:

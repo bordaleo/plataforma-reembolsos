@@ -878,16 +878,16 @@
     <!-- Formulário de Filtros -->
     <div class="filters-card">
         <h2 class="filters-title">🔍 Filtros de Análise</h2>
-        <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form">
+        <form method="get" action="{% url 'intra:dashboard_gestor' %}" class="filters-form" id="filters-form" onsubmit="return validarFiltrosDashboard(this);">
             <div class="filters-grid">
                 <div class="filter-group">
                     <label for="data_inicio">Data Início</label>
-                    <input type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
+                    <input type="date" id="data_inicio" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control" max="">
                 </div>
                 
                 <div class="filter-group">
                     <label for="data_fim">Data Fim</label>
-                    <input type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
+                    <input type="date" id="data_fim" name="data_fim" value="{{ filtros.data_fim }}" class="form-control" max="">
                 </div>
                 
                 <div class="filter-group">
@@ -1228,6 +1228,19 @@
     </div>
 </div>
 
+<!-- Modal de Erro de Validação -->
+<div id="modal-erro-validacao" class="modal-overlay" style="display: none;" onclick="closeErroValidacao(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 50%, #a93226 100%);">
+            <h2>Erro de Validação</h2>
+            <button class="modal-close" onclick="closeErroValidacao()">&times;</button>
+        </div>
+        <div class="modal-body" id="erro-validacao-content" style="text-align: center; padding: 2rem;">
+            <p style="color: #2c3e50; font-size: 1.1rem; margin: 0;"></p>
+        </div>
+    </div>
+</div>
+
 <!-- Modal para exibir tabelas -->
 <div id="tableModal" class="modal-overlay" onclick="closeTableModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
@@ -1295,6 +1308,97 @@ const areasOrdenadasTaxaRejeicao = {{ areas_ordenadas_taxa_rejeicao_json|safe|de
 // Função auxiliar para formatação de moeda
 function formatCurrency(value) {
     return 'R$ ' + parseFloat(value).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Função para exibir modal de erro
+function mostrarErroValidacao(mensagem) {
+    var modalErro = document.getElementById('modal-erro-validacao');
+    var conteudoErro = document.querySelector('#erro-validacao-content p');
+    if (modalErro && conteudoErro) {
+        conteudoErro.textContent = mensagem;
+        modalErro.style.display = 'flex';
+        modalErro.setAttribute('aria-hidden', 'false');
+    }
+}
+
+// Função para fechar modal de erro
+function closeErroValidacao(event) {
+    if (event) {
+        event.stopPropagation();
+        if (event.target !== event.currentTarget) {
+            return;
+        }
+    }
+    const modal = document.getElementById('modal-erro-validacao');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+}
+
+// Função para validar filtros do dashboard
+function validarFiltrosDashboard(form) {
+    // Validar datas antes de aplicar filtros
+    var dataInicio = document.getElementById('data_inicio');
+    var dataFim = document.getElementById('data_fim');
+    var hoje = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    
+    // Validar que a data de início não seja maior que hoje
+    if (dataInicio && dataInicio.value) {
+        if (dataInicio.value > hoje) {
+            mostrarErroValidacao('A data de início não pode ser maior que hoje.');
+            dataInicio.focus();
+            return false;
+        }
+        // Validar que o ano não tenha mais de 4 dígitos
+        var anoInicio = dataInicio.value.split('-')[0];
+        if (anoInicio && anoInicio.length > 4) {
+            mostrarErroValidacao('O ano não pode ter mais de 4 dígitos.');
+            dataInicio.focus();
+            return false;
+        }
+    }
+    
+    // Validar que a data de fim não seja maior que hoje
+    if (dataFim && dataFim.value) {
+        if (dataFim.value > hoje) {
+            mostrarErroValidacao('A data de fim não pode ser maior que hoje.');
+            dataFim.focus();
+            return false;
+        }
+        // Validar que o ano não tenha mais de 4 dígitos
+        var anoFim = dataFim.value.split('-')[0];
+        if (anoFim && anoFim.length > 4) {
+            mostrarErroValidacao('O ano não pode ter mais de 4 dígitos.');
+            dataFim.focus();
+            return false;
+        }
+    }
+    
+    // Validar que a data de fim não seja menor que a data de início
+    if (dataInicio && dataInicio.value && dataFim && dataFim.value) {
+        if (dataFim.value < dataInicio.value) {
+            mostrarErroValidacao('A data de fim não pode ser menor que a data de início.');
+            dataFim.focus();
+            return false;
+        }
+    }
+    
+    // Permitir o submit normal do formulário
+    return true;
+}
+
+// Configurar data máxima (hoje) para os campos de data
+var hoje = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+var dataInicioInput = document.getElementById('data_inicio');
+var dataFimInput = document.getElementById('data_fim');
+
+if (dataInicioInput) {
+    dataInicioInput.setAttribute('max', hoje);
+}
+
+if (dataFimInput) {
+    dataFimInput.setAttribute('max', hoje);
 }
 
 // Funções para controlar o modal
@@ -2360,8 +2464,8 @@ function abrirDetalhesSolicitacao(pk) {
                     }
                     
                     if (item.descricao) {
-                        html += '<div style="margin-bottom: 0.75rem;"><strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
-                        html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span></div>';
+                        html += '<div style="margin-bottom: 0.75rem; width: 100%; min-width: 0; box-sizing: border-box;"><strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
+                        html += '<span style="color: #2c3e50; display: block; width: 100%; box-sizing: border-box; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%;">' + escapeHtml(item.descricao) + '</span></div>';
                     }
                     
                     if (item.anexo_url) {
@@ -2394,13 +2498,24 @@ function abrirDetalhesSolicitacao(pk) {
                 } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                     html += '<div style="margin-top: 0.5rem;">';
                     html += '<span style="display: block; margin-bottom: 0.5rem;"><strong>Transferência Bancária</strong></span>';
-                    if (data.transf_banco) html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
-                    if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
-                    if (data.transf_conta_tipo) {
-                        var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
-                        html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
+                    if (data.transf_banco) {
+                        // Mostrar o nome do banco (já está salvo, não precisa verificar se é "Outro")
+                        html += '<span style="display: block; margin-bottom: 0.25rem;">Banco: ' + escapeHtml(data.transf_banco) + '</span>';
                     }
-                    if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                    // Se for Carteira Digital, mostrar os dados da carteira digital
+                    if (data.transf_banco === 'Carteira Digital') {
+                        if (data.transf_conta_numero) {
+                            html += '<span style="display: block; margin-bottom: 0.25rem;">Chave (E-mail, CPF ou Telefone): ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                        }
+                    } else {
+                        // Para banco tradicional, mostrar agência, tipo de conta e número
+                        if (data.transf_agencia) html += '<span style="display: block; margin-bottom: 0.25rem;">Agência: ' + escapeHtml(data.transf_agencia) + '</span>';
+                        if (data.transf_conta_tipo) {
+                            var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                            html += '<span style="display: block; margin-bottom: 0.25rem;">Tipo de Conta: ' + tipoConta + '</span>';
+                        }
+                        if (data.transf_conta_numero) html += '<span style="display: block;">Conta: ' + escapeHtml(data.transf_conta_numero) + '</span>';
+                    }
                     if (data.transf_cpf) html += '<span style="display: block;">CPF/CNPJ: ' + escapeHtml(data.transf_cpf) + '</span>';
                     html += '</div>';
                 }

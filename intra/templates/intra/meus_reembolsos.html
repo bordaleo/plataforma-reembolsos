@@ -786,7 +786,7 @@
                     if (data.itens && data.itens.length > 0) {
                         data.itens.forEach(function(item, index) {
                             var itemDiv = document.createElement('div');
-                            itemDiv.style.cssText = 'background: #f8f9fa; border: 1px solid #e1e8ed; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;';
+                            itemDiv.style.cssText = 'background: #f8f9fa; border: 1px solid #e1e8ed; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; min-width: 0; max-width: 100%; box-sizing: border-box;';
                             
                             var headerDiv = document.createElement('div');
                             headerDiv.style.cssText = 'display: flex; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e1e8ed;';
@@ -827,8 +827,15 @@
                             // Descrição
                             if (item.descricao) {
                                 var descDiv = document.createElement('div');
-                                descDiv.style.cssText = 'margin-bottom: 0.75rem;';
-                                descDiv.innerHTML = '<strong style="color: #7f8c8d; font-size: 0.9rem;">Descrição:</strong> <span style="color: #2c3e50;">' + item.descricao + '</span>';
+                                descDiv.style.cssText = 'margin-bottom: 0.75rem; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;';
+                                var descLabel = document.createElement('strong');
+                                descLabel.style.cssText = 'color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.35rem;';
+                                descLabel.textContent = 'Descri\u00e7\u00e3o:';
+                                var descText = document.createElement('span');
+                                descText.style.cssText = 'color: #2c3e50; display: block; width: 100%; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; box-sizing: border-box;';
+                                descText.textContent = item.descricao;
+                                descDiv.appendChild(descLabel);
+                                descDiv.appendChild(descText);
                                 itemDiv.appendChild(descDiv);
                             }
                             
@@ -875,13 +882,24 @@
                         } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                             pagamentoHtml = '<div class="detalhe-campos">';
                             pagamentoHtml += '<p><strong>Forma de Pagamento:</strong> Transferência Bancária</p>';
-                            if (data.transf_banco) pagamentoHtml += '<p><strong>Banco:</strong> ' + (data.transf_banco || '-') + '</p>';
-                            if (data.transf_agencia) pagamentoHtml += '<p><strong>Agência:</strong> ' + (data.transf_agencia || '-') + '</p>';
-                            if (data.transf_conta_tipo) {
-                                var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
-                                pagamentoHtml += '<p><strong>Tipo de Conta:</strong> ' + tipoConta + '</p>';
+                            if (data.transf_banco) {
+                                // Mostrar o nome do banco (já está salvo, não precisa verificar se é "Outro")
+                                pagamentoHtml += '<p><strong>Banco:</strong> ' + (data.transf_banco || '-') + '</p>';
                             }
-                            if (data.transf_conta_numero) pagamentoHtml += '<p><strong>Conta:</strong> ' + (data.transf_conta_numero || '-') + '</p>';
+                            // Se for Carteira Digital, mostrar os dados da carteira digital
+                            if (data.transf_banco === 'Carteira Digital') {
+                                if (data.transf_conta_numero) {
+                                    pagamentoHtml += '<p><strong>Chave (E-mail, CPF ou Telefone):</strong> ' + (data.transf_conta_numero || '-') + '</p>';
+                                }
+                            } else {
+                                // Para banco tradicional, mostrar agência, tipo de conta e número
+                                if (data.transf_agencia) pagamentoHtml += '<p><strong>Agência:</strong> ' + (data.transf_agencia || '-') + '</p>';
+                                if (data.transf_conta_tipo) {
+                                    var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                                    pagamentoHtml += '<p><strong>Tipo de Conta:</strong> ' + tipoConta + '</p>';
+                                }
+                                if (data.transf_conta_numero) pagamentoHtml += '<p><strong>Conta:</strong> ' + (data.transf_conta_numero || '-') + '</p>';
+                            }
                             if (data.transf_cpf) pagamentoHtml += '<p><strong>CPF/CNPJ:</strong> ' + (data.transf_cpf || '-') + '</p>';
                             pagamentoHtml += '</div>';
                         }

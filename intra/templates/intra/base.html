@@ -558,6 +558,146 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
         }
+        /* Error Popup */
+        .error-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .error-overlay.active {
+            display: flex;
+        }
+        .error-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2.5rem 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 320px;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .error-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .error-icon::before {
+            content: '✕';
+            color: #ffffff;
+            font-size: 3rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .error-text {
+            color: #34495e;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 1rem;
+        }
+        .error-message {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .error-close {
+            margin-top: 1.5rem;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .error-close:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+        }
+        /* Info Popup */
+        .info-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .info-overlay.active {
+            display: flex;
+        }
+        .info-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 2.5rem 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 320px;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .info-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .info-icon::before {
+            content: 'ℹ';
+            color: #ffffff;
+            font-size: 3rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .info-text {
+            color: #34495e;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 1rem;
+        }
+        .info-message {
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .info-close {
+            margin-top: 1.5rem;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .info-close:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -577,6 +717,26 @@
             <p class="success-text">Sucesso!</p>
             <p class="success-message" id="success-message">Operação realizada com sucesso.</p>
             <button type="button" class="success-close" id="success-close-btn">OK</button>
+        </div>
+    </div>
+
+    <!-- Error Popup -->
+    <div id="error-overlay" class="error-overlay">
+        <div class="error-box">
+            <div class="error-icon"></div>
+            <p class="error-text">Erro!</p>
+            <p class="error-message" id="error-message">Ocorreu um erro ao processar sua solicitação.</p>
+            <button type="button" class="error-close" id="error-close-btn">OK</button>
+        </div>
+    </div>
+
+    <!-- Info Popup -->
+    <div id="info-overlay" class="info-overlay">
+        <div class="info-box">
+            <div class="info-icon"></div>
+            <p class="info-text">Informação</p>
+            <p class="info-message" id="info-message">Informação importante.</p>
+            <button type="button" class="info-close" id="info-close-btn">OK</button>
         </div>
     </div>
 
@@ -663,18 +823,23 @@
             }
         }
         
-        // Função para mostrar popup de sucesso
-        function showSuccess(message = 'Operação realizada com sucesso.') {
+        // Função para mostrar popup de sucesso (durationMs opcional; padrão 5s)
+        function showSuccess(message = 'Operação realizada com sucesso.', durationMs) {
             const overlay = document.getElementById('success-overlay');
             const messageEl = document.getElementById('success-message');
             if (overlay && messageEl) {
                 messageEl.textContent = message;
                 overlay.style.display = 'flex';
                 overlay.classList.add('active');
-                // Fechar automaticamente após 5 segundos
-                setTimeout(function() {
+                if (overlay._successCloseTimer) {
+                    clearTimeout(overlay._successCloseTimer);
+                    overlay._successCloseTimer = null;
+                }
+                var ms = (typeof durationMs === 'number' && durationMs > 0) ? durationMs : 5000;
+                overlay._successCloseTimer = setTimeout(function() {
+                    overlay._successCloseTimer = null;
                     hideSuccess();
-                }, 5000);
+                }, ms);
             }
         }
         
@@ -690,8 +855,64 @@
             }
         }
         
-        // Tornar função acessível globalmente
+        // Função para mostrar popup de erro
+        function showError(message = 'Ocorreu um erro ao processar sua solicitação.') {
+            const overlay = document.getElementById('error-overlay');
+            const messageEl = document.getElementById('error-message');
+            if (overlay && messageEl) {
+                messageEl.textContent = message;
+                overlay.style.display = 'flex';
+                overlay.classList.add('active');
+                // Fechar automaticamente após 5 segundos
+                setTimeout(function() {
+                    hideError();
+                }, 5000);
+            }
+        }
+        
+        // Função para ocultar popup de erro
+        function hideError() {
+            const overlay = document.getElementById('error-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                // Ocultar completamente após animação
+                setTimeout(function() {
+                    overlay.style.display = 'none';
+                }, 350);
+            }
+        }
+        
+        // Função para mostrar popup de informação
+        function showInfo(message = 'Informação importante.') {
+            const overlay = document.getElementById('info-overlay');
+            const messageEl = document.getElementById('info-message');
+            if (overlay && messageEl) {
+                messageEl.textContent = message;
+                overlay.style.display = 'flex';
+                overlay.classList.add('active');
+                // Fechar automaticamente após 5 segundos
+                setTimeout(function() {
+                    hideInfo();
+                }, 5000);
+            }
+        }
+        
+        // Função para ocultar popup de informação
+        function hideInfo() {
+            const overlay = document.getElementById('info-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                // Ocultar completamente após animação
+                setTimeout(function() {
+                    overlay.style.display = 'none';
+                }, 350);
+            }
+        }
+        
+        // Tornar funções acessíveis globalmente
         window.hideSuccess = hideSuccess;
+        window.hideError = hideError;
+        window.hideInfo = hideInfo;
         
         // Controlar dropdown do indicador de usuário
         document.addEventListener('DOMContentLoaded', function() {
@@ -798,57 +1019,42 @@
             hideLoading();
         });
         
-        // Verificar mensagens de sucesso do Django apenas após POST
+        // Verificar mensagens do Django e exibir pop-ups apropriados
         (function() {
-            // Só mostrar popup se a página foi carregada após um POST (ação realizada)
-            // Verifica se o referrer indica que veio de uma ação (redirect após POST)
-            var currentPath = window.location.pathname;
-            var referrerPath = '';
-            var referrerHost = '';
-            var hasValidReferrer = false;
-            
-            try {
-                if (document.referrer && document.referrer !== '') {
-                    var referrerUrl = new URL(document.referrer);
-                    referrerPath = referrerUrl.pathname;
-                    referrerHost = referrerUrl.host;
-                    var currentHost = window.location.host;
-                    // Só considerar válido se veio do mesmo site E tem path
-                    hasValidReferrer = referrerHost === currentHost && referrerPath !== '';
-                }
-            } catch(e) {
-                hasValidReferrer = false;
-            }
-            
             var successMessages = [];
+            var errorMessages = [];
+            var infoMessages = [];
+            
             {% if messages %}
                 {% for message in messages %}
                     {% if message.tags == 'success' %}
                         successMessages.push('{{ message|escapejs }}');
+                    {% elif message.tags == 'error' %}
+                        errorMessages.push('{{ message|escapejs }}');
+                    {% elif message.tags == 'info' %}
+                        infoMessages.push('{{ message|escapejs }}');
                     {% endif %}
                 {% endfor %}
             {% endif %}
             
-            // Só mostrar popup se:
-            // 1. Há mensagem de sucesso
-            // 2. Veio de uma ação (tem referrer válido do mesmo site)
-            // 3. Foi um redirect após POST (mesma página indica redirect após ação)
-            // NÃO mostrar se for acesso direto (sem referrer) ou navegação normal
-            // IMPORTANTE: Se não houver referrer, NÃO mostrar (acesso direto à URL)
-            if (successMessages.length > 0) {
-                if (hasValidReferrer && referrerPath === currentPath) {
-                    // Só mostrar se foi redirect após POST na mesma página
-                    window.addEventListener('load', function() {
-                        setTimeout(function() {
-                            showSuccess(successMessages[0]);
-                        }, 300);
-                    });
-                } else {
-                    // Se há mensagem mas não há referrer válido ou não é redirect após POST,
-                    // não mostrar popup (acesso direto ou navegação normal)
-                    // As mensagens do Django serão consumidas automaticamente ao serem lidas
-                }
-            }
+            // Exibir pop-ups quando a página carregar
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    // Prioridade: erro > sucesso > informação
+                    if (errorMessages.length > 0) {
+                        showError(errorMessages[0]);
+                    } else if (successMessages.length > 0) {
+                        var msg0 = successMessages[0];
+                        // Pagamento programado + DocuSign: +5s no temporizador (10s total)
+                        var isPagamentoProgramadoDocusign = msg0.indexOf('Data de pagamento programada para') !== -1
+                            && msg0.indexOf('marcada como paga') !== -1
+                            && msg0.indexOf('DocuSign') !== -1;
+                        showSuccess(msg0, isPagamentoProgramadoDocusign ? 10000 : undefined);
+                    } else if (infoMessages.length > 0) {
+                        showInfo(infoMessages[0]);
+                    }
+                }, 300);
+            });
         })();
         
         // Ocultar loading em caso de erro
@@ -856,8 +1062,9 @@
             hideLoading();
         });
         
-        // Fechar popup de sucesso ao clicar no botão OK
+        // Fechar popups ao clicar nos botões OK
         document.addEventListener('DOMContentLoaded', function() {
+            // Popup de sucesso
             const successCloseBtn = document.getElementById('success-close-btn');
             if (successCloseBtn) {
                 successCloseBtn.addEventListener('click', function(e) {
@@ -867,12 +1074,49 @@
                 });
             }
             
-            // Fechar popup de sucesso ao clicar fora
             const successOverlay = document.getElementById('success-overlay');
             if (successOverlay) {
                 successOverlay.addEventListener('click', function(e) {
                     if (e.target === this) {
                         hideSuccess();
+                    }
+                });
+            }
+            
+            // Popup de erro
+            const errorCloseBtn = document.getElementById('error-close-btn');
+            if (errorCloseBtn) {
+                errorCloseBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideError();
+                });
+            }
+            
+            const errorOverlay = document.getElementById('error-overlay');
+            if (errorOverlay) {
+                errorOverlay.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        hideError();
+                    }
+                });
+            }
+            
+            // Popup de informação
+            const infoCloseBtn = document.getElementById('info-close-btn');
+            if (infoCloseBtn) {
+                infoCloseBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideInfo();
+                });
+            }
+            
+            const infoOverlay = document.getElementById('info-overlay');
+            if (infoOverlay) {
+                infoOverlay.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        hideInfo();
                     }
                 });
             }

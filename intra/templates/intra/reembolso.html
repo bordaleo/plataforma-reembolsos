@@ -191,6 +191,105 @@
     .linha-despesa .form-group input:hover {
         border-color: #bdc3c7;
     }
+    .form-group-desc-valor-linha {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    .desc-valor-campos {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr) minmax(160px, 1.15fr);
+        gap: 1.5rem;
+        align-items: start;
+    }
+    .linha-despesa .campo-desc-inner label,
+    .linha-despesa .campo-valor-inner label,
+    .linha-despesa .campo-anexo-inner label {
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 0.625rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+        display: block;
+    }
+    .linha-despesa .campo-desc-inner input,
+    .linha-despesa .campo-valor-inner input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #2c3e50;
+        background: #ffffff;
+        transition: all 0.2s;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+    .linha-despesa .campo-desc-inner input:focus,
+    .linha-despesa .campo-valor-inner input:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        background: #ffffff;
+    }
+    .linha-despesa .campo-desc-inner input:hover,
+    .linha-despesa .campo-valor-inner input:hover {
+        border-color: #bdc3c7;
+    }
+    .campo-desc-inner,
+    .campo-valor-inner,
+    .campo-anexo-inner {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    .linha-despesa .campo-anexo-inner .anexo-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        justify-content: flex-start;
+        min-height: 0;
+    }
+    .linha-despesa .desc-valor-campos .campo-anexo-inner .anexo-wrapper > input[type=file] {
+        height: 2.875rem;
+        min-height: 2.875rem;
+        max-height: 2.875rem;
+        padding: 0 0.65rem;
+        box-sizing: border-box;
+        font-size: 0.85rem;
+        line-height: 1.2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        text-align: center;
+    }
+    .linha-despesa .desc-valor-campos .campo-anexo-inner .anexo-wrapper > input[type=file]::-webkit-file-upload-button {
+        padding: 0.28rem 0.6rem;
+        font-size: 0.78rem;
+        margin-right: 0.35rem;
+        height: 1.55rem;
+        line-height: 1;
+        vertical-align: middle;
+        flex-shrink: 0;
+        align-self: center;
+    }
+    .char-counter-desc {
+        font-size: 0.85em;
+        color: #7f8c8d;
+        margin-top: 0.75rem;
+        padding-top: 0.35rem;
+        min-height: 1.25em;
+        line-height: 1.3;
+    }
+    @media (max-width: 768px) {
+        .desc-valor-campos {
+            grid-template-columns: 1fr;
+        }
+    }
     .anexo-wrapper {
         display: flex;
         flex-direction: column;
@@ -607,22 +706,29 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Descrição <span style="color: #e74c3c;">*</span></label>
-                    <input type="text" name="descricao_0" placeholder="Descrição do item" required class="form-control" maxlength="300">
-                </div>
-                <div class="form-group">
-                    <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
-                    <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?">
-                </div>
-                <div class="form-group">
-                    <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
-                    <div class="anexo-wrapper">
-                        <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo">
-                        <div class="anexo-info hidden" id="anexo-info-0">
-                            <span class="nome-arquivo"></span>
-                            <button type="button" class="btn-remover-arquivo">Remover</button>
+                <div class="form-group-desc-valor-linha">
+                    <div class="desc-valor-campos">
+                        <div class="campo-desc-inner">
+                            <label>Descrição <span style="color: #e74c3c;">*</span></label>
+                            <input type="text" name="descricao_0" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300">
                         </div>
+                        <div class="campo-valor-inner">
+                            <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
+                            <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?">
+                        </div>
+                        <div class="campo-anexo-inner">
+                            <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
+                            <div class="anexo-wrapper">
+                                <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo">
+                                <div class="anexo-info hidden" id="anexo-info-0">
+                                    <span class="nome-arquivo"></span>
+                                    <button type="button" class="btn-remover-arquivo">Remover</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="char-counter char-counter-desc">
+                        <span class="char-count">0</span>/300 caracteres
                     </div>
                 </div>
                 <div class="acoes-linha-container" style="display: none;">
@@ -668,8 +774,19 @@
             </div>
             <div class="form-group">
                 <label for="pix_banco">Banco <span style="color: #e74c3c;">*</span></label>
-                <input type="text" name="pix_banco" id="pix_banco" class="form-control" 
-                       placeholder="Nome do banco">
+                <select name="pix_banco" id="pix_banco" class="form-control" required>
+                    {% for value, label in bancos_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-group" id="pix-banco-outro-group" style="display: none; margin-top: 0.5rem;">
+                    <label for="pix_banco_outro">
+                        Nome do Banco
+                        <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="text" id="pix_banco_outro" class="form-control" 
+                           placeholder="Digite o nome do banco">
+                </div>
             </div>
             <div class="form-group">
                 <label for="pix_cpf">CPF/CNPJ <span style="color: #e74c3c;">*</span></label>
@@ -687,13 +804,21 @@
                         <option value="{{ value }}">{{ label }}</option>
                     {% endfor %}
                 </select>
+                <div class="form-group" id="transf-banco-outro-group" style="display: none; margin-top: 0.5rem;">
+                    <label for="transf_banco_outro">
+                        Nome do Banco
+                        <span style="color: #e74c3c;">*</span>
+                    </label>
+                    <input type="text" id="transf_banco_outro" class="form-control" 
+                           placeholder="Digite o nome do banco">
+                </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="transf-agencia-group">
                 <label for="transf_agencia">Agência <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_agencia" id="transf_agencia" class="form-control" 
                        placeholder="0000" maxlength="20">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="transf-conta-tipo-group">
                 <label for="transf_conta_tipo">Tipo de Conta <span style="color: #e74c3c;">*</span></label>
                 <select name="transf_conta_tipo" id="transf_conta_tipo" class="form-control">
                     <option value="">Selecione...</option>
@@ -701,10 +826,15 @@
                     <option value="POUPANCA">Poupança</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="transf-conta-numero-group">
                 <label for="transf_conta_numero">Conta Corrente ou Poupança <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_conta_numero" id="transf_conta_numero" class="form-control" 
                        placeholder="00000-0" maxlength="30">
+            </div>
+            <div class="form-group" id="transf-carteira-digital-group" style="display: none;">
+                <label for="transf_carteira_digital">Chave (E-mail, CPF ou Telefone) <span style="color: #e74c3c;">*</span></label>
+                <input type="text" name="transf_carteira_digital" id="transf_carteira_digital" class="form-control" 
+                       placeholder="Digite e-mail, CPF ou telefone">
             </div>
             <div class="form-group">
                 <label for="transf_cpf">CPF/CNPJ <span style="color: #e74c3c;">*</span></label>
@@ -961,9 +1091,7 @@
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control" maxlength="300"></div>' +
-            '<div class="form-group"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div>' +
-            '<div class="form-group"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div>' +
+            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
             '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
@@ -985,6 +1113,11 @@
         var inputValor = div.querySelector('input[name^="valor_"]');
         if (inputValor) {
             aplicarMascaraValor(inputValor);
+        }
+        // Configurar contador de caracteres na descrição
+        var inputDesc = div.querySelector('input[name^="descricao_"]');
+        if (inputDesc) {
+            setupDescricaoCounter(inputDesc);
         }
         div.querySelector('.btn-remover').addEventListener('click', function() {
             if (container.querySelectorAll('.linha-despesa').length > 1) {
@@ -1041,6 +1174,45 @@
             });
             setupAnexo(inputAnexoInicial);
         }
+    }
+
+    // Função para configurar contador de caracteres em campo de descrição
+    function setupDescricaoCounter(input) {
+        if (!input) return;
+        var wrapper = input.closest('.form-group-desc-valor-linha') || input.closest('.form-group');
+        if (!wrapper) return;
+        var counter = wrapper.querySelector('.char-count');
+        if (!counter) return;
+        
+        function updateCounter() {
+            var len = input.value.length;
+            counter.textContent = len;
+            var counterDiv = wrapper.querySelector('.char-counter-desc') || wrapper.querySelector('.char-counter');
+            if (len >= 300) {
+                counterDiv.style.color = '#e74c3c';
+                counterDiv.style.fontWeight = 'bold';
+                if (len === 300 && !input.dataset.warned) {
+                    input.dataset.warned = 'true';
+                    alert('Atenção: Você atingiu o limite de 300 caracteres para a descrição.');
+                }
+            } else if (len >= 280) {
+                counterDiv.style.color = '#f39c12';
+            } else {
+                counterDiv.style.color = '#7f8c8d';
+                counterDiv.style.fontWeight = 'normal';
+                delete input.dataset.warned;
+            }
+        }
+        
+        input.addEventListener('input', updateCounter);
+        input.addEventListener('keyup', updateCounter);
+        updateCounter();
+    }
+    
+    // Configurar contador no campo inicial
+    var descInicial = container.querySelector('input[name="descricao_0"]');
+    if (descInicial) {
+        setupDescricaoCounter(descInicial);
     }
 
     document.querySelectorAll('.btn-remover').forEach(function(btn) {
@@ -1131,6 +1303,38 @@
     var camposPix = document.getElementById('campos-pix');
     var camposTransferencia = document.getElementById('campos-transferencia');
     
+    // Função para atualizar campos quando Carteira Digital é selecionado
+    function atualizarCamposCarteiraDigital(isCarteiraDigital) {
+        var agenciaGroup = document.getElementById('transf-agencia-group');
+        var contaTipoGroup = document.getElementById('transf-conta-tipo-group');
+        var contaNumeroGroup = document.getElementById('transf-conta-numero-group');
+        var carteiraDigitalGroup = document.getElementById('transf-carteira-digital-group');
+        var transfAgencia = document.getElementById('transf_agencia');
+        var transfContaTipo = document.getElementById('transf_conta_tipo');
+        var transfContaNumero = document.getElementById('transf_conta_numero');
+        var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
+        
+        if (isCarteiraDigital) {
+            if (agenciaGroup) agenciaGroup.style.display = 'none';
+            if (contaTipoGroup) contaTipoGroup.style.display = 'none';
+            if (contaNumeroGroup) contaNumeroGroup.style.display = 'none';
+            if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'block';
+            if (transfAgencia) transfAgencia.removeAttribute('required');
+            if (transfContaTipo) transfContaTipo.removeAttribute('required');
+            if (transfContaNumero) transfContaNumero.removeAttribute('required');
+            if (transfCarteiraDigital) transfCarteiraDigital.setAttribute('required', 'required');
+        } else {
+            if (agenciaGroup) agenciaGroup.style.display = 'block';
+            if (contaTipoGroup) contaTipoGroup.style.display = 'block';
+            if (contaNumeroGroup) contaNumeroGroup.style.display = 'block';
+            if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'none';
+            if (transfAgencia) transfAgencia.setAttribute('required', 'required');
+            if (transfContaTipo) transfContaTipo.setAttribute('required', 'required');
+            if (transfContaNumero) transfContaNumero.setAttribute('required', 'required');
+            if (transfCarteiraDigital) transfCarteiraDigital.removeAttribute('required');
+        }
+    }
+    
     function atualizarCamposPagamento() {
         var forma = formaPagamento ? formaPagamento.value : '';
         
@@ -1150,11 +1354,13 @@
             var transfContaTipo = document.getElementById('transf_conta_tipo');
             var transfContaNumero = document.getElementById('transf_conta_numero');
             var transfCpf = document.getElementById('transf_cpf');
+            var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
             if (transfBanco) transfBanco.removeAttribute('required');
             if (transfAgencia) transfAgencia.removeAttribute('required');
             if (transfContaTipo) transfContaTipo.removeAttribute('required');
             if (transfContaNumero) transfContaNumero.removeAttribute('required');
             if (transfCpf) transfCpf.removeAttribute('required');
+            if (transfCarteiraDigital) transfCarteiraDigital.removeAttribute('required');
         } else if (forma === 'TRANSFERENCIA') {
             if (camposPix) camposPix.style.display = 'none';
             if (camposTransferencia) camposTransferencia.style.display = 'block';
@@ -1165,16 +1371,13 @@
             if (pixChave) pixChave.removeAttribute('required');
             if (pixBanco) pixBanco.removeAttribute('required');
             if (pixCpf) pixCpf.removeAttribute('required');
-            // Tornar campos de transferência obrigatórios
+            // Verificar se é Carteira Digital
             var transfBanco = document.getElementById('transf_banco');
-            var transfAgencia = document.getElementById('transf_agencia');
-            var transfContaTipo = document.getElementById('transf_conta_tipo');
-            var transfContaNumero = document.getElementById('transf_conta_numero');
+            var isCarteiraDigital = transfBanco && transfBanco.value === 'Carteira Digital';
+            atualizarCamposCarteiraDigital(isCarteiraDigital);
+            // Tornar campos de transferência obrigatórios
             var transfCpf = document.getElementById('transf_cpf');
             if (transfBanco) transfBanco.setAttribute('required', 'required');
-            if (transfAgencia) transfAgencia.setAttribute('required', 'required');
-            if (transfContaTipo) transfContaTipo.setAttribute('required', 'required');
-            if (transfContaNumero) transfContaNumero.setAttribute('required', 'required');
             if (transfCpf) transfCpf.setAttribute('required', 'required');
         } else {
             if (camposPix) camposPix.style.display = 'none';
@@ -1187,6 +1390,7 @@
             var transfAgencia = document.getElementById('transf_agencia');
             var transfContaTipo = document.getElementById('transf_conta_tipo');
             var transfContaNumero = document.getElementById('transf_conta_numero');
+            var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
             if (pixChave) pixChave.removeAttribute('required');
             if (pixBanco) pixBanco.removeAttribute('required');
             if (pixCpf) pixCpf.removeAttribute('required');
@@ -1194,7 +1398,75 @@
             if (transfAgencia) transfAgencia.removeAttribute('required');
             if (transfContaTipo) transfContaTipo.removeAttribute('required');
             if (transfContaNumero) transfContaNumero.removeAttribute('required');
+            if (transfCarteiraDigital) transfCarteiraDigital.removeAttribute('required');
         }
+    }
+    
+    // Função para atualizar campo "Outro" para banco PIX
+    function atualizarCampoOutroPix() {
+        var pixBanco = document.getElementById('pix_banco');
+        var pixBancoOutroGroup = document.getElementById('pix-banco-outro-group');
+        var pixBancoOutro = document.getElementById('pix_banco_outro');
+        var isOutro = pixBanco && pixBanco.value === 'Outro';
+        
+        if (pixBancoOutroGroup) {
+            pixBancoOutroGroup.style.display = isOutro ? 'block' : 'none';
+        }
+        
+        if (pixBancoOutro) {
+            if (isOutro) {
+                pixBancoOutro.setAttribute('required', 'required');
+            } else {
+                pixBancoOutro.removeAttribute('required');
+                if (!isOutro) {
+                    pixBancoOutro.value = '';
+                }
+            }
+        }
+    }
+    
+    // Função para atualizar campo "Outro" para banco Transferência
+    function atualizarCampoOutroTransf() {
+        var transfBanco = document.getElementById('transf_banco');
+        var transfBancoOutroGroup = document.getElementById('transf-banco-outro-group');
+        var transfBancoOutro = document.getElementById('transf_banco_outro');
+        var isOutro = transfBanco && transfBanco.value === 'Outro';
+        
+        if (transfBancoOutroGroup) {
+            transfBancoOutroGroup.style.display = isOutro ? 'block' : 'none';
+        }
+        
+        if (transfBancoOutro) {
+            if (isOutro) {
+                transfBancoOutro.setAttribute('required', 'required');
+            } else {
+                transfBancoOutro.removeAttribute('required');
+                if (!isOutro) {
+                    transfBancoOutro.value = '';
+                }
+            }
+        }
+    }
+    
+    // Listener para mudança no banco PIX
+    var pixBanco = document.getElementById('pix_banco');
+    if (pixBanco) {
+        pixBanco.addEventListener('change', function() {
+            atualizarCampoOutroPix();
+        });
+        // Verificar estado inicial
+        atualizarCampoOutroPix();
+    }
+    
+    // Listener para mudança no banco de transferência
+    var transfBanco = document.getElementById('transf_banco');
+    if (transfBanco) {
+        transfBanco.addEventListener('change', function() {
+            atualizarCampoOutroTransf();
+            atualizarCamposCarteiraDigital(this.value === 'Carteira Digital');
+        });
+        // Verificar estado inicial
+        atualizarCampoOutroTransf();
     }
     
     // Garantir que os campos estejam ocultos inicialmente
@@ -1232,20 +1504,71 @@
             if (perfilData.forma_pagamento === 'PIX') {
                 var pixChave = document.getElementById('pix_chave');
                 var pixBanco = document.getElementById('pix_banco');
+                var pixBancoOutro = document.getElementById('pix_banco_outro');
                 var pixCpf = document.getElementById('pix_cpf');
                 if (pixChave && perfilData.chave_pix) pixChave.value = perfilData.chave_pix;
-                if (pixBanco && perfilData.banco_pix) pixBanco.value = perfilData.banco_pix;
+                if (pixBanco && perfilData.banco_pix) {
+                    // Verificar se o banco está na lista de choices
+                    var bancoNaLista = false;
+                    var selectOptions = pixBanco.querySelectorAll('option');
+                    for (var i = 0; i < selectOptions.length; i++) {
+                        if (selectOptions[i].value === perfilData.banco_pix) {
+                            bancoNaLista = true;
+                            break;
+                        }
+                    }
+                    
+                    if (bancoNaLista) {
+                        pixBanco.value = perfilData.banco_pix;
+                    } else {
+                        // Se não estiver na lista, usar "Outro" e preencher campo
+                        pixBanco.value = 'Outro';
+                        if (pixBancoOutro) {
+                            pixBancoOutro.value = perfilData.banco_pix;
+                        }
+                        atualizarCampoOutroPix();
+                    }
+                }
                 if (pixCpf && perfilData.cpf_pix) pixCpf.value = perfilData.cpf_pix;
             }
             
             // Preencher campos Transferência
             if (perfilData.forma_pagamento === 'TRANSFERENCIA') {
                 var transfBanco = document.getElementById('transf_banco');
+                var transfBancoOutro = document.getElementById('transf_banco_outro');
                 var transfAgencia = document.getElementById('transf_agencia');
                 var transfContaTipo = document.getElementById('transf_conta_tipo');
                 var transfContaNumero = document.getElementById('transf_conta_numero');
                 var transfCpf = document.getElementById('transf_cpf');
-                if (transfBanco && perfilData.banco_transf) transfBanco.value = perfilData.banco_transf;
+                
+                if (transfBanco && perfilData.banco_transf) {
+                    // Verificar se o banco está na lista de choices
+                    var bancoNaLista = false;
+                    var selectOptions = transfBanco.querySelectorAll('option');
+                    for (var i = 0; i < selectOptions.length; i++) {
+                        if (selectOptions[i].value === perfilData.banco_transf) {
+                            bancoNaLista = true;
+                            break;
+                        }
+                    }
+                    
+                    if (bancoNaLista) {
+                        transfBanco.value = perfilData.banco_transf;
+                    } else {
+                        // Se não estiver na lista, usar "Outro" e preencher campo
+                        transfBanco.value = 'Outro';
+                        if (transfBancoOutro) {
+                            transfBancoOutro.value = perfilData.banco_transf;
+                        }
+                        atualizarCampoOutroTransf();
+                    }
+                    
+                    // Verificar se é Carteira Digital
+                    if (perfilData.banco_transf === 'Carteira Digital') {
+                        atualizarCamposCarteiraDigital(true);
+                    }
+                }
+                
                 if (transfAgencia && perfilData.agencia) transfAgencia.value = perfilData.agencia;
                 if (transfContaTipo && perfilData.conta_tipo) transfContaTipo.value = perfilData.conta_tipo;
                 if (transfContaNumero && perfilData.conta_numero) transfContaNumero.value = perfilData.conta_numero;
@@ -1310,6 +1633,315 @@
         });
     }
     
+    // Máscaras para Agência e Conta
+    (function() {
+        var agenciaInput = document.getElementById('transf_agencia');
+        var contaInput = document.getElementById('transf_conta_numero');
+        
+        function aplicarMascaraAgencia(value) {
+            // Regex: ^\d{4}-?\d{0,1}$ - 4 a 5 dígitos (com ou sem hífen)
+            var numeros = value.replace(/\D/g, '');
+            if (numeros.length > 5) {
+                numeros = numeros.substring(0, 5);
+            }
+            // Formatar com hífen opcional após 4 dígitos
+            if (numeros.length > 4) {
+                return numeros.substring(0, 4) + '-' + numeros.substring(4);
+            }
+            return numeros;
+        }
+        
+        function aplicarMascaraConta(value) {
+            // Regex: ^\d{5,12}-?\d{0,1}$ - 5 a 13 dígitos (com ou sem hífen)
+            var numeros = value.replace(/\D/g, '');
+            if (numeros.length > 13) {
+                numeros = numeros.substring(0, 13);
+            }
+            // Formatar com hífen opcional após 5-12 dígitos
+            if (numeros.length > 5) {
+                var partePrincipal = numeros.substring(0, Math.min(numeros.length - 1, 12));
+                var digitoVerificador = numeros.substring(partePrincipal.length);
+                if (digitoVerificador) {
+                    return partePrincipal + '-' + digitoVerificador;
+                }
+                return partePrincipal;
+            }
+            return numeros;
+        }
+        
+        if (agenciaInput) {
+            agenciaInput.addEventListener('input', function(e) {
+                e.target.value = aplicarMascaraAgencia(e.target.value);
+            });
+        }
+        
+        if (contaInput) {
+            contaInput.addEventListener('input', function(e) {
+                e.target.value = aplicarMascaraConta(e.target.value);
+            });
+        }
+    })();
+    
+    // Função para validar CPF/CNPJ
+    function validarCPFCNPJ(valor) {
+        var numeros = valor.replace(/\D/g, '');
+        return numeros.length === 11 || numeros.length === 14;
+    }
+    
+    // Função para validar formulário antes de submeter
+    function validarFormularioPagamento() {
+        var forma = formaPagamento ? formaPagamento.value : '';
+        
+        if (!forma) {
+            alert('Por favor, selecione uma forma de pagamento.');
+            return false;
+        }
+        
+        if (forma === 'PIX') {
+            var pixChave = document.getElementById('pix_chave');
+            var pixBanco = document.getElementById('pix_banco');
+            var pixCpf = document.getElementById('pix_cpf');
+            
+            if (!pixChave || !pixChave.value.trim()) {
+                alert('Por favor, preencha a Chave PIX.');
+                if (pixChave) pixChave.focus();
+                return false;
+            }
+            
+            if (!pixBanco || !pixBanco.value || pixBanco.value === '' || pixBanco.value === 'Selecione...') {
+                alert('Por favor, selecione o banco.');
+                if (pixBanco) pixBanco.focus();
+                return false;
+            }
+            
+            if (pixBanco.value === 'Outro') {
+                var pixBancoOutro = document.getElementById('pix_banco_outro');
+                if (!pixBancoOutro || !pixBancoOutro.value.trim()) {
+                    alert('Por favor, digite o nome do banco.');
+                    if (pixBancoOutro) pixBancoOutro.focus();
+                    return false;
+                }
+            }
+            
+            if (!pixCpf || !pixCpf.value.trim()) {
+                alert('Por favor, preencha o CPF/CNPJ.');
+                if (pixCpf) pixCpf.focus();
+                return false;
+            }
+            
+            if (!validarCPFCNPJ(pixCpf.value)) {
+                alert('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                if (pixCpf) pixCpf.focus();
+                return false;
+            }
+        } else if (forma === 'TRANSFERENCIA') {
+            var transfBanco = document.getElementById('transf_banco');
+            var transfAgencia = document.getElementById('transf_agencia');
+            var transfContaTipo = document.getElementById('transf_conta_tipo');
+            var transfContaNumero = document.getElementById('transf_conta_numero');
+            var transfCpf = document.getElementById('transf_cpf');
+            var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
+            
+            if (!transfBanco || !transfBanco.value || transfBanco.value === '' || transfBanco.value === 'Selecione...') {
+                alert('Por favor, selecione o banco.');
+                if (transfBanco) transfBanco.focus();
+                return false;
+            }
+            
+            if (transfBanco.value === 'Outro') {
+                var transfBancoOutro = document.getElementById('transf_banco_outro');
+                if (!transfBancoOutro || !transfBancoOutro.value.trim()) {
+                    alert('Por favor, digite o nome do banco.');
+                    if (transfBancoOutro) transfBancoOutro.focus();
+                    return false;
+                }
+            }
+            
+            var isCarteiraDigital = transfBanco.value === 'Carteira Digital';
+            
+            if (isCarteiraDigital) {
+                // Para Carteira Digital, validar apenas o campo de chave
+                if (!transfCarteiraDigital || !transfCarteiraDigital.value.trim()) {
+                    alert('Por favor, preencha a chave (E-mail, CPF ou Telefone).');
+                    if (transfCarteiraDigital) transfCarteiraDigital.focus();
+                    return false;
+                }
+            } else {
+                // Para banco tradicional, validar agência, conta e CPF
+                if (!transfAgencia || !transfAgencia.value.trim()) {
+                    alert('Por favor, preencha a agência.');
+                    if (transfAgencia) transfAgencia.focus();
+                    return false;
+                } else {
+                    // Validar formato da agência: 4 a 5 dígitos (com ou sem hífen)
+                    var agenciaNumeros = transfAgencia.value.replace(/\D/g, '');
+                    if (agenciaNumeros.length < 4 || agenciaNumeros.length > 5) {
+                        alert('Agência deve ter 4 a 5 dígitos.');
+                        if (transfAgencia) transfAgencia.focus();
+                        return false;
+                    }
+                }
+                
+                if (!transfContaTipo || !transfContaTipo.value.trim()) {
+                    alert('Por favor, selecione o tipo de conta.');
+                    if (transfContaTipo) transfContaTipo.focus();
+                    return false;
+                }
+                
+                if (!transfContaNumero || !transfContaNumero.value.trim()) {
+                    alert('Por favor, preencha o número da conta.');
+                    if (transfContaNumero) transfContaNumero.focus();
+                    return false;
+                } else {
+                    // Validar formato da conta: 5 a 13 dígitos (com ou sem hífen)
+                    var contaNumeros = transfContaNumero.value.replace(/\D/g, '');
+                    if (contaNumeros.length < 5 || contaNumeros.length > 13) {
+                        alert('Conta deve ter 5 a 13 dígitos.');
+                        if (transfContaNumero) transfContaNumero.focus();
+                        return false;
+                    }
+                }
+            }
+            
+            if (!transfCpf || !transfCpf.value.trim()) {
+                alert('Por favor, preencha o CPF/CNPJ.');
+                if (transfCpf) transfCpf.focus();
+                return false;
+            }
+            
+            if (!validarCPFCNPJ(transfCpf.value)) {
+                alert('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                if (transfCpf) transfCpf.focus();
+                return false;
+            }
+
+        }
+        
+        return true;
+    }
+    
+    // Pré-preencher dados se houver erro de validação (dados do POST)
+    {% if dados_post %}
+    setTimeout(function() {
+        var dadosPost = {
+            centro_custo: '{{ dados_post.centro_custo|default:""|escapejs }}',
+            nome_gestor: '{{ dados_post.nome_gestor|default:""|escapejs }}',
+            forma_pagamento: '{{ dados_post.forma_pagamento|default:"" }}',
+            pix_chave: '{{ dados_post.pix_chave|default:""|escapejs }}',
+            pix_banco: '{{ dados_post.pix_banco|default:""|escapejs }}',
+            pix_cpf: '{{ dados_post.pix_cpf|default:""|escapejs }}',
+            transf_banco: '{{ dados_post.transf_banco|default:""|escapejs }}',
+            transf_agencia: '{{ dados_post.transf_agencia|default:""|escapejs }}',
+            transf_conta_tipo: '{{ dados_post.transf_conta_tipo|default:"" }}',
+            transf_conta_numero: '{{ dados_post.transf_conta_numero|default:""|escapejs }}',
+            transf_cpf: '{{ dados_post.transf_cpf|default:""|escapejs }}'
+        };
+        
+        // Preencher centro de custo
+        if (dadosPost.centro_custo) {
+            var centroCusto = document.getElementById('centro_custo');
+            if (centroCusto) centroCusto.value = dadosPost.centro_custo;
+        }
+        
+        // Preencher nome do gestor
+        if (dadosPost.nome_gestor) {
+            var nomeGestor = document.getElementById('nome_gestor');
+            if (nomeGestor) nomeGestor.value = dadosPost.nome_gestor;
+        }
+        
+        // Preencher forma de pagamento
+        if (dadosPost.forma_pagamento && formaPagamento) {
+            formaPagamento.value = dadosPost.forma_pagamento;
+            atualizarCamposPagamento();
+            
+            // Preencher campos PIX
+            if (dadosPost.forma_pagamento === 'PIX') {
+                var pixChave = document.getElementById('pix_chave');
+                var pixBanco = document.getElementById('pix_banco');
+                var pixBancoOutro = document.getElementById('pix_banco_outro');
+                var pixCpf = document.getElementById('pix_cpf');
+                if (pixChave && dadosPost.pix_chave) pixChave.value = dadosPost.pix_chave;
+                if (pixBanco && dadosPost.pix_banco) {
+                    // Verificar se o banco está na lista de choices
+                    var bancoNaLista = false;
+                    var selectOptions = pixBanco.querySelectorAll('option');
+                    for (var i = 0; i < selectOptions.length; i++) {
+                        if (selectOptions[i].value === dadosPost.pix_banco) {
+                            bancoNaLista = true;
+                            break;
+                        }
+                    }
+                    
+                    if (bancoNaLista) {
+                        pixBanco.value = dadosPost.pix_banco;
+                    } else {
+                        // Se não estiver na lista, usar "Outro" e preencher campo
+                        pixBanco.value = 'Outro';
+                        if (pixBancoOutro) {
+                            pixBancoOutro.value = dadosPost.pix_banco;
+                        }
+                        atualizarCampoOutroPix();
+                    }
+                }
+                if (pixCpf && dadosPost.pix_cpf) pixCpf.value = dadosPost.pix_cpf;
+            }
+            
+            // Preencher campos Transferência
+            if (dadosPost.forma_pagamento === 'TRANSFERENCIA') {
+                var transfBanco = document.getElementById('transf_banco');
+                var transfBancoOutro = document.getElementById('transf_banco_outro');
+                var transfAgencia = document.getElementById('transf_agencia');
+                var transfContaTipo = document.getElementById('transf_conta_tipo');
+                var transfContaNumero = document.getElementById('transf_conta_numero');
+                var transfCpf = document.getElementById('transf_cpf');
+                var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
+                
+                if (transfBanco && dadosPost.transf_banco) {
+                    // Verificar se o banco está na lista de choices
+                    var bancoNaLista = false;
+                    var selectOptions = transfBanco.querySelectorAll('option');
+                    for (var i = 0; i < selectOptions.length; i++) {
+                        if (selectOptions[i].value === dadosPost.transf_banco) {
+                            bancoNaLista = true;
+                            break;
+                        }
+                    }
+                    
+                    if (bancoNaLista) {
+                        transfBanco.value = dadosPost.transf_banco;
+                    } else {
+                        // Se não estiver na lista, usar "Outro" e preencher campo
+                        transfBanco.value = 'Outro';
+                        if (transfBancoOutro) {
+                            transfBancoOutro.value = dadosPost.transf_banco;
+                        }
+                        atualizarCampoOutroTransf();
+                    }
+                    
+                    // Verificar se é Carteira Digital
+                    if (dadosPost.transf_banco === 'Carteira Digital') {
+                        atualizarCamposCarteiraDigital(true);
+                        if (transfCarteiraDigital && dadosPost.transf_conta_numero) {
+                            transfCarteiraDigital.value = dadosPost.transf_conta_numero;
+                        }
+                    } else {
+                        atualizarCamposCarteiraDigital(false);
+                        if (transfAgencia && dadosPost.transf_agencia) transfAgencia.value = dadosPost.transf_agencia;
+                        if (transfContaTipo && dadosPost.transf_conta_tipo) transfContaTipo.value = dadosPost.transf_conta_tipo;
+                        if (transfContaNumero && dadosPost.transf_conta_numero) transfContaNumero.value = dadosPost.transf_conta_numero;
+                    }
+                }
+                
+                if (transfCpf && dadosPost.transf_cpf) transfCpf.value = dadosPost.transf_cpf;
+            }
+        }
+        
+        // Preencher itens do POST (se houver)
+        // Nota: Os itens precisam ser reconstruídos do POST, mas isso é mais complexo
+        // Por enquanto, apenas os campos de pagamento são mantidos
+    }, 100);
+    {% endif %}
+    
     // Pré-preencher dados se estiver editando
     {% if solicitacao_editar %}
     setTimeout(function() {
@@ -1326,6 +1958,7 @@
             transf_conta_tipo: '{{ solicitacao_editar.transf_conta_tipo|default:"" }}',
             transf_conta_numero: '{{ solicitacao_editar.transf_conta_numero|default:"" }}',
             transf_cpf: '{{ solicitacao_editar.transf_cpf|default:"" }}',
+            transf_carteira_digital: '{{ solicitacao_editar.transf_conta_numero|default:"" }}',
             itens: [
                 {% for item in solicitacao_editar.itens.all %}
                 {
@@ -1368,9 +2001,31 @@
             if (sol.forma_pagamento === 'PIX') {
                 var pixChave = document.getElementById('pix_chave');
                 var pixBanco = document.getElementById('pix_banco');
+                var pixBancoOutro = document.getElementById('pix_banco_outro');
                 var pixCpf = document.getElementById('pix_cpf');
                 if (pixChave && sol.pix_chave) pixChave.value = sol.pix_chave;
-                if (pixBanco && sol.pix_banco) pixBanco.value = sol.pix_banco;
+                if (pixBanco && sol.pix_banco) {
+                    // Verificar se o banco está na lista de choices
+                    var bancoNaLista = false;
+                    var selectOptions = pixBanco.querySelectorAll('option');
+                    for (var i = 0; i < selectOptions.length; i++) {
+                        if (selectOptions[i].value === sol.pix_banco) {
+                            bancoNaLista = true;
+                            break;
+                        }
+                    }
+                    
+                    if (bancoNaLista) {
+                        pixBanco.value = sol.pix_banco;
+                    } else {
+                        // Se não estiver na lista, usar "Outro" e preencher campo
+                        pixBanco.value = 'Outro';
+                        if (pixBancoOutro) {
+                            pixBancoOutro.value = sol.pix_banco;
+                        }
+                        atualizarCampoOutroPix();
+                    }
+                }
                 if (pixCpf && sol.pix_cpf) pixCpf.value = sol.pix_cpf;
             }
             
@@ -1381,10 +2036,23 @@
                 var transfContaTipo = document.getElementById('transf_conta_tipo');
                 var transfContaNumero = document.getElementById('transf_conta_numero');
                 var transfCpf = document.getElementById('transf_cpf');
-                if (transfBanco && sol.transf_banco) transfBanco.value = sol.transf_banco;
-                if (transfAgencia && sol.transf_agencia) transfAgencia.value = sol.transf_agencia;
-                if (transfContaTipo && sol.transf_conta_tipo) transfContaTipo.value = sol.transf_conta_tipo;
-                if (transfContaNumero && sol.transf_conta_numero) transfContaNumero.value = sol.transf_conta_numero;
+                var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
+                
+                if (transfBanco && sol.transf_banco) {
+                    transfBanco.value = sol.transf_banco;
+                    // Verificar se é Carteira Digital e atualizar campos
+                    if (sol.transf_banco === 'Carteira Digital') {
+                        atualizarCamposCarteiraDigital(true);
+                        if (transfCarteiraDigital && sol.transf_conta_numero) {
+                            transfCarteiraDigital.value = sol.transf_conta_numero;
+                        }
+                    } else {
+                        atualizarCamposCarteiraDigital(false);
+                        if (transfAgencia && sol.transf_agencia) transfAgencia.value = sol.transf_agencia;
+                        if (transfContaTipo && sol.transf_conta_tipo) transfContaTipo.value = sol.transf_conta_tipo;
+                        if (transfContaNumero && sol.transf_conta_numero) transfContaNumero.value = sol.transf_conta_numero;
+                    }
+                }
                 if (transfCpf && sol.transf_cpf) transfCpf.value = sol.transf_cpf;
             }
         }
@@ -1690,6 +2358,33 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Usar capture phase e invalid event para interceptar antes da validação
         form.addEventListener('submit', function(e) {
+            // Validar formulário de pagamento antes de submeter
+            if (!validarFormularioPagamento()) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Atualizar valores de "Outro" antes de submeter
+            var pixBanco = document.getElementById('pix_banco');
+            var pixBancoOutro = document.getElementById('pix_banco_outro');
+            if (pixBanco && pixBanco.value === 'Outro' && pixBancoOutro && pixBancoOutro.value.trim()) {
+                pixBanco.value = pixBancoOutro.value.trim();
+            }
+            
+            var transfBanco = document.getElementById('transf_banco');
+            var transfBancoOutro = document.getElementById('transf_banco_outro');
+            if (transfBanco && transfBanco.value === 'Outro' && transfBancoOutro && transfBancoOutro.value.trim()) {
+                transfBanco.value = transfBancoOutro.value.trim();
+            }
+            
+            // Se for Carteira Digital, copiar valor para conta_numero antes de submeter
+            var transfCarteiraDigital = document.getElementById('transf_carteira_digital');
+            var transfContaNumero = document.getElementById('transf_conta_numero');
+            
+            if (transfBanco && transfBanco.value === 'Carteira Digital' && transfCarteiraDigital && transfContaNumero) {
+                transfContaNumero.value = transfCarteiraDigital.value;
+            }
+            
             // Se estiver editando, verificar se houve alterações
             {% if solicitacao_editar %}
             if (valoresIniciais) {

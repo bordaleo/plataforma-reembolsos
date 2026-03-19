@@ -229,6 +229,8 @@ class EditarPagamentoForm(forms.ModelForm):
         ('Banco Will', 'Banco Will'),
         ('Banco Sofisa', 'Banco Sofisa'),
         ('Banco Rendimento', 'Banco Rendimento'),
+        ('Carteira Digital', 'Carteira Digital'),
+        ('Outro', 'Outro'),
     ]
     
     banco_pix_select = forms.ChoiceField(
@@ -254,9 +256,21 @@ class EditarPagamentoForm(forms.ModelForm):
         # Definir valores iniciais dos campos de seleção de banco
         if self.instance:
             if self.instance.banco_pix:
-                self.initial['banco_pix_select'] = self.instance.banco_pix
+                banco_pix_value = self.instance.banco_pix
+                # Verificar se o valor está nas choices
+                if banco_pix_value and banco_pix_value in [choice[0] for choice in self.BANCOS_CHOICES]:
+                    self.initial['banco_pix_select'] = banco_pix_value
+                elif banco_pix_value:
+                    # Se não estiver nas choices, usar "Outro"
+                    self.initial['banco_pix_select'] = 'Outro'
             if self.instance.banco:
-                self.initial['banco_transf_select'] = self.instance.banco
+                banco_value = self.instance.banco
+                # Verificar se o valor está nas choices
+                if banco_value and banco_value in [choice[0] for choice in self.BANCOS_CHOICES]:
+                    self.initial['banco_transf_select'] = banco_value
+                elif banco_value:
+                    # Se não estiver nas choices, usar "Outro"
+                    self.initial['banco_transf_select'] = 'Outro'
 
     class Meta:
         model = PerfilSolicitante
@@ -316,8 +330,13 @@ class EditarPagamentoForm(forms.ModelForm):
     def clean_cpf_pix(self):
         cpf_pix = self.cleaned_data.get("cpf_pix", "").strip()
         forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
-        if forma_pagamento == "PIX" and not cpf_pix:
-            raise forms.ValidationError("Este campo é obrigatório.")
+        if forma_pagamento == "PIX":
+            if not cpf_pix:
+                raise forms.ValidationError("Este campo é obrigatório.")
+            # Remover caracteres não numéricos para validação
+            numeros = ''.join(filter(str.isdigit, cpf_pix))
+            if len(numeros) != 11 and len(numeros) != 14:
+                raise forms.ValidationError("CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
         return cpf_pix
 
     def clean_banco(self):
@@ -351,8 +370,13 @@ class EditarPagamentoForm(forms.ModelForm):
     def clean_cpf_transferencia(self):
         cpf_transferencia = self.cleaned_data.get("cpf_transferencia", "").strip()
         forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
-        if forma_pagamento == "TRANSFERENCIA" and not cpf_transferencia:
-            raise forms.ValidationError("Este campo é obrigatório.")
+        if forma_pagamento == "TRANSFERENCIA":
+            if not cpf_transferencia:
+                raise forms.ValidationError("Este campo é obrigatório.")
+            # Remover caracteres não numéricos para validação
+            numeros = ''.join(filter(str.isdigit, cpf_transferencia))
+            if len(numeros) != 11 and len(numeros) != 14:
+                raise forms.ValidationError("CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
         return cpf_transferencia
 
     def clean_banco_pix_select(self):
@@ -376,14 +400,89 @@ class EditarPagamentoForm(forms.ModelForm):
         # Transferir valores dos campos de seleção para os campos hidden
         if forma_pagamento == "PIX":
             banco_pix_select = cleaned_data.get("banco_pix_select", "").strip()
-            if banco_pix_select:
+            # Se for "Outro", pegar o valor do campo hidden (que foi atualizado pelo JavaScript)
+            if banco_pix_select == "Outro":
+                banco_pix_value = self.data.get("banco_pix", "").strip()
+                if banco_pix_value:
+                    cleaned_data["banco_pix"] = banco_pix_value
+                else:
+                    cleaned_data["banco_pix"] = banco_pix_select
+            else:
                 cleaned_data["banco_pix"] = banco_pix_select
+            # Limpar campos de transferência quando PIX é selecionado
+            cleaned_data["banco"] = ""
+            cleaned_data["agencia"] = ""
+            cleaned_data["conta_tipo"] = ""
+            cleaned_data["conta_numero"] = ""
+            cleaned_data["cpf_transferencia"] = ""
         elif forma_pagamento == "TRANSFERENCIA":
             banco_transf_select = cleaned_data.get("banco_transf_select", "").strip()
-            if banco_transf_select:
+            # Se for "Outro", pegar o valor do campo hidden (que foi atualizado pelo JavaScript)
+            if banco_transf_select == "Outro":
+                banco_value = self.data.get("banco", "").strip()
+                if banco_value:
+                    cleaned_data["banco"] = banco_value
+                else:
+                    cleaned_data["banco"] = banco_transf_select
+            else:
                 cleaned_data["banco"] = banco_transf_select
+            # Limpar campos de PIX quando TRANSFERENCIA é selecionado
+            cleaned_data["banco_pix"] = ""
+            cleaned_data["chave_pix"] = ""
+            cleaned_data["cpf_pix"] = ""
         
         return cleaned_data
+    
+    def save(self, commit=True):
+        """Salvar o formulário garantindo que os campos sejam salvos corretamente."""
+        instance = super().save(commit=False)
+        
+        # Garantir que os campos hidden sejam atualizados com os valores do cleaned_data
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+        
+        # Garantir que forma_pagamento seja salvo explicitamente
+        if forma_pagamento:
+            instance.forma_pagamento = forma_pagamento
+        
+        if forma_pagamento == "PIX":
+            # Atualizar campos de PIX
+            instance.banco_pix = self.cleaned_data.get("banco_pix", "").strip()
+            instance.chave_pix = self.cleaned_data.get("chave_pix", "").strip()
+            instance.cpf_pix = self.cleaned_data.get("cpf_pix", "").strip()
+            # Limpar campos de transferência
+            instance.banco = ""
+            instance.agencia = ""
+            instance.conta_tipo = ""
+            instance.conta_numero = ""
+            instance.cpf_transferencia = ""
+        elif forma_pagamento == "TRANSFERENCIA":
+            # Atualizar campos de transferência
+            instance.banco = self.cleaned_data.get("banco", "").strip()
+            banco_selecionado = instance.banco
+            
+            # Se for Carteira Digital, usar campo carteira_digital se existir no POST
+            if banco_selecionado == "Carteira Digital":
+                # Para Carteira Digital, usar conta_numero para armazenar a chave
+                carteira_digital = self.data.get("carteira_digital", "").strip()
+                if carteira_digital:
+                    instance.conta_numero = carteira_digital
+                instance.agencia = ""
+                instance.conta_tipo = ""
+            else:
+                # Para banco tradicional, usar campos normais
+                instance.agencia = self.cleaned_data.get("agencia", "").strip()
+                instance.conta_tipo = self.cleaned_data.get("conta_tipo", "").strip()
+                instance.conta_numero = self.cleaned_data.get("conta_numero", "").strip()
+            
+            instance.cpf_transferencia = self.cleaned_data.get("cpf_transferencia", "").strip()
+            # Limpar campos de PIX
+            instance.banco_pix = ""
+            instance.chave_pix = ""
+            instance.cpf_pix = ""
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class TrocarSenhaForm(forms.Form):
@@ -440,9 +539,15 @@ class TrocarSenhaForm(forms.Form):
         cleaned_data = super().clean()
         nova_senha = cleaned_data.get("nova_senha")
         confirmar_senha = cleaned_data.get("confirmar_senha")
+        senha_atual = cleaned_data.get("senha_atual")
         
         if nova_senha and confirmar_senha:
             if nova_senha != confirmar_senha:
                 raise forms.ValidationError("As senhas não coincidem.")
+        
+        # Verificar se a nova senha é igual à senha atual
+        if nova_senha and senha_atual:
+            if self.user.check_password(nova_senha):
+                raise forms.ValidationError("A nova senha deve ser diferente da senha atual.")
         
         return cleaned_data

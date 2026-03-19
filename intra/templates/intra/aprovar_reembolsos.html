@@ -1214,9 +1214,9 @@
                             
                             // Descrição
                             if (item.descricao) {
-                                html += '<div style="margin-bottom: 0.75rem;">';
+                                html += '<div style="margin-bottom: 0.75rem; width: 100%; min-width: 0; box-sizing: border-box;">';
                                 html += '<strong style="color: #7f8c8d; font-size: 0.9rem; display: block; margin-bottom: 0.25rem;">Descrição:</strong> ';
-                                html += '<span style="color: #2c3e50; display: block; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word; max-width: 100%;">' + escapeHtml(item.descricao) + '</span>';
+                                html += '<span style="color: #2c3e50; display: block; width: 100%; box-sizing: border-box; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%;">' + escapeHtml(item.descricao) + '</span>';
                                 html += '</div>';
                             }
                             
@@ -1470,13 +1470,24 @@
                         if (data.pix_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.pix_cpf) + '</span></div>';
                     } else if (data.forma_pagamento === 'TRANSFERENCIA') {
                         html += '<div class="detalhe-solicitacao-item"><strong>Forma de Pagamento</strong><span>Transferência Bancária</span></div>';
-                        if (data.transf_banco) html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.transf_banco) + '</span></div>';
-                        if (data.transf_agencia) html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + escapeHtml(data.transf_agencia) + '</span></div>';
-                        if (data.transf_conta_tipo) {
-                            var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
-                            html += '<div class="detalhe-solicitacao-item"><strong>Tipo de Conta</strong><span>' + tipoConta + '</span></div>';
+                        if (data.transf_banco) {
+                            // Mostrar o nome do banco (já está salvo, não precisa verificar se é "Outro")
+                            html += '<div class="detalhe-solicitacao-item"><strong>Banco</strong><span>' + escapeHtml(data.transf_banco) + '</span></div>';
                         }
-                        if (data.transf_conta_numero) html += '<div class="detalhe-solicitacao-item"><strong>Conta</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                        // Se for Carteira Digital, mostrar os dados da carteira digital
+                        if (data.transf_banco === 'Carteira Digital') {
+                            if (data.transf_conta_numero) {
+                                html += '<div class="detalhe-solicitacao-item"><strong>Chave (E-mail, CPF ou Telefone)</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                            }
+                        } else {
+                            // Para banco tradicional, mostrar agência, tipo de conta e número
+                            if (data.transf_agencia) html += '<div class="detalhe-solicitacao-item"><strong>Agência</strong><span>' + escapeHtml(data.transf_agencia) + '</span></div>';
+                            if (data.transf_conta_tipo) {
+                                var tipoConta = data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança';
+                                html += '<div class="detalhe-solicitacao-item"><strong>Tipo de Conta</strong><span>' + tipoConta + '</span></div>';
+                            }
+                            if (data.transf_conta_numero) html += '<div class="detalhe-solicitacao-item"><strong>Conta</strong><span>' + escapeHtml(data.transf_conta_numero) + '</span></div>';
+                        }
                         if (data.transf_cpf) html += '<div class="detalhe-solicitacao-item"><strong>CPF/CNPJ</strong><span>' + escapeHtml(data.transf_cpf) + '</span></div>';
                     }
                     html += '</div>';

@@ -300,7 +300,7 @@ class ItemReembolso(models.Model):
     tipo_despesa = models.CharField("Tipo de despesa", max_length=30)
     cod_despesa = models.CharField("Código de despesa", max_length=50, blank=True)
     data_despesa = models.DateField("Data da despesa", null=True, blank=True)
-    descricao = models.CharField("Descrição", max_length=300, blank=True)
+    descricao = models.TextField(max_length=300)  # ou CharField(max_length=300)
     valor = models.DecimalField("Valor", max_digits=12, decimal_places=2, default=0)
     km = models.DecimalField("KM (deslocamento)", max_digits=10, decimal_places=2, null=True, blank=True)
     anexo = models.FileField("Anexo", upload_to="reembolsos/anexos/", storage=MediaStorage(), blank=True, null=True)

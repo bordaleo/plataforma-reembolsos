@@ -1501,19 +1501,71 @@ def meu_perfil(request):
     
     # Processar formulário de trocar senha
     senha_form = TrocarSenhaForm(user=request.user, data=request.POST if 'trocar_senha' in request.POST else None)
-    if 'trocar_senha' in request.POST and senha_form.is_valid():
-        request.user.set_password(senha_form.cleaned_data['nova_senha'])
-        request.user.save()
-        messages.success(request, "Senha alterada com sucesso!")
-        return redirect("intra:meu_perfil")
+    if 'trocar_senha' in request.POST:
+        if senha_form.is_valid():
+            request.user.set_password(senha_form.cleaned_data['nova_senha'])
+            request.user.save()
+            messages.success(request, "Senha alterada com sucesso!")
+            return redirect("intra:meu_perfil")
+        else:
+            # Capturar erros específicos do formulário
+            error_messages = []
+            for field, errors in senha_form.errors.items():
+                for error in errors:
+                    error_messages.append(str(error))
+            
+            # Se houver erros de campo específicos, usar o primeiro
+            if error_messages:
+                messages.error(request, error_messages[0])
+            else:
+                messages.error(request, "Erro ao alterar senha. Verifique os campos e tente novamente.")
     
     # Processar formulário de editar pagamento
     if request.method == 'POST' and 'editar_pagamento' in request.POST:
         form = EditarPagamentoForm(request.POST, instance=perfil)
         if form.is_valid():
+            # Salvar uma cópia dos valores originais antes de salvar
+            original_values = {}
+            fields_to_check = [
+                'forma_pagamento', 'chave_pix', 'banco_pix', 'cpf_pix',
+                'banco', 'agencia', 'conta_tipo', 'conta_numero', 'cpf_transferencia'
+            ]
+            
+            # Obter valores originais do perfil
+            perfil.refresh_from_db()
+            for field in fields_to_check:
+                value = getattr(perfil, field, None)
+                original_values[field] = str(value).strip() if value else ''
+            
+            # Obter valores do formulário após clean (que já processa os campos hidden)
+            cleaned_data = form.cleaned_data
+            new_values = {}
+            for field in fields_to_check:
+                value = cleaned_data.get(field)
+                new_values[field] = str(value).strip() if value else ''
+            
+            # Comparar valores antes de salvar
+            has_changes = False
+            for field in fields_to_check:
+                old_value = original_values.get(field, '')
+                new_value = new_values.get(field, '')
+                
+                if old_value != new_value:
+                    has_changes = True
+                    break
+            
+            # Sempre salvar o formulário (o método save() já limpa os campos corretamente)
             form.save()
-            messages.success(request, "Dados de pagamento atualizados com sucesso!")
+            
+            if has_changes:
+                messages.success(request, "Dados de pagamento atualizados com sucesso!")
+            else:
+                messages.info(request, "Nenhuma alteração foi detectada nos dados de pagamento.")
             return redirect("intra:meu_perfil")
+        else:
+            # Não redirecionar quando houver erros - manter em modo de edição
+            # Os erros serão exibidos inline nos campos do formulário
+            pass
     else:
         form = EditarPagamentoForm(instance=perfil)
     
@@ -3839,6 +3891,8 @@ def reembolso(request):
         ('Banco Will', 'Banco Will'),
         ('Banco Sofisa', 'Banco Sofisa'),
         ('Banco Rendimento', 'Banco Rendimento'),
+        ('Carteira Digital', 'Carteira Digital'),
+        ('Outro', 'Outro'),
     ]
     
     context = {
@@ -3937,14 +3991,99 @@ def reembolso(request):
             forma_pagamento = request.POST.get("forma_pagamento", "").strip()
             pix_chave = request.POST.get("pix_chave", "").strip()
             pix_banco = request.POST.get("pix_banco", "").strip()
+            # Se for "Outro", pegar o valor do campo outro
+            if pix_banco == "Outro":
+                pix_banco_outro = request.POST.get("pix_banco_outro", "").strip()
+                if pix_banco_outro:
+                    pix_banco = pix_banco_outro
             pix_cpf = request.POST.get("pix_cpf", "").strip()
             transf_banco = request.POST.get("transf_banco", "").strip()
+            # Se for "Outro", pegar o valor do campo outro
+            if transf_banco == "Outro":
+                transf_banco_outro = request.POST.get("transf_banco_outro", "").strip()
+                if transf_banco_outro:
+                    transf_banco = transf_banco_outro
             transf_agencia = request.POST.get("transf_agencia", "").strip()
             transf_conta_tipo = request.POST.get("transf_conta_tipo", "").strip()
             transf_conta_numero = request.POST.get("transf_conta_numero", "").strip()
             transf_cpf = request.POST.get("transf_cpf", "").strip()
+            
+            # Validar CPF/CNPJ
+            import re
+            def validar_cpf_cnpj(valor):
+                if not valor:
+                    return False
+                numeros = re.sub(r'\D', '', valor)
+                return len(numeros) == 11 or len(numeros) == 14
+            
             # Capturar nome do gestor
             nome_gestor = request.POST.get("nome_gestor", "").strip()
+            
+            # Validar CPF/CNPJ
+            import re
+            def validar_cpf_cnpj(valor):
+                if not valor:
+                    return False
+                numeros = re.sub(r'\D', '', valor)
+                return len(numeros) == 11 or len(numeros) == 14
+            
+            # Flag para indicar se há erro de validação
+            erro_validacao = False
+            
+            if forma_pagamento == "PIX" and pix_cpf:
+                if not validar_cpf_cnpj(pix_cpf):
+                    messages.error(request, "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
+                    erro_validacao = True
+            
+            if forma_pagamento == "TRANSFERENCIA" and transf_cpf:
+                if not validar_cpf_cnpj(transf_cpf):
+                    messages.error(request, "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
+                    erro_validacao = True
+            
+            # Se houver erro de validação, renderizar o template com os dados do POST
+            if erro_validacao:
+                # Preparar contexto com os dados do POST para manter os campos preenchidos
+                # Preparar itens do POST para manter os dados
+                itens_post = []
+                for key, value in request.POST.items():
+                    if key.startswith("tipo_despesa_") and value:
+                        idx = key.replace("tipo_despesa_", "")
+                        item_post = {
+                            "idx": idx,
+                            "tipo_despesa": value,
+                            "cod_despesa": request.POST.get(f"cod_despesa_{idx}", ""),
+                            "data_despesa": request.POST.get(f"data_despesa_{idx}", ""),
+                            "descricao": request.POST.get(f"descricao_{idx}", ""),
+                            "valor": request.POST.get(f"valor_{idx}", ""),
+                        }
+                        itens_post.append(item_post)
+                
+                context = {
+                    "programas": programas,
+                    "codigos": codigos,
+                    "tipos_despesa": TIPOS_DESPESA,
+                    "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
+                    "codigos_despesa_json": json.dumps(codigos_json),
+                    "codigos_por_programa_json": json.dumps(codigos_por_programa),
+                    "perfil": perfil,
+                    "solicitacao_editar": solicitacao_editar,
+                    "bancos_choices": BANCOS_CHOICES,
+                    "dados_post": {
+                        "centro_custo": request.POST.get("centro_custo", ""),
+                        "nome_gestor": nome_gestor,
+                        "forma_pagamento": forma_pagamento,
+                        "pix_chave": pix_chave,
+                        "pix_banco": pix_banco,
+                        "pix_cpf": pix_cpf,
+                        "transf_banco": transf_banco,
+                        "transf_agencia": transf_agencia,
+                        "transf_conta_tipo": transf_conta_tipo,
+                        "transf_conta_numero": transf_conta_numero,
+                        "transf_cpf": transf_cpf,
+                        "itens": itens_post,
+                    }
+                }
+                return render(request, "intra/reembolso.html", context)
             
             if sol:
                 # Atualizar solicitação existente

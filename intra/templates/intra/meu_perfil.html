@@ -99,6 +99,50 @@
         font-size: 0.9rem;
         transition: all 0.3s ease;
     }
+    .password-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .password-wrapper input {
+        padding-right: 2.5rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .password-wrapper input[type="password"],
+    .password-wrapper input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .password-toggle {
+        position: absolute;
+        right: 0.625rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+        z-index: 10;
+        width: 1.5rem;
+        height: 1.5rem;
+        line-height: 1;
+    }
+    .password-toggle:hover {
+        color: #34495e;
+    }
+    .password-toggle:focus {
+        outline: none;
+    }
+    .password-toggle .toggle-icon {
+        font-size: 0.9rem;
+        line-height: 1;
+        display: inline-block;
+    }
     .form-group input:focus, .form-group select:focus {
         outline: none;
         border-color: #34495e;
@@ -130,37 +174,43 @@
     .errorlist li {
         margin-bottom: 0.25rem;
     }
+    .error-field {
+        border-color: #c53030 !important;
+        background-color: #fff5f5 !important;
+    }
+    .error-field:focus {
+        border-color: #c53030 !important;
+        box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.1) !important;
+    }
     .banco-input-wrapper {
         position: relative;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         width: 100%;
-        max-width: 100%;
     }
     .banco-input-wrapper input {
         width: 100%;
         box-sizing: border-box;
-        padding-right: 1.25rem;
-        flex: 1;
+        padding-right: 2.5rem;
     }
     .banco-toggle-btn {
         position: absolute;
-        right: 0.25rem;
+        right: 0.5rem;
         top: 50%;
         transform: translateY(-50%);
         background: transparent;
         border: none;
         cursor: pointer;
         padding: 0;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
         color: #34495e;
         transition: transform 0.2s;
         z-index: 10;
         pointer-events: auto;
-        width: 1rem;
-        height: 1rem;
+        width: auto;
+        height: auto;
         margin: 0;
     }
     .banco-toggle-btn:hover {
@@ -168,16 +218,6 @@
     }
     .banco-toggle-btn.active {
         transform: translateY(-50%) rotate(180deg);
-    }
-    .banco-toggle-btn svg {
-        width: 100%;
-        height: 100%;
-    }
-    .banco-toggle-btn:hover {
-        color: #2c3e50;
-    }
-    .banco-toggle-btn.active {
-        transform: rotate(180deg);
     }
     .banco-toggle-btn svg {
         width: 1.2rem;
@@ -393,7 +433,12 @@
                     {{ senha_form.senha_atual.label }}
                     <span class="required">*</span>
                 </label>
-                {{ senha_form.senha_atual }}
+                <div class="password-wrapper">
+                    {{ senha_form.senha_atual }}
+                    <button type="button" class="password-toggle" data-target="id_senha_atual" aria-label="Mostrar senha" title="Mostrar senha">
+                        <span class="toggle-icon">👁</span>
+                    </button>
+                </div>
                 {% if senha_form.senha_atual.errors %}<ul class="errorlist">{{ senha_form.senha_atual.errors }}</ul>{% endif %}
             </div>
             
@@ -402,7 +447,12 @@
                     {{ senha_form.nova_senha.label }}
                     <span class="required">*</span>
                 </label>
-                {{ senha_form.nova_senha }}
+                <div class="password-wrapper">
+                    {{ senha_form.nova_senha }}
+                    <button type="button" class="password-toggle" data-target="id_nova_senha" aria-label="Mostrar senha" title="Mostrar senha">
+                        <span class="toggle-icon">👁</span>
+                    </button>
+                </div>
                 {% if senha_form.nova_senha.errors %}<ul class="errorlist">{{ senha_form.nova_senha.errors }}</ul>{% endif %}
             </div>
             
@@ -411,7 +461,12 @@
                     {{ senha_form.confirmar_senha.label }}
                     <span class="required">*</span>
                 </label>
-                {{ senha_form.confirmar_senha }}
+                <div class="password-wrapper">
+                    {{ senha_form.confirmar_senha }}
+                    <button type="button" class="password-toggle" data-target="id_confirmar_senha" aria-label="Mostrar senha" title="Mostrar senha">
+                        <span class="toggle-icon">👁</span>
+                    </button>
+                </div>
                 {% if senha_form.confirmar_senha.errors %}<ul class="errorlist">{{ senha_form.confirmar_senha.errors }}</ul>{% endif %}
             </div>
         </div>
@@ -456,7 +511,7 @@
     </div>
     
     <!-- Modo Edição -->
-    <form method="post" action="{% url 'intra:meu_perfil' %}" id="edit-mode" class="edit-mode">
+    <form method="post" action="{% url 'intra:meu_perfil' %}" id="edit-mode" class="edit-mode" data-no-loading>
         {% csrf_token %}
         <input type="hidden" name="editar_pagamento" value="1">
         
@@ -480,6 +535,14 @@
                         <span class="required">*</span>
                     </label>
                     {{ form.banco_pix_select }}
+                    <div class="form-group" id="banco-pix-outro-group" style="display: none; margin-top: 0.5rem;">
+                        <label for="banco_pix_outro">
+                            Nome do Banco
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" id="banco_pix_outro" class="form-control" 
+                               placeholder="Digite o nome do banco">
+                    </div>
                     {{ form.banco_pix }}
                     {% if form.banco_pix_select.errors or form.banco_pix.errors %}<ul class="errorlist">{{ form.banco_pix_select.errors }}{{ form.banco_pix.errors }}</ul>{% endif %}
                 </div>
@@ -509,10 +572,18 @@
                         <span class="required">*</span>
                     </label>
                     {{ form.banco_transf_select }}
+                    <div class="form-group" id="banco-transf-outro-group" style="display: none; margin-top: 0.5rem;">
+                        <label for="banco_transf_outro">
+                            Nome do Banco
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" id="banco_transf_outro" class="form-control" 
+                               placeholder="Digite o nome do banco">
+                    </div>
                     {{ form.banco }}
                     {% if form.banco_transf_select.errors or form.banco.errors %}<ul class="errorlist">{{ form.banco_transf_select.errors }}{{ form.banco.errors }}</ul>{% endif %}
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="agencia-conta-group">
                     <label for="id_agencia">
                         {{ form.agencia.label }}
                         <span class="required">*</span>
@@ -520,7 +591,7 @@
                     {{ form.agencia }}
                     {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="conta-tipo-group">
                     <label for="id_conta_tipo">
                         {{ form.conta_tipo.label }}
                         <span class="required">*</span>
@@ -528,13 +599,20 @@
                     {{ form.conta_tipo }}
                     {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="conta-numero-group">
                     <label for="id_conta_numero">
                         {{ form.conta_numero.label }}
                         <span class="required">*</span>
                     </label>
                     {{ form.conta_numero }}
                     {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group" id="carteira-digital-group" style="display: none;">
+                    <label for="id_carteira_digital">
+                        Chave (E-mail, CPF ou Telefone)
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" id="id_carteira_digital" name="carteira_digital" class="form-control" placeholder="Digite e-mail, CPF ou telefone">
                 </div>
                 <div class="form-group">
                     <label for="id_cpf_transferencia">
@@ -565,14 +643,16 @@
         // Verificar se há mensagens de sucesso (formulário foi salvo)
         const messages = document.querySelector('.messages');
         const hasSuccess = messages && messages.querySelector('.success');
+        const hasErrors = messages && messages.querySelector('.error');
         
-        // Se houver sucesso ou se estiver em modo de edição inicial, mostrar visualização
-        if (hasSuccess || !editMode.classList.contains('active')) {
+        // Se houver sucesso, mostrar visualização
+        // Se houver erros, manter em modo de edição
+        if (hasSuccess && !hasErrors) {
             if (viewMode) viewMode.classList.remove('hidden');
             if (editMode) editMode.classList.remove('active');
             if (btnEditar) btnEditar.style.display = 'block';
         } else {
-            // Se não houver sucesso e não estiver ativo, esconder edição
+            // Se houver erros ou se estiver em modo de edição, manter edição
             if (viewMode) viewMode.classList.add('hidden');
             if (editMode) editMode.classList.add('active');
             if (btnEditar) btnEditar.style.display = 'none';
@@ -583,9 +663,14 @@
                 viewMode.classList.add('hidden');
                 editMode.classList.add('active');
                 btnEditar.style.display = 'none';
+                // Salvar valores originais ao entrar em modo de edição
+                if (typeof window.salvarValoresOriginaisPerfil === 'function') {
+                    window.salvarValoresOriginaisPerfil();
+                }
             });
             
             btnCancelar.addEventListener('click', function() {
+                // A função de restaurar valores já está no código de validação
                 viewMode.classList.remove('hidden');
                 editMode.classList.remove('active');
                 btnEditar.style.display = 'block';
@@ -598,15 +683,21 @@
         const formaPagamento = document.getElementById('id_forma_pagamento');
         const pixFields = document.getElementById('pix-fields');
         const transferenciaFields = document.getElementById('transferencia-fields');
+        const bancoPixHidden = document.getElementById('id_banco_pix');
+        const bancoTransfHidden = document.getElementById('id_banco');
 
         function atualizarCampos() {
             const forma = formaPagamento.value;
             if (forma === 'PIX') {
                 pixFields.style.display = 'block';
                 transferenciaFields.style.display = 'none';
+                // Limpar campos hidden de transferência
+                if (bancoTransfHidden) bancoTransfHidden.value = '';
             } else if (forma === 'TRANSFERENCIA') {
                 pixFields.style.display = 'none';
                 transferenciaFields.style.display = 'block';
+                // Limpar campos hidden de PIX
+                if (bancoPixHidden) bancoPixHidden.value = '';
             } else {
                 pixFields.style.display = 'none';
                 transferenciaFields.style.display = 'none';
@@ -671,44 +762,608 @@
         }
     })();
 
-    // Atualizar campos hidden quando selecionar banco
+    // Atualizar campos hidden quando selecionar banco e controlar Carteira Digital
     (function() {
         const bancoPixSelect = document.getElementById('id_banco_pix_select');
         const bancoPixHidden = document.getElementById('id_banco_pix');
         const bancoTransfSelect = document.getElementById('id_banco_transf_select');
         const bancoTransfHidden = document.getElementById('id_banco');
         
-        if (bancoPixSelect && bancoPixHidden) {
-            bancoPixSelect.addEventListener('change', function() {
-                bancoPixHidden.value = this.value;
-            });
+        // Função para atualizar campos quando Carteira Digital é selecionado
+        function atualizarCamposCarteiraDigital(isCarteiraDigital) {
+            const agenciaGroup = document.getElementById('agencia-conta-group');
+            const contaTipoGroup = document.getElementById('conta-tipo-group');
+            const contaNumeroGroup = document.getElementById('conta-numero-group');
+            const carteiraDigitalGroup = document.getElementById('carteira-digital-group');
+            
+            if (isCarteiraDigital) {
+                if (agenciaGroup) agenciaGroup.style.display = 'none';
+                if (contaTipoGroup) contaTipoGroup.style.display = 'none';
+                if (contaNumeroGroup) contaNumeroGroup.style.display = 'none';
+                if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'block';
+            } else {
+                if (agenciaGroup) agenciaGroup.style.display = 'block';
+                if (contaTipoGroup) contaTipoGroup.style.display = 'block';
+                if (contaNumeroGroup) contaNumeroGroup.style.display = 'block';
+                if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'none';
+            }
         }
         
+        // Função para atualizar campo "Outro" para banco PIX
+        function atualizarCampoOutroPix() {
+            const bancoPixOutroGroup = document.getElementById('banco-pix-outro-group');
+            const bancoPixOutro = document.getElementById('banco_pix_outro');
+            const isOutro = bancoPixSelect && bancoPixSelect.value === 'Outro';
+            
+            if (bancoPixOutroGroup) {
+                bancoPixOutroGroup.style.display = isOutro ? 'block' : 'none';
+            }
+            
+            if (bancoPixOutro) {
+                if (isOutro) {
+                    bancoPixOutro.setAttribute('required', 'required');
+                } else {
+                    bancoPixOutro.removeAttribute('required');
+                    bancoPixOutro.value = '';
+                }
+            }
+        }
+        
+        // Função para atualizar campo "Outro" para banco Transferência
+        function atualizarCampoOutroTransf() {
+            const bancoTransfOutroGroup = document.getElementById('banco-transf-outro-group');
+            const bancoTransfOutro = document.getElementById('banco_transf_outro');
+            const isOutro = bancoTransfSelect && bancoTransfSelect.value === 'Outro';
+            
+            if (bancoTransfOutroGroup) {
+                bancoTransfOutroGroup.style.display = isOutro ? 'block' : 'none';
+            }
+            
+            if (bancoTransfOutro) {
+                if (isOutro) {
+                    bancoTransfOutro.setAttribute('required', 'required');
+                } else {
+                    bancoTransfOutro.removeAttribute('required');
+                    bancoTransfOutro.value = '';
+                }
+            }
+        }
+        
+        // Atualizar campos hidden quando o select de banco PIX mudar
+        if (bancoPixSelect && bancoPixHidden) {
+            bancoPixSelect.addEventListener('change', function() {
+                atualizarCampoOutroPix();
+                const bancoPixOutro = document.getElementById('banco_pix_outro');
+                if (this.value === 'Outro' && bancoPixOutro) {
+                    // Se for "Outro", usar o valor digitado
+                    bancoPixHidden.value = bancoPixOutro.value.trim() || '';
+                } else {
+                    bancoPixHidden.value = this.value;
+                }
+            });
+            
+            // Atualizar campo hidden quando digitar no campo "Outro" PIX
+            const bancoPixOutro = document.getElementById('banco_pix_outro');
+            if (bancoPixOutro) {
+                bancoPixOutro.addEventListener('input', function() {
+                    if (bancoPixSelect && bancoPixSelect.value === 'Outro') {
+                        bancoPixHidden.value = this.value.trim();
+                    }
+                });
+            }
+        }
+        
+        // Atualizar campos hidden quando o select de banco Transferência mudar
         if (bancoTransfSelect && bancoTransfHidden) {
             bancoTransfSelect.addEventListener('change', function() {
-                bancoTransfHidden.value = this.value;
+                atualizarCampoOutroTransf();
+                const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                if (this.value === 'Outro' && bancoTransfOutro) {
+                    // Se for "Outro", usar o valor digitado
+                    bancoTransfHidden.value = bancoTransfOutro.value.trim() || '';
+                } else {
+                    bancoTransfHidden.value = this.value;
+                }
+                // Se for Carteira Digital, mostrar/ocultar campos apropriados
+                atualizarCamposCarteiraDigital(this.value === 'Carteira Digital');
             });
+            
+            // Atualizar campo hidden quando digitar no campo "Outro" Transferência
+            const bancoTransfOutro = document.getElementById('banco_transf_outro');
+            if (bancoTransfOutro) {
+                bancoTransfOutro.addEventListener('input', function() {
+                    if (bancoTransfSelect && bancoTransfSelect.value === 'Outro') {
+                        bancoTransfHidden.value = this.value.trim();
+                    }
+                });
+            }
+            
+            // Verificar estado inicial
+            atualizarCampoOutroTransf();
+            
+            // Verificar se já é Carteira Digital ao carregar
+            if (bancoTransfSelect.value === 'Carteira Digital') {
+                atualizarCamposCarteiraDigital(true);
+                // Preencher campo carteira digital com valor de conta_numero se existir
+                const contaNumero = document.getElementById('id_conta_numero');
+                const carteiraDigital = document.getElementById('id_carteira_digital');
+                if (contaNumero && contaNumero.value && carteiraDigital) {
+                    carteiraDigital.value = contaNumero.value;
+                }
+            }
         }
+        
+        // Máscaras para Agência e Conta
+        (function() {
+            const agenciaInput = document.getElementById('id_agencia');
+            const contaInput = document.getElementById('id_conta_numero');
+            
+            function aplicarMascaraAgencia(value) {
+                // Regex: ^\d{4}-?\d{0,1}$ - 4 a 5 dígitos (com ou sem hífen)
+                let numeros = value.replace(/\D/g, '');
+                if (numeros.length > 5) {
+                    numeros = numeros.substring(0, 5);
+                }
+                // Formatar com hífen opcional após 4 dígitos
+                if (numeros.length > 4) {
+                    return numeros.substring(0, 4) + '-' + numeros.substring(4);
+                }
+                return numeros;
+            }
+            
+            function aplicarMascaraConta(value) {
+                // Regex: ^\d{5,12}-?\d{0,1}$ - 5 a 13 dígitos (com ou sem hífen)
+                let numeros = value.replace(/\D/g, '');
+                if (numeros.length > 13) {
+                    numeros = numeros.substring(0, 13);
+                }
+                // Formatar com hífen opcional após 5-12 dígitos
+                if (numeros.length > 5) {
+                    const partePrincipal = numeros.substring(0, Math.min(numeros.length - 1, 12));
+                    const digitoVerificador = numeros.substring(partePrincipal.length);
+                    if (digitoVerificador) {
+                        return partePrincipal + '-' + digitoVerificador;
+                    }
+                    return partePrincipal;
+                }
+                return numeros;
+            }
+            
+            if (agenciaInput) {
+                agenciaInput.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraAgencia(e.target.value);
+                });
+            }
+            
+            if (contaInput) {
+                contaInput.addEventListener('input', function(e) {
+                    e.target.value = aplicarMascaraConta(e.target.value);
+                });
+            }
+        })();
     })();
     
-    // Código antigo de autocomplete removido - agora usamos select simples
+    // Funcionalidade de mostrar/ocultar senha
     (function() {
-        const bancoPixSelect = document.getElementById('id_banco_pix_select');
-        const bancoPixHidden = document.getElementById('id_banco_pix');
-        const bancoTransfSelect = document.getElementById('id_banco_transf_select');
-        const bancoTransfHidden = document.getElementById('id_banco');
+        const passwordToggles = document.querySelectorAll('.password-toggle');
         
-        if (bancoPixSelect && bancoPixHidden) {
-            bancoPixSelect.addEventListener('change', function() {
-                bancoPixHidden.value = this.value;
+        passwordToggles.forEach(function(toggle) {
+            toggle.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const passwordInput = document.getElementById(targetId);
+                const toggleIcon = this.querySelector('.toggle-icon');
+                
+                if (passwordInput) {
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        toggleIcon.textContent = '👁‍🗨';
+                        this.setAttribute('title', 'Ocultar senha');
+                        this.setAttribute('aria-label', 'Ocultar senha');
+                    } else {
+                        passwordInput.type = 'password';
+                        toggleIcon.textContent = '👁';
+                        this.setAttribute('title', 'Mostrar senha');
+                        this.setAttribute('aria-label', 'Mostrar senha');
+                    }
+                }
+            });
+        });
+    })();
+    
+    // Validação do formulário antes de enviar e controle de alterações
+    (function() {
+        const form = document.getElementById('edit-mode');
+        if (!form) return;
+        
+        // Salvar valores originais do formulário
+        let valoresOriginais = {};
+        let formularioAlterado = false;
+        let formularioSendoEnviado = false; // Flag para indicar que o formulário está sendo enviado
+        
+        function salvarValoresOriginais() {
+            const campos = form.querySelectorAll('input, select');
+            campos.forEach(function(campo) {
+                if (campo.type !== 'hidden' || campo.id === 'id_banco_pix' || campo.id === 'id_banco') {
+                    valoresOriginais[campo.id] = campo.value;
+                }
             });
         }
         
-        if (bancoTransfSelect && bancoTransfHidden) {
-            bancoTransfSelect.addEventListener('change', function() {
-                bancoTransfHidden.value = this.value;
+        // Tornar a função acessível globalmente para o botão editar
+        window.salvarValoresOriginaisPerfil = salvarValoresOriginais;
+        
+        function verificarAlteracoes() {
+            const campos = form.querySelectorAll('input, select');
+            formularioAlterado = false;
+            
+            campos.forEach(function(campo) {
+                if (campo.type !== 'hidden' || campo.id === 'id_banco_pix' || campo.id === 'id_banco') {
+                    const valorOriginal = valoresOriginais[campo.id] || '';
+                    if (campo.value !== valorOriginal) {
+                        formularioAlterado = true;
+                    }
+                }
+            });
+            
+            return formularioAlterado;
+        }
+        
+        function restaurarValoresOriginais() {
+            Object.keys(valoresOriginais).forEach(function(id) {
+                const campo = document.getElementById(id);
+                if (campo) {
+                    campo.value = valoresOriginais[id] || '';
+                }
+            });
+            formularioAlterado = false;
+        }
+        
+        // Salvar valores originais ao carregar
+        salvarValoresOriginais();
+        
+        // Detectar alterações nos campos - usar a mesma variável para evitar duplicação
+        const todosCampos = form.querySelectorAll('input, select');
+        todosCampos.forEach(function(campo) {
+            campo.addEventListener('input', function() {
+                verificarAlteracoes();
+            });
+            campo.addEventListener('change', function() {
+                verificarAlteracoes();
+            });
+        });
+        
+        // Avisar ao sair da página se houver alterações não salvas
+        // Mas não avisar se o formulário está sendo enviado
+        window.addEventListener('beforeunload', function(e) {
+            // Não avisar se o formulário está sendo enviado
+            if (formularioSendoEnviado) {
+                return;
+            }
+            
+            if (verificarAlteracoes()) {
+                e.preventDefault();
+                e.returnValue = 'Você tem alterações não salvas. Deseja realmente sair?';
+                return e.returnValue;
+            }
+        });
+        
+        // Restaurar valores ao cancelar
+        const btnCancelar = document.getElementById('btn-cancelar');
+        if (btnCancelar) {
+            // Remover listener anterior se existir
+            const novoBtnCancelar = btnCancelar.cloneNode(true);
+            btnCancelar.parentNode.replaceChild(novoBtnCancelar, btnCancelar);
+            
+            novoBtnCancelar.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (verificarAlteracoes()) {
+                    if (confirm('Você tem alterações não salvas. Deseja realmente cancelar?')) {
+                        restaurarValoresOriginais();
+                        // Atualizar campos hidden também
+                        const bancoPixSelect = document.getElementById('id_banco_pix_select');
+                        const bancoPixHidden = document.getElementById('id_banco_pix');
+                        const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+                        const bancoTransfHidden = document.getElementById('id_banco');
+                        
+                        if (bancoPixSelect && bancoPixHidden) {
+                            const bancoPixOutro = document.getElementById('banco_pix_outro');
+                            if (bancoPixSelect.value === 'Outro' && bancoPixOutro && bancoPixOutro.value.trim()) {
+                                bancoPixHidden.value = bancoPixOutro.value.trim();
+                            } else if (bancoPixSelect.value !== 'Outro') {
+                                bancoPixHidden.value = bancoPixSelect.value;
+                            }
+                        }
+                        if (bancoTransfSelect && bancoTransfHidden) {
+                            const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                            if (bancoTransfSelect.value === 'Outro' && bancoTransfOutro && bancoTransfOutro.value.trim()) {
+                                bancoTransfHidden.value = bancoTransfOutro.value.trim();
+                            } else if (bancoTransfSelect.value !== 'Outro') {
+                                bancoTransfHidden.value = bancoTransfSelect.value;
+                            }
+                        }
+                        
+                        // Voltar para modo de visualização
+                        const viewMode = document.getElementById('view-mode');
+                        const editMode = document.getElementById('edit-mode');
+                        const btnEditar = document.getElementById('btn-editar');
+                        
+                        if (viewMode) viewMode.classList.remove('hidden');
+                        if (editMode) editMode.classList.remove('active');
+                        if (btnEditar) btnEditar.style.display = 'block';
+                    }
+                } else {
+                    // Sem alterações, apenas voltar para modo de visualização
+                    const viewMode = document.getElementById('view-mode');
+                    const editMode = document.getElementById('edit-mode');
+                    const btnEditar = document.getElementById('btn-editar');
+                    
+                    if (viewMode) viewMode.classList.remove('hidden');
+                    if (editMode) editMode.classList.remove('active');
+                    if (btnEditar) btnEditar.style.display = 'block';
+                }
             });
         }
+        
+        // Função para remover mensagens de erro anteriores
+        function limparErros() {
+            const errorLists = form.querySelectorAll('.errorlist');
+            errorLists.forEach(function(errorList) {
+                errorList.remove();
+            });
+            const errorFields = form.querySelectorAll('.error-field');
+            errorFields.forEach(function(field) {
+                field.classList.remove('error-field');
+            });
+        }
+        
+        // Função para exibir erro em um campo
+        function exibirErro(campo, mensagem) {
+            const formGroup = campo.closest('.form-group');
+            if (!formGroup) return;
+            
+            // Remover erro anterior deste campo
+            const errorListAnterior = formGroup.querySelector('.errorlist');
+            if (errorListAnterior) {
+                errorListAnterior.remove();
+            }
+            
+            // Adicionar classe de erro ao campo
+            campo.classList.add('error-field');
+            
+            // Criar elemento de erro
+            const errorList = document.createElement('ul');
+            errorList.className = 'errorlist';
+            const errorItem = document.createElement('li');
+            errorItem.textContent = mensagem;
+            errorList.appendChild(errorItem);
+            
+            // Inserir após o campo
+            campo.parentNode.insertBefore(errorList, campo.nextSibling);
+        }
+        
+        // Função para validar CPF/CNPJ
+        function validarCPFCNPJ(valor) {
+            const numeros = valor.replace(/\D/g, '');
+            return numeros.length === 11 || numeros.length === 14;
+        }
+        
+        // Função principal de validação
+        function validarFormulario() {
+            limparErros();
+            let temErros = false;
+            
+            const formaPagamento = document.getElementById('id_forma_pagamento').value;
+            
+            if (!formaPagamento) {
+                exibirErro(document.getElementById('id_forma_pagamento'), 'Este campo é obrigatório.');
+                temErros = true;
+            }
+            
+            if (formaPagamento === 'PIX') {
+                const bancoPixSelect = document.getElementById('id_banco_pix_select');
+                const chavePix = document.getElementById('id_chave_pix');
+                const cpfPix = document.getElementById('id_cpf_pix');
+                
+                if (!bancoPixSelect || !bancoPixSelect.value || bancoPixSelect.value.trim() === '' || bancoPixSelect.value === 'Selecione...') {
+                    exibirErro(bancoPixSelect, 'Este campo é obrigatório.');
+                    temErros = true;
+                } else if (bancoPixSelect.value === 'Outro') {
+                    const bancoPixOutro = document.getElementById('banco_pix_outro');
+                    if (!bancoPixOutro || !bancoPixOutro.value.trim()) {
+                        exibirErro(bancoPixOutro, 'Por favor, digite o nome do banco.');
+                        temErros = true;
+                    }
+                }
+                
+                if (!chavePix.value.trim()) {
+                    exibirErro(chavePix, 'Este campo é obrigatório.');
+                    temErros = true;
+                }
+                
+                if (!cpfPix.value.trim()) {
+                    exibirErro(cpfPix, 'Este campo é obrigatório.');
+                    temErros = true;
+                } else if (!validarCPFCNPJ(cpfPix.value)) {
+                    exibirErro(cpfPix, 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                    temErros = true;
+                }
+            } else if (formaPagamento === 'TRANSFERENCIA') {
+                const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+                const bancoTransfHidden = document.getElementById('id_banco');
+                const agencia = document.getElementById('id_agencia');
+                const contaTipo = document.getElementById('id_conta_tipo');
+                const contaNumero = document.getElementById('id_conta_numero');
+                const cpfTransferencia = document.getElementById('id_cpf_transferencia');
+                const carteiraDigital = document.getElementById('id_carteira_digital');
+                
+                const bancoSelecionado = (bancoTransfSelect ? bancoTransfSelect.value.trim() : '') || 
+                                        (bancoTransfHidden ? bancoTransfHidden.value.trim() : '');
+                const isCarteiraDigital = bancoSelecionado === 'Carteira Digital';
+                
+                if (!bancoSelecionado || bancoSelecionado === '' || bancoSelecionado === 'Selecione...') {
+                    exibirErro(bancoTransfSelect || bancoTransfHidden, 'Este campo é obrigatório.');
+                    temErros = true;
+                } else if (bancoTransfSelect && bancoTransfSelect.value === 'Outro') {
+                    const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                    if (!bancoTransfOutro || !bancoTransfOutro.value.trim()) {
+                        exibirErro(bancoTransfOutro, 'Por favor, digite o nome do banco.');
+                        temErros = true;
+                    }
+                }
+                
+                if (isCarteiraDigital) {
+                    // Para Carteira Digital, validar apenas o campo de chave
+                    if (!carteiraDigital || !carteiraDigital.value.trim()) {
+                        exibirErro(carteiraDigital, 'Este campo é obrigatório.');
+                        temErros = true;
+                    }
+                } else {
+                    // Para banco tradicional, validar agência, conta e CPF
+                    if (!agencia.value.trim()) {
+                        exibirErro(agencia, 'Este campo é obrigatório.');
+                        temErros = true;
+                    } else {
+                        // Validar formato da agência: 4 a 5 dígitos (com ou sem hífen)
+                        const agenciaNumeros = agencia.value.replace(/\D/g, '');
+                        if (agenciaNumeros.length < 4 || agenciaNumeros.length > 5) {
+                            exibirErro(agencia, 'Agência deve ter 4 a 5 dígitos.');
+                            temErros = true;
+                        }
+                    }
+                    
+                    if (!contaTipo.value.trim()) {
+                        exibirErro(contaTipo, 'Este campo é obrigatório.');
+                        temErros = true;
+                    }
+                    
+                    if (!contaNumero.value.trim()) {
+                        exibirErro(contaNumero, 'Este campo é obrigatório.');
+                        temErros = true;
+                    } else {
+                        // Validar formato da conta: 5 a 13 dígitos (com ou sem hífen)
+                        const contaNumeros = contaNumero.value.replace(/\D/g, '');
+                        if (contaNumeros.length < 5 || contaNumeros.length > 13) {
+                            exibirErro(contaNumero, 'Conta deve ter 5 a 13 dígitos.');
+                            temErros = true;
+                        }
+                    }
+                }
+                
+                if (!cpfTransferencia.value.trim()) {
+                    exibirErro(cpfTransferencia, 'Este campo é obrigatório.');
+                    temErros = true;
+                } else if (!validarCPFCNPJ(cpfTransferencia.value)) {
+                    exibirErro(cpfTransferencia, 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                    temErros = true;
+                }
+            }
+            
+            return !temErros;
+        }
+        
+        // Interceptar submit do formulário
+        form.addEventListener('submit', function(e) {
+            // Atualizar campos hidden antes de validar
+            const bancoPixSelect = document.getElementById('id_banco_pix_select');
+            const bancoPixHidden = document.getElementById('id_banco_pix');
+            const bancoPixOutro = document.getElementById('banco_pix_outro');
+            const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+            const bancoTransfHidden = document.getElementById('id_banco');
+            const bancoTransfOutro = document.getElementById('banco_transf_outro');
+            
+            if (bancoPixSelect && bancoPixHidden) {
+                if (bancoPixSelect.value === 'Outro' && bancoPixOutro && bancoPixOutro.value.trim()) {
+                    // Se for "Outro" e tiver valor digitado, usar o valor digitado
+                    bancoPixHidden.value = bancoPixOutro.value.trim();
+                } else if (bancoPixSelect.value !== 'Outro') {
+                    // Se não for "Outro", usar o valor do select
+                    bancoPixHidden.value = bancoPixSelect.value;
+                }
+            }
+            if (bancoTransfSelect && bancoTransfHidden) {
+                if (bancoTransfSelect.value === 'Outro' && bancoTransfOutro && bancoTransfOutro.value.trim()) {
+                    // Se for "Outro" e tiver valor digitado, usar o valor digitado
+                    bancoTransfHidden.value = bancoTransfOutro.value.trim();
+                } else if (bancoTransfSelect.value !== 'Outro') {
+                    // Se não for "Outro", usar o valor do select
+                    bancoTransfHidden.value = bancoTransfSelect.value;
+                }
+            }
+            
+            if (!validarFormulario()) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Ocultar loading se estiver visível
+                const loadingOverlay = document.getElementById('loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+                
+                // Garantir que o formulário permaneça em modo de edição
+                const viewMode = document.getElementById('view-mode');
+                const editMode = document.getElementById('edit-mode');
+                const btnEditar = document.getElementById('btn-editar');
+                
+                if (viewMode) viewMode.classList.add('hidden');
+                if (editMode) editMode.classList.add('active');
+                if (btnEditar) btnEditar.style.display = 'none';
+                
+                // Scroll para o primeiro erro
+                const primeiroErro = form.querySelector('.errorlist');
+                if (primeiroErro) {
+                    primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                return false;
+            } else {
+                // Se a validação passou, copiar valor de carteira digital para conta_numero se necessário
+                const carteiraDigital = document.getElementById('id_carteira_digital');
+                const contaNumero = document.getElementById('id_conta_numero');
+                
+                if (bancoTransfHidden && bancoTransfHidden.value === 'Carteira Digital' && carteiraDigital && contaNumero) {
+                    contaNumero.value = carteiraDigital.value;
+                }
+                
+                // Marcar que o formulário está sendo enviado
+                formularioSendoEnviado = true;
+                
+                // Mostrar loading manualmente
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Salvando...';
+                }
+                
+                // Atualizar valores originais imediatamente para evitar o aviso
+                salvarValoresOriginais();
+            }
+        });
+        
+        // Remover erros quando o usuário começar a digitar
+        todosCampos.forEach(function(campo) {
+            campo.addEventListener('input', function() {
+                this.classList.remove('error-field');
+                const formGroup = this.closest('.form-group');
+                if (formGroup) {
+                    const errorList = formGroup.querySelector('.errorlist');
+                    if (errorList) {
+                        errorList.remove();
+                    }
+                }
+            });
+            
+            campo.addEventListener('change', function() {
+                this.classList.remove('error-field');
+                const formGroup = this.closest('.form-group');
+                if (formGroup) {
+                    const errorList = formGroup.querySelector('.errorlist');
+                    if (errorList) {
+                        errorList.remove();
+                    }
+                }
+            });
+        });
     })();
 </script>
 {% endblock %}

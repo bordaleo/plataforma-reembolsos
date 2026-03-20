@@ -261,7 +261,7 @@
         justify-content: flex-start;
         min-height: 0;
     }
-    .linha-despesa .desc-valor-campos .campo-anexo-inner .anexo-wrapper > input[type=file] {
+    .linha-despesa .desc-valor-campos .campo-anexo-inner .anexo-wrapper > .custom-file-label {
         height: 2.875rem;
         min-height: 2.875rem;
         max-height: 2.875rem;
@@ -303,9 +303,22 @@
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+        position: relative;
     }
     .anexo-wrapper input[type="file"] {
+        position: absolute;
+        width: 0.1px;
+        height: 0.1px;
+        opacity: 0;
+        overflow: hidden;
+        z-index: -1;
+    }
+    .anexo-wrapper .custom-file-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
+        position: relative;
         padding: 0.75rem 1rem;
         font-size: 0.9rem;
         border: 2px solid #e1e8ed;
@@ -316,25 +329,45 @@
         transition: all 0.2s;
         font-family: inherit;
         box-sizing: border-box;
+        text-align: center;
+        min-height: 42px;
     }
-    .anexo-wrapper input[type="file"]:hover {
+    .anexo-wrapper .custom-file-label .btn-remover-inline {
+        background: #e74c3c;
+        color: #ffffff;
+        border: none;
+        border-radius: 4px;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .anexo-wrapper .custom-file-label .btn-remover-inline:hover {
+        background: #c0392b;
+    }
+    .anexo-wrapper .custom-file-label:hover {
         border-color: #bdc3c7;
+        background: #f8f9fa;
     }
-    .anexo-wrapper input[type="file"]:focus {
+    .anexo-wrapper input[type="file"]:focus + .custom-file-label {
         outline: none;
         border-color: #34495e;
         box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
-        background: #ffffff;
     }
-    .anexo-wrapper input[type="file"]::-webkit-file-upload-button {
-        padding: 0.5rem 1rem;
-        background: #34495e;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        margin-right: 0.75rem;
+    .anexo-wrapper .custom-file-label.has-file {
+        color: #27ae60;
+        border-color: #27ae60;
+        justify-content: space-between;
+        gap: 0.5rem;
+        text-align: left;
+    }
+    .anexo-wrapper .custom-file-label .custom-file-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .anexo-info {
         display: flex;
@@ -678,7 +711,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="nome_gestor">Nome do Gestor <span style="color: #e74c3c;">*</span></label>
+                <label for="nome_gestor">E-mail do Gestor/Aprovador<span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="nome_gestor" id="nome_gestor" required class="form-control" 
                        value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
                        placeholder="Digite o nome do gestor">
@@ -728,7 +761,8 @@
                         <div class="campo-anexo-inner">
                             <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
                             <div class="anexo-wrapper">
-                                <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo">
+                                <input type="file" name="anexo_0" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo" id="anexo-input-0">
+                                <label for="anexo-input-0" class="custom-file-label" id="anexo-label-0">Clique para selecionar um arquivo</label>
                                 <div class="anexo-info hidden" id="anexo-info-0">
                                     <span class="nome-arquivo"></span>
                                     <button type="button" class="btn-remover-arquivo">Remover</button>
@@ -1027,19 +1061,46 @@
 
     // Função para gerenciar exibição do anexo
     function setupAnexo(inputAnexo) {
-        var anexoInfo = inputAnexo.closest('.anexo-wrapper').querySelector('.anexo-info');
+        var anexoWrapper = inputAnexo.closest('.anexo-wrapper');
+        var anexoInfo = anexoWrapper ? anexoWrapper.querySelector('.anexo-info') : null;
         var nomeArquivo = anexoInfo ? anexoInfo.querySelector('.nome-arquivo') : null;
         var btnRemover = anexoInfo ? anexoInfo.querySelector('.btn-remover-arquivo') : null;
+        var customLabel = anexoWrapper ? anexoWrapper.querySelector('.custom-file-label') : null;
         
         function atualizarExibicaoAnexo() {
             if (inputAnexo.files && inputAnexo.files.length > 0) {
                 var nome = inputAnexo.files[0].name;
-                if (nomeArquivo) nomeArquivo.textContent = nome;
-                if (anexoInfo) anexoInfo.classList.remove('hidden');
-                inputAnexo.style.display = 'none';
+                if (nomeArquivo) nomeArquivo.textContent = nome; // mantido para compatibilidade
+                if (anexoInfo) anexoInfo.classList.add('hidden'); // usar label no lugar da caixa separada
+                if (customLabel) {
+                    // limpar conteúdo e montar texto + botão remover inline
+                    customLabel.textContent = '';
+                    var spanTexto = document.createElement('span');
+                    spanTexto.className = 'custom-file-text';
+                    spanTexto.textContent = nome;
+                    var btnInline = document.createElement('button');
+                    btnInline.type = 'button';
+                    btnInline.className = 'btn-remover-inline';
+                    btnInline.textContent = 'Remover';
+                    btnInline.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        inputAnexo.value = '';
+                        if (customLabel) {
+                            customLabel.textContent = 'Clique para selecionar um arquivo';
+                            customLabel.classList.remove('has-file');
+                        }
+                    });
+                    customLabel.appendChild(spanTexto);
+                    customLabel.appendChild(btnInline);
+                    customLabel.classList.add('has-file');
+                }
             } else {
-                if (anexoInfo) anexoInfo.classList.add('hidden');
-                inputAnexo.style.display = 'block';
+                if (anexoInfo) anexoInfo.classList.add('hidden'); // manter escondido
+                if (customLabel) {
+                    customLabel.textContent = 'Clique para selecionar um arquivo';
+                    customLabel.classList.remove('has-file');
+                }
             }
         }
         
@@ -1049,7 +1110,10 @@
             btnRemover.addEventListener('click', function() {
                 inputAnexo.value = '';
                 if (anexoInfo) anexoInfo.classList.add('hidden');
-                inputAnexo.style.display = 'block';
+                if (customLabel) {
+                    customLabel.textContent = 'Clique para selecionar um arquivo';
+                    customLabel.classList.remove('has-file');
+                }
             });
         }
         
@@ -1100,7 +1164,7 @@
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control"><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
+            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
             '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
@@ -2226,11 +2290,12 @@
                 }
             }, 100);
             
-            // Mostrar anexo existente no formato padrão
+            // Mostrar anexo existente usando o label customizado
             if (anexoWrapper && item.anexo_url) {
                 var inputAnexo = anexoWrapper.querySelector('input[type="file"]');
                 var anexoInfo = anexoWrapper.querySelector('.anexo-info');
                 var nomeArquivo = anexoWrapper.querySelector('.nome-arquivo');
+                var customLabel = anexoWrapper.querySelector('.custom-file-label');
                 
                 if (inputAnexo && anexoInfo && nomeArquivo) {
                     // IMPORTANTE: Remover obrigatoriedade ANTES de ocultar para evitar erro de validação
@@ -2242,33 +2307,41 @@
                     var asteriscoAnexo = linha.querySelector('.anexo-required');
                     if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
                     
-                    // Ocultar input de arquivo APÓS remover required
-                    inputAnexo.style.display = 'none';
-                    
-                    // Mostrar anexo existente no formato padrão
-                    var nomeArquivoTexto = item.anexo_nome ? item.anexo_nome.split('/').pop() : 'Anexo existente';
-                    nomeArquivo.textContent = nomeArquivoTexto;
-                    nomeArquivo.style.cursor = 'pointer';
-                    nomeArquivo.title = 'Clique para visualizar';
-                    nomeArquivo.addEventListener('click', function() {
-                        window.open(item.anexo_url, '_blank', 'noopener');
-                    });
-                    
-                    // Mostrar div de anexo-info
-                    anexoInfo.classList.remove('hidden');
-                    
-                    // Configurar botão remover para ocultar anexo e mostrar input novamente
-                    var btnRemover = anexoInfo.querySelector('.btn-remover-arquivo');
-                    if (btnRemover) {
-                        btnRemover.addEventListener('click', function() {
-                            anexoInfo.classList.add('hidden');
-                            inputAnexo.style.display = 'block';
+                    // Usar label customizado para exibir nome e botão remover dentro da caixa
+                    if (customLabel) {
+                        var nomeArquivoTexto = item.anexo_nome ? item.anexo_nome.split('/').pop() : 'Anexo existente';
+                        customLabel.textContent = '';
+                        var spanTexto = document.createElement('span');
+                        spanTexto.className = 'custom-file-text';
+                        spanTexto.textContent = nomeArquivoTexto;
+                        // Permitir abrir em nova aba ao clicar no texto
+                        spanTexto.style.cursor = 'pointer';
+                        spanTexto.title = 'Clique para visualizar';
+                        spanTexto.addEventListener('click', function() {
+                            window.open(item.anexo_url, '_blank', 'noopener');
+                        });
+                        var btnInline = document.createElement('button');
+                        btnInline.type = 'button';
+                        btnInline.className = 'btn-remover-inline';
+                        btnInline.textContent = 'Remover';
+                        btnInline.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (anexoInfo) anexoInfo.classList.add('hidden');
+                            customLabel.textContent = 'Clique para selecionar um arquivo';
+                            customLabel.classList.remove('has-file');
                             inputAnexo.setAttribute('required', 'required');
                             inputAnexo.removeAttribute('data-anexo-oculto');
                             if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
                             inputAnexo.value = '';
                         });
+                        customLabel.appendChild(spanTexto);
+                        customLabel.appendChild(btnInline);
+                        customLabel.classList.add('has-file');
                     }
+
+                    // Manter caixa anexo-info oculta (usamos o label)
+                    anexoInfo.classList.add('hidden');
                 }
             }
         }

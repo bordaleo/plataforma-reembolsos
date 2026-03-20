@@ -36,25 +36,43 @@ class EsqueceuAcessoForm(forms.Form):
 
 
 class CompletarCadastroForm(forms.ModelForm):
-    banco_pix_select = forms.CharField(
+    BANCOS_CHOICES = [
+        ('', 'Selecione...'),
+        ('Banco do Brasil', 'Banco do Brasil'),
+        ('Bradesco', 'Bradesco'),
+        ('Itaú', 'Itaú'),
+        ('Santander', 'Santander'),
+        ('Caixa Econômica Federal', 'Caixa Econômica Federal'),
+        ('Banco Inter', 'Banco Inter'),
+        ('Nubank', 'Nubank'),
+        ('Banco Original', 'Banco Original'),
+        ('Banrisul', 'Banrisul'),
+        ('Banco Safra', 'Banco Safra'),
+        ('BTG Pactual', 'BTG Pactual'),
+        ('Banco Pan', 'Banco Pan'),
+        ('Banco Votorantim', 'Banco Votorantim'),
+        ('Banco C6', 'Banco C6'),
+        ('Banco Next', 'Banco Next'),
+        ('Banco Neon', 'Banco Neon'),
+        ('Banco Digio', 'Banco Digio'),
+        ('Banco Will', 'Banco Will'),
+        ('Banco Sofisa', 'Banco Sofisa'),
+        ('Banco Rendimento', 'Banco Rendimento'),
+        ('Carteira Digital', 'Carteira Digital'),
+        ('Outro', 'Outro'),
+    ]
+
+    banco_pix_select = forms.ChoiceField(
         label="Banco",
-        max_length=200,
+        choices=BANCOS_CHOICES,
         required=False,
-        widget=forms.TextInput(attrs={
-            "placeholder": "Selecione ou digite o banco...",
-            "autocomplete": "off",
-            "class": "form-control"
-        }),
+        widget=forms.Select(attrs={"class": "form-control"}),
     )
-    banco_transf_select = forms.CharField(
+    banco_transf_select = forms.ChoiceField(
         label="Banco",
-        max_length=200,
+        choices=BANCOS_CHOICES,
         required=False,
-        widget=forms.TextInput(attrs={
-            "placeholder": "Selecione ou digite o banco...",
-            "autocomplete": "off",
-            "class": "form-control"
-        }),
+        widget=forms.Select(attrs={"class": "form-control"}),
     )
     
     def __init__(self, *args, **kwargs):
@@ -63,9 +81,17 @@ class CompletarCadastroForm(forms.ModelForm):
         # Definir valores iniciais dos campos de seleção de banco
         if self.instance:
             if self.instance.banco_pix:
-                self.initial['banco_pix_select'] = self.instance.banco_pix
+                banco_pix_value = self.instance.banco_pix
+                if banco_pix_value and banco_pix_value in [choice[0] for choice in self.BANCOS_CHOICES]:
+                    self.initial['banco_pix_select'] = banco_pix_value
+                elif banco_pix_value:
+                    self.initial['banco_pix_select'] = 'Outro'
             if self.instance.banco:
-                self.initial['banco_transf_select'] = self.instance.banco
+                banco_value = self.instance.banco
+                if banco_value and banco_value in [choice[0] for choice in self.BANCOS_CHOICES]:
+                    self.initial['banco_transf_select'] = banco_value
+                elif banco_value:
+                    self.initial['banco_transf_select'] = 'Outro'
 
     class Meta:
         model = PerfilSolicitante
@@ -134,8 +160,12 @@ class CompletarCadastroForm(forms.ModelForm):
     def clean_cpf_pix(self):
         cpf_pix = self.cleaned_data.get("cpf_pix", "").strip()
         forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
-        if forma_pagamento == "PIX" and not cpf_pix:
-            raise forms.ValidationError("Este campo é obrigatório.")
+        if forma_pagamento == "PIX":
+            if not cpf_pix:
+                raise forms.ValidationError("Este campo é obrigatório.")
+            numeros = ''.join(filter(str.isdigit, cpf_pix))
+            if len(numeros) != 11 and len(numeros) != 14:
+                raise forms.ValidationError("CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
         return cpf_pix
 
     def clean_banco(self):
@@ -169,8 +199,12 @@ class CompletarCadastroForm(forms.ModelForm):
     def clean_cpf_transferencia(self):
         cpf_transferencia = self.cleaned_data.get("cpf_transferencia", "").strip()
         forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
-        if forma_pagamento == "TRANSFERENCIA" and not cpf_transferencia:
-            raise forms.ValidationError("Este campo é obrigatório.")
+        if forma_pagamento == "TRANSFERENCIA":
+            if not cpf_transferencia:
+                raise forms.ValidationError("Este campo é obrigatório.")
+            numeros = ''.join(filter(str.isdigit, cpf_transferencia))
+            if len(numeros) != 11 and len(numeros) != 14:
+                raise forms.ValidationError("CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
         return cpf_transferencia
 
     def clean_banco_pix_select(self):
@@ -194,14 +228,74 @@ class CompletarCadastroForm(forms.ModelForm):
         # Transferir valores dos campos de seleção para os campos hidden
         if forma_pagamento == "PIX":
             banco_pix_select = cleaned_data.get("banco_pix_select", "").strip()
-            if banco_pix_select:
+            if banco_pix_select == "Outro":
+                banco_pix_value = self.data.get("banco_pix", "").strip()
+                if banco_pix_value:
+                    cleaned_data["banco_pix"] = banco_pix_value
+                else:
+                    cleaned_data["banco_pix"] = banco_pix_select
+            else:
                 cleaned_data["banco_pix"] = banco_pix_select
+            cleaned_data["banco"] = ""
+            cleaned_data["agencia"] = ""
+            cleaned_data["conta_tipo"] = ""
+            cleaned_data["conta_numero"] = ""
+            cleaned_data["cpf_transferencia"] = ""
         elif forma_pagamento == "TRANSFERENCIA":
             banco_transf_select = cleaned_data.get("banco_transf_select", "").strip()
-            if banco_transf_select:
+            if banco_transf_select == "Outro":
+                banco_value = self.data.get("banco", "").strip()
+                if banco_value:
+                    cleaned_data["banco"] = banco_value
+                else:
+                    cleaned_data["banco"] = banco_transf_select
+            else:
                 cleaned_data["banco"] = banco_transf_select
+            cleaned_data["banco_pix"] = ""
+            cleaned_data["chave_pix"] = ""
+            cleaned_data["cpf_pix"] = ""
         
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        forma_pagamento = self.cleaned_data.get("forma_pagamento", "")
+
+        if forma_pagamento:
+            instance.forma_pagamento = forma_pagamento
+
+        if forma_pagamento == "PIX":
+            instance.banco_pix = self.cleaned_data.get("banco_pix", "").strip()
+            instance.chave_pix = self.cleaned_data.get("chave_pix", "").strip()
+            instance.cpf_pix = self.cleaned_data.get("cpf_pix", "").strip()
+            instance.banco = ""
+            instance.agencia = ""
+            instance.conta_tipo = ""
+            instance.conta_numero = ""
+            instance.cpf_transferencia = ""
+        elif forma_pagamento == "TRANSFERENCIA":
+            instance.banco = self.cleaned_data.get("banco", "").strip()
+            banco_selecionado = instance.banco
+
+            if banco_selecionado == "Carteira Digital":
+                carteira_digital = self.data.get("carteira_digital", "").strip()
+                if carteira_digital:
+                    instance.conta_numero = carteira_digital
+                instance.agencia = ""
+                instance.conta_tipo = ""
+            else:
+                instance.agencia = self.cleaned_data.get("agencia", "").strip()
+                instance.conta_tipo = self.cleaned_data.get("conta_tipo", "").strip()
+                instance.conta_numero = self.cleaned_data.get("conta_numero", "").strip()
+
+            instance.cpf_transferencia = self.cleaned_data.get("cpf_transferencia", "").strip()
+            instance.banco_pix = ""
+            instance.chave_pix = ""
+            instance.cpf_pix = ""
+
+        if commit:
+            instance.save()
+        return instance
 
 
 class EditarPagamentoForm(forms.ModelForm):

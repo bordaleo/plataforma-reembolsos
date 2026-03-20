@@ -243,6 +243,71 @@ def _traduzir_status_docusign(status):
     return traducoes.get(status.lower(), status)
 
 
+def _obter_dados_solicitante_para_assinatura(sol):
+    """
+    Retorna nome e e-mail do solicitante para envio ao DocuSign.
+    Prioriza o e-mail salvo na solicitação e usa o usuário como fallback.
+    """
+    nome_solicitante = sol.user.get_full_name() or sol.user.email
+    email_solicitante = (getattr(sol, "email_solicitante", None) or sol.user.email or "").strip()
+    try:
+        perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+        nome_solicitante = perfil_solicitante.nome_solicitante or nome_solicitante
+    except PerfilSolicitante.DoesNotExist:
+        pass
+    return nome_solicitante, email_solicitante
+
+
+def _obter_dados_gestor_para_assinatura(sol):
+    """
+    Retorna e-mail e nome do gestor para assinatura.
+    Prioriza os dados do perfil do solicitante e usa nome_gestor da solicitação como fallback.
+    """
+    email_gestor = None
+    nome_gestor = None
+
+    try:
+        perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
+        if perfil_solicitante.email_gestor:
+            email_gestor = perfil_solicitante.email_gestor.strip()
+            nome_gestor = (perfil_solicitante.nome_gestor or "").strip() or email_gestor
+            try:
+                gestor_user = User.objects.get(email__iexact=email_gestor)
+                email_gestor = gestor_user.email
+                nome_gestor = gestor_user.get_full_name() or nome_gestor
+            except User.DoesNotExist:
+                pass
+    except PerfilSolicitante.DoesNotExist:
+        pass
+
+    if email_gestor:
+        return email_gestor, nome_gestor
+
+    nome_gestor = (sol.nome_gestor or "").strip() or None
+    if not nome_gestor:
+        return None, None
+
+    try:
+        partes_nome = nome_gestor.split()
+        if len(partes_nome) >= 2:
+            gestor_user = User.objects.filter(
+                first_name__iexact=partes_nome[0],
+                last_name__iexact=" ".join(partes_nome[1:])
+            ).first()
+        else:
+            gestor_user = User.objects.filter(
+                Q(email__iexact=nome_gestor) |
+                Q(first_name__iexact=nome_gestor) |
+                Q(last_name__iexact=nome_gestor)
+            ).first()
+        if gestor_user:
+            return gestor_user.email, gestor_user.get_full_name() or nome_gestor
+    except Exception:
+        pass
+
+    return None, nome_gestor
+
+
 def _processar_pagamentos_programados():
     """
     Verifica solicitações com data de pagamento programada que já passou
@@ -288,39 +353,8 @@ def _processar_pagamentos_programados():
                 # Gerar PDF da solicitação
                 pdf_bytes = gerar_pdf(sol)
                 
-                # Obter dados do solicitante
-                try:
-                    perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-                    nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
-                    email_solicitante = sol.user.email
-                except PerfilSolicitante.DoesNotExist:
-                    nome_solicitante = sol.user.get_full_name() or sol.user.email
-                    email_solicitante = sol.user.email
-                
-                # Obter dados do gestor da solicitação
-                email_gestor = None
-                nome_gestor = sol.nome_gestor or None
-                if nome_gestor:
-                    # Tentar encontrar o usuário gestor pelo nome ou email
-                    try:
-                        partes_nome = nome_gestor.split()
-                        if len(partes_nome) >= 2:
-                            gestor_user = User.objects.filter(
-                                first_name__iexact=partes_nome[0],
-                                last_name__iexact=" ".join(partes_nome[1:])
-                            ).first()
-                        else:
-                            gestor_user = User.objects.filter(
-                                Q(email__iexact=nome_gestor) | 
-                                Q(first_name__iexact=nome_gestor) |
-                                Q(last_name__iexact=nome_gestor)
-                            ).first()
-                        
-                        if gestor_user:
-                            email_gestor = gestor_user.email
-                            nome_gestor = gestor_user.get_full_name() or nome_gestor
-                    except:
-                        pass
+                nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
+                email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
                 
                 # Enviar para DocuSign
                 if email_solicitante:
@@ -2356,32 +2390,8 @@ def reembolso_marcar_pago(request, pk):
             # Gerar PDF da solicitação
             pdf_bytes = gerar_pdf(sol)
             
-            # Obter dados do solicitante
-            try:
-                perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-                nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
-                email_solicitante = sol.user.email
-            except PerfilSolicitante.DoesNotExist:
-                nome_solicitante = sol.user.get_full_name() or sol.user.email
-                email_solicitante = sol.user.email
-            
-            # Obter dados do gestor
-            email_gestor = None
-            nome_gestor = None
-            try:
-                perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-                if perfil_solicitante.email_gestor:
-                    # Tentar obter nome do gestor se for usuário do sistema
-                    try:
-                        gestor_user = User.objects.get(email__iexact=perfil_solicitante.email_gestor)
-                        email_gestor = gestor_user.email
-                        nome_gestor = gestor_user.get_full_name() or perfil_solicitante.nome_gestor or email_gestor
-                    except User.DoesNotExist:
-                        # Se não for usuário, usar dados do perfil
-                        email_gestor = perfil_solicitante.email_gestor
-                        nome_gestor = perfil_solicitante.nome_gestor or email_gestor
-            except PerfilSolicitante.DoesNotExist:
-                pass
+            nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
+            email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
             
             # Enviar para DocuSign
             if email_solicitante:
@@ -2465,39 +2475,8 @@ def reembolso_programar_pagamento(request, pk):
                 # Gerar PDF da solicitação
                 pdf_bytes = gerar_pdf(sol)
                 
-                # Obter dados do solicitante
-                try:
-                    perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-                    nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
-                    email_solicitante = sol.user.email
-                except PerfilSolicitante.DoesNotExist:
-                    nome_solicitante = sol.user.get_full_name() or sol.user.email
-                    email_solicitante = sol.user.email
-                
-                # Obter dados do gestor da solicitação
-                email_gestor = None
-                nome_gestor = sol.nome_gestor or None
-                if nome_gestor:
-                    # Tentar encontrar o usuário gestor pelo nome ou email
-                    try:
-                        partes_nome = nome_gestor.split()
-                        if len(partes_nome) >= 2:
-                            gestor_user = User.objects.filter(
-                                first_name__iexact=partes_nome[0],
-                                last_name__iexact=" ".join(partes_nome[1:])
-                            ).first()
-                        else:
-                            gestor_user = User.objects.filter(
-                                Q(email__iexact=nome_gestor) | 
-                                Q(first_name__iexact=nome_gestor) |
-                                Q(last_name__iexact=nome_gestor)
-                            ).first()
-                        
-                        if gestor_user:
-                            email_gestor = gestor_user.email
-                            nome_gestor = gestor_user.get_full_name() or nome_gestor
-                    except:
-                        pass
+                nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
+                email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
                 
                 # Enviar para DocuSign
                 if email_solicitante:
@@ -2547,36 +2526,8 @@ def reembolso_programar_pagamento(request, pk):
                     try:
                         pdf_bytes = gerar_pdf(sol)
                         
-                        try:
-                            perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-                            nome_solicitante = perfil_solicitante.nome_solicitante or sol.user.get_full_name() or sol.user.email
-                            email_solicitante = sol.user.email
-                        except PerfilSolicitante.DoesNotExist:
-                            nome_solicitante = sol.user.get_full_name() or sol.user.email
-                            email_solicitante = sol.user.email
-                        
-                        email_gestor = None
-                        nome_gestor = sol.nome_gestor or None
-                        if nome_gestor:
-                            try:
-                                partes_nome = nome_gestor.split()
-                                if len(partes_nome) >= 2:
-                                    gestor_user = User.objects.filter(
-                                        first_name__iexact=partes_nome[0],
-                                        last_name__iexact=" ".join(partes_nome[1:])
-                                    ).first()
-                                else:
-                                    gestor_user = User.objects.filter(
-                                        Q(email__iexact=nome_gestor) | 
-                                        Q(first_name__iexact=nome_gestor) |
-                                        Q(last_name__iexact=nome_gestor)
-                                    ).first()
-                                
-                                if gestor_user:
-                                    email_gestor = gestor_user.email
-                                    nome_gestor = gestor_user.get_full_name() or nome_gestor
-                            except:
-                                pass
+                        nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
+                        email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
                         
                         if email_solicitante:
                             resposta_docusign = enviar_documento_para_assinatura(
@@ -3635,6 +3586,106 @@ def dashboard_gestor(request):
     
     return render(request, "intra/dashboard_gestor.html", context)
 
+
+@login_required
+def dashboard_export_pptx(request):
+    """
+    Recebe via POST um JSON com:
+      - titulo_capa (str)
+      - subtitulo_capa (str)
+      - charts: [{ "title": str, "image_data_url": "data:image/png;base64,..."}]
+    Gera um PPTX com uma capa e um slide por gráfico (somente os selecionados).
+    """
+    import json
+    from io import BytesIO
+    from datetime import datetime
+    try:
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+    except Exception:
+        return HttpResponse("Biblioteca python-pptx não está instalada no servidor.", status=500)
+
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponse("Requisição inválida", status=400)
+
+    charts = payload.get("charts", [])
+    titulo_capa = payload.get("titulo_capa") or "Dashboard de Reembolsos"
+    subtitulo_capa = payload.get("subtitulo_capa") or datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    prs = Presentation()
+    # Capa
+    try:
+        title_slide_layout = prs.slide_layouts[0]  # Title
+    except Exception:
+        title_slide_layout = prs.slide_layouts[6]  # Blank
+    slide = prs.slides.add_slide(title_slide_layout)
+    if hasattr(slide.shapes, "title") and slide.shapes.title:
+        slide.shapes.title.text = titulo_capa
+        if slide.placeholders and len(slide.placeholders) > 1:
+            try:
+                slide.placeholders[1].text = subtitulo_capa
+            except Exception:
+                pass
+    else:
+        # Fallback em layout em branco
+        tx_box = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
+        tx_box.text_frame.text = titulo_capa
+        sub_box = slide.shapes.add_textbox(Inches(1), Inches(2), Inches(8), Inches(1))
+        sub_box.text_frame.text = subtitulo_capa
+
+    # Um slide por gráfico
+    for chart in charts:
+        title = (chart.get("title") or "Gráfico").strip()
+        data_url = chart.get("image_data_url") or ""
+        if not data_url.startswith("data:image"):
+            # Ignorar entradas inválidas
+            continue
+        try:
+            header, b64data = data_url.split(",", 1)
+        except ValueError:
+            continue
+        import base64
+        try:
+            image_bytes = base64.b64decode(b64data)
+        except Exception:
+            continue
+
+        slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank
+        # Título
+        tx = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(8.4), Inches(0.6))
+        tf = tx.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = title
+        try:
+            run.font.size = Pt(20)
+            run.font.bold = True
+        except Exception:
+            pass
+        # Imagem centralizada
+        img_stream = BytesIO(image_bytes)
+        left = Inches(0.75)
+        top = Inches(1.2)
+        width = Inches(8.0)
+        slide.shapes.add_picture(img_stream, left, top, width=width)
+
+    # Retornar PPTX
+    out = BytesIO()
+    prs.save(out)
+    out.seek(0)
+    filename = f"dashboard_reembolsos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    response = HttpResponse(
+        out.read(),
+        content_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 @login_required
 def dashboard_solicitacoes_json(request):

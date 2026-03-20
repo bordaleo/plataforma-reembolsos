@@ -155,6 +155,15 @@
             padding: 1.25rem;
         }
     }
+    .cpf-cnpj-erro {
+        color: #c53030;
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+    }
+    .cpf-cnpj-invalido {
+        border-color: #c53030 !important;
+        background-color: #fff5f5 !important;
+    }
     .linha-despesa:hover {
         border-color: #34495e;
         box-shadow: 0 2px 8px rgba(52, 73, 94, 0.1);
@@ -784,7 +793,7 @@
                         Nome do Banco
                         <span style="color: #e74c3c;">*</span>
                     </label>
-                    <input type="text" id="pix_banco_outro" class="form-control" 
+                    <input type="text" id="pix_banco_outro" name="pix_banco_outro" class="form-control" 
                            placeholder="Digite o nome do banco">
                 </div>
             </div>
@@ -809,7 +818,7 @@
                         Nome do Banco
                         <span style="color: #e74c3c;">*</span>
                     </label>
-                    <input type="text" id="transf_banco_outro" class="form-control" 
+                    <input type="text" id="transf_banco_outro" name="transf_banco_outro" class="form-control" 
                            placeholder="Digite o nome do banco">
                 </div>
             </div>
@@ -1472,9 +1481,11 @@
     // Garantir que os campos estejam ocultos inicialmente
     if (camposPix) camposPix.style.display = 'none';
     if (camposTransferencia) camposTransferencia.style.display = 'none';
+    validarCpfCnpjEmTempoReal();
     
     if (formaPagamento) {
         formaPagamento.addEventListener('change', atualizarCamposPagamento);
+        formaPagamento.addEventListener('change', validarCpfCnpjEmTempoReal);
     }
     
     // Botão para usar dados do perfil
@@ -1622,7 +1633,9 @@
     if (pixCpf) {
         pixCpf.addEventListener('input', function(e) {
             e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
+            validarCpfCnpjEmTempoReal();
         });
+        pixCpf.addEventListener('blur', validarCpfCnpjEmTempoReal);
     }
     
     // Máscara para CPF/CNPJ na Transferência
@@ -1630,7 +1643,9 @@
     if (transfCpf) {
         transfCpf.addEventListener('input', function(e) {
             e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
+            validarCpfCnpjEmTempoReal();
         });
+        transfCpf.addEventListener('blur', validarCpfCnpjEmTempoReal);
     }
     
     // Máscaras para Agência e Conta
@@ -1686,6 +1701,68 @@
     function validarCPFCNPJ(valor) {
         var numeros = valor.replace(/\D/g, '');
         return numeros.length === 11 || numeros.length === 14;
+    }
+    
+    function atualizarErroCpfCnpj(input, mensagem) {
+        if (!input) return;
+        var formGroup = input.closest('.form-group');
+        if (!formGroup) return;
+        
+        var erroExistente = formGroup.querySelector('.cpf-cnpj-erro');
+        if (mensagem) {
+            if (!erroExistente) {
+                erroExistente = document.createElement('div');
+                erroExistente.className = 'cpf-cnpj-erro';
+                input.insertAdjacentElement('afterend', erroExistente);
+            }
+            erroExistente.textContent = mensagem;
+            input.classList.add('cpf-cnpj-invalido');
+        } else {
+            if (erroExistente) {
+                erroExistente.remove();
+            }
+            input.classList.remove('cpf-cnpj-invalido');
+        }
+    }
+    
+    function validarCpfCnpjEmTempoReal() {
+        var form = document.getElementById('form-reembolso');
+        var submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        var forma = formaPagamento ? formaPagamento.value : '';
+        var invalido = false;
+        
+        var pixCpf = document.getElementById('pix_cpf');
+        var transfCpf = document.getElementById('transf_cpf');
+        
+        if (forma === 'PIX') {
+            if (pixCpf && pixCpf.value.trim() && !validarCPFCNPJ(pixCpf.value)) {
+                atualizarErroCpfCnpj(pixCpf, 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                invalido = true;
+            } else {
+                atualizarErroCpfCnpj(pixCpf, '');
+            }
+            atualizarErroCpfCnpj(transfCpf, '');
+        } else if (forma === 'TRANSFERENCIA') {
+            if (transfCpf && transfCpf.value.trim() && !validarCPFCNPJ(transfCpf.value)) {
+                atualizarErroCpfCnpj(transfCpf, 'CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.');
+                invalido = true;
+            } else {
+                atualizarErroCpfCnpj(transfCpf, '');
+            }
+            atualizarErroCpfCnpj(pixCpf, '');
+        } else {
+            atualizarErroCpfCnpj(pixCpf, '');
+            atualizarErroCpfCnpj(transfCpf, '');
+        }
+        
+        if (submitBtn) {
+            submitBtn.disabled = invalido;
+            submitBtn.style.opacity = invalido ? '0.65' : '1';
+            submitBtn.style.cursor = invalido ? 'not-allowed' : 'pointer';
+            submitBtn.title = invalido ? 'Corrija o CPF/CNPJ para enviar a solicitação.' : '';
+        }
+        
+        return !invalido;
     }
     
     // Função para validar formulário antes de submeter

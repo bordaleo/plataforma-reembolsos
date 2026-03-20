@@ -12,6 +12,7 @@ urlpatterns = [
     path("ultimos-reembolsos-gestor/", views.ultimos_reembolsos_gestor, name="ultimos_reembolsos_gestor"),
     path("reembolso/<int:pk>/concluir/", views.concluir_reembolso, name="concluir_reembolso"),
     path("dashboard/", views.dashboard_gestor, name="dashboard_gestor"),
+    path("dashboard/export-pptx/", views.dashboard_export_pptx, name="dashboard_export_pptx"),
     path("dashboard/solicitacoes/", views.dashboard_solicitacoes_json, name="dashboard_solicitacoes_json"),
     path("reembolso/<int:pk>/decidir/", views.reembolso_decidir, name="reembolso_decidir"),
     path("reembolso/<int:pk>/marcar-pago/", views.reembolso_marcar_pago, name="reembolso_marcar_pago"),

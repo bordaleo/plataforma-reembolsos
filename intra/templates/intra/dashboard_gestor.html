@@ -309,13 +309,26 @@
         border-left: 4px solid #34495e;
     }
     
+    .insights-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    
     .insights-section h2 {
-        margin: 0 0 1.5rem;
+        margin: 0;
         font-size: 1.4rem;
         font-weight: 700;
         color: #34495e;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e1e8ed;
+        border: none;
+    }
+
+    .btn-exportar-pptx {
+        white-space: nowrap;
     }
     
     .insights-grid {
@@ -853,16 +866,122 @@
     }
     
     @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 0 0.5rem;
+            overflow-x: hidden;
+        }
+        
+        .dashboard-header {
+            padding: 1.25rem 1rem;
+            margin-bottom: 1rem;
+        }
+        
         .dashboard-header h1 {
-            font-size: 1.75rem;
+            font-size: 1.35rem;
+        }
+        .dashboard-header p {
+            font-size: 0.9rem;
         }
         
-        .kpi-grid {
-            grid-template-columns: 1fr;
+        .filters-card,
+        .insights-section,
+        .table-card,
+        .chart-card {
+            padding: 1rem;
         }
         
+        .filters-grid,
+        .insights-grid,
+        .kpi-grid,
+        .charts-section,
+        .tables-section {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem;
+        }
+        
+        .kpi-card {
+            padding: 1rem;
+        }
+        
+        .kpi-card .valor {
+            font-size: 1.4rem;
+        }
+        
+        .chart-card {
+            min-width: 0;
+            overflow: hidden;
+        }
+        
+        .chart-card[style*="grid-column"] {
+            grid-column: auto !important;
+        }
+
+        .chart-card h2 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
         .chart-container {
-            height: 300px;
+            height: 240px !important;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+
+        .chart-container[style*="height"] {
+            height: 240px !important;
+        }
+        
+        .chart-container canvas {
+            max-width: 100% !important;
+        }
+        
+        .table-card {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .data-table {
+            min-width: 620px;
+            font-size: 0.85rem;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 0.625rem 0.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard-header {
+            padding: 1rem 0.875rem;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 1.15rem;
+        }
+
+        .filters-title,
+        .insights-section h2,
+        .table-card h2 {
+            font-size: 1rem;
+        }
+
+        .insights-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .btn-exportar-pptx {
+            width: 100%;
+        }
+        
+        .kpi-card .valor {
+            font-size: 1.2rem;
+        }
+        
+        .chart-container,
+        .chart-container[style*="height"] {
+            height: 210px !important;
         }
     }
 </style>
@@ -930,7 +1049,6 @@
                 <a href="{% url 'intra:dashboard_gestor' %}" class="btn btn-secondary">🗑️ Limpar</a>
             </div>
         </form>
-        
         <!-- Badges de Filtros Ativos -->
         {% if active_filter_badges %}
         <div class="active-filters">
@@ -978,7 +1096,10 @@
     <!-- Insights e Análises -->
     {% if area_mais_concluidos or area_mais_rejeitados or area_maior_taxa_rejeicao %}
     <div class="insights-section">
-        <h2>💡 Insights e Análises</h2>
+        <div class="insights-header">
+            <h2>💡 Insights e Análises</h2>
+            <button type="button" class="btn btn-primary btn-exportar-pptx" onclick="abrirExportacaoPPTX()">📤 Exportar PPTX</button>
+        </div>
         <div class="insights-grid">
             {% if area_mais_concluidos %}
             <div class="insight-card" data-table-type="concluidos" onclick="openTableModal('concluidos')">
@@ -1241,6 +1362,42 @@
     </div>
 </div>
 
+<!-- Modal Exportar PPTX -->
+<div id="modal-exportar-pptx" class="modal-overlay" style="display:none;" aria-hidden="true" onclick="fecharExportacaoPPTX(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 640px; width: 95%;">
+        <div class="modal-header">
+            <h2>Exportar gráficos para PPTX</h2>
+            <button class="modal-close" onclick="fecharExportacaoPPTX()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Selecione os gráficos que deseja incluir. Serão exportados com os <strong>filtros atuais</strong>.</p>
+            <form id="form-exportar-pptx" onsubmit="return false;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                    <label><input type="checkbox" name="chart" value="tipoDespesaChart" checked> Distribuição por Tipo de Despesa</label>
+                    <label><input type="checkbox" name="chart" value="statusGeralChart" checked> Distribuição de Status Geral</label>
+                    <label><input type="checkbox" name="chart" value="evolucaoMensalChart" checked> Evolução Mensal</label>
+                    <label><input type="checkbox" name="chart" value="comparacaoAreasChart" checked> Comparação por Área</label>
+                    <label><input type="checkbox" name="chart" value="taxaAprovacaoChart" checked> Taxa de Aprovação por Área</label>
+                    <label><input type="checkbox" name="chart" value="taxaRejeicaoChart" checked> Taxa de Rejeição por Área</label>
+                    <label><input type="checkbox" name="chart" value="valorTotalAreaChart" checked> Valor Total por Área</label>
+                    <label><input type="checkbox" name="chart" value="valorTotalTipoDespesaChart" checked> Valor Total por Tipo</label>
+                </div>
+                <div style="margin-top:1rem;">
+                    <label for="titulo_capa"><strong>Título da capa</strong></label>
+                    <input type="text" id="titulo_capa" class="form-control" placeholder="Dashboard de Reembolsos" value="Dashboard de Reembolsos">
+                </div>
+                <div style="margin-top:0.75rem;">
+                    <label for="subtitulo_capa"><strong>Subtítulo da capa</strong></label>
+                    <input type="text" id="subtitulo_capa" class="form-control" placeholder="Período e filtros">
+                </div>
+                <div class="filters-actions" style="margin-top:1rem;">
+                    <button type="button" class="btn btn-primary" onclick="exportarPPTX()">Gerar PPTX</button>
+                    <button type="button" class="btn btn-secondary" onclick="fecharExportacaoPPTX()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <!-- Modal para exibir tabelas -->
 <div id="tableModal" class="modal-overlay" onclick="closeTableModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
@@ -1294,6 +1451,115 @@
 </div>
 
 <script>
+function abrirExportacaoPPTX() {
+    var m = document.getElementById('modal-exportar-pptx');
+    if (m) {
+        m.style.display = 'flex';
+        m.setAttribute('aria-hidden', 'false');
+        try {
+            var elDi = document.getElementById('data_inicio');
+            var elDf = document.getElementById('data_fim');
+            var elSt = document.getElementById('status');
+            var elCc = document.getElementById('centro_custo');
+            var elTd = document.getElementById('tipo_despesa');
+            var di = (elDi && elDi.value) ? elDi.value : '';
+            var df = (elDf && elDf.value) ? elDf.value : '';
+            var status = (elSt && elSt.value) ? elSt.value : '';
+            var cc = (elCc && elCc.value) ? elCc.value : '';
+            var td = (elTd && elTd.value) ? elTd.value : '';
+            var partes = [];
+            if (di || df) partes.push('Período: ' + (di || '—') + ' a ' + (df || '—'));
+            if (status) partes.push('Status: ' + status);
+            if (cc) partes.push('Centro de Custo: ' + cc);
+            if (td) partes.push('Tipo de Despesa: ' + td);
+            var sub = document.getElementById('subtitulo_capa');
+            if (sub) sub.value = (partes.length ? partes.join(' | ') : 'Dados atuais do dashboard');
+        } catch(e) {}
+    }
+}
+function fecharExportacaoPPTX(event) {
+    if (event && event.target && event.currentTarget && event.target !== event.currentTarget) return;
+    var m = document.getElementById('modal-exportar-pptx');
+    if (m) {
+        m.style.display = 'none';
+        m.setAttribute('aria-hidden', 'true');
+    }
+}
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+function exportarPPTX() {
+    const form = document.getElementById('form-exportar-pptx');
+    if (!form) return;
+    const selecionados = Array.from(form.querySelectorAll('input[name="chart"]:checked')).map(function(el){ return el.value; });
+    if (selecionados.length === 0) {
+        alert('Selecione ao menos um gráfico.');
+        return;
+    }
+    const mapTitles = {
+        tipoDespesaChart: 'Distribuição por Tipo de Despesa',
+        statusGeralChart: 'Distribuição de Status Geral',
+        evolucaoMensalChart: 'Evolução Mensal de Reembolsos',
+        comparacaoAreasChart: 'Concluídos vs Rejeitados por Área',
+        taxaAprovacaoChart: 'Taxa de Aprovação por Área',
+        taxaRejeicaoChart: 'Taxa de Rejeição por Área',
+        valorTotalAreaChart: 'Valor Total por Área',
+        valorTotalTipoDespesaChart: 'Valor Total por Tipo de Despesa'
+    };
+    const chartsPayload = [];
+    selecionados.forEach(function(id) {
+        const canvas = document.getElementById(id);
+        if (canvas && canvas.toDataURL) {
+            chartsPayload.push({
+                title: mapTitles[id] || id,
+                image_data_url: canvas.toDataURL('image/png')
+            });
+        }
+    });
+    const payload = {
+        titulo_capa: (document.getElementById('titulo_capa') && document.getElementById('titulo_capa').value) || 'Dashboard de Reembolsos',
+        subtitulo_capa: (document.getElementById('subtitulo_capa') && document.getElementById('subtitulo_capa').value) || '',
+        charts: chartsPayload
+    };
+    const csrftoken = getCookie('csrftoken') || '';
+    fetch("{% url 'intra:dashboard_export_pptx' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) {
+        if (!res.ok) return res.text().then(function(t){ throw new Error(t || 'Falha ao gerar PPTX'); });
+        return res.blob();
+    })
+    .then(function(blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'dashboard_reembolsos.pptx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        fecharExportacaoPPTX();
+    })
+    .catch(function(err) {
+        alert(err.message || 'Erro ao exportar PPTX');
+    });
+}
 // Dados dos gráficos
 const tiposLabels = {{ tipos_labels_json|safe|default:"[]" }};
 const tiposValores = {{ tipos_valores_json|safe|default:"[]" }};

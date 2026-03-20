@@ -101,22 +101,29 @@
     }
     .password-wrapper {
         position: relative;
-        display: flex;
-        align-items: center;
+        display: block;
+        width: 100%;
     }
-    .password-wrapper input {
+    #form-trocar-senha .password-wrapper input,
+    #form-trocar-senha .password-wrapper input.form-control,
+    #form-trocar-senha .password-wrapper input[type="password"],
+    #form-trocar-senha .password-wrapper input[type="text"] {
+        display: block;
         padding-right: 2.5rem;
-        width: 100%;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        min-width: 0;
         box-sizing: border-box;
     }
-    .password-wrapper input[type="password"],
-    .password-wrapper input[type="text"] {
-        width: 100%;
-        box-sizing: border-box;
+    #form-trocar-senha .form-group {
+        max-width: 520px;
     }
     .password-toggle {
         position: absolute;
         right: 0.625rem;
+        top: 50%;
+        transform: translateY(-50%);
         background: none;
         border: none;
         cursor: pointer;
@@ -134,6 +141,9 @@
     }
     .password-toggle:hover {
         color: #34495e;
+    }
+    .password-toggle:active {
+        transform: translateY(-50%);
     }
     .password-toggle:focus {
         outline: none;
@@ -640,22 +650,17 @@
         const viewMode = document.getElementById('view-mode');
         const editMode = document.getElementById('edit-mode');
         
-        // Verificar se há mensagens de sucesso (formulário foi salvo)
-        const messages = document.querySelector('.messages');
-        const hasSuccess = messages && messages.querySelector('.success');
-        const hasErrors = messages && messages.querySelector('.error');
-        
-        // Se houver sucesso, mostrar visualização
-        // Se houver erros, manter em modo de edição
-        if (hasSuccess && !hasErrors) {
-            if (viewMode) viewMode.classList.remove('hidden');
-            if (editMode) editMode.classList.remove('active');
-            if (btnEditar) btnEditar.style.display = 'block';
-        } else {
-            // Se houver erros ou se estiver em modo de edição, manter edição
+        // Por padrão, abrir em modo visualização.
+        // Só manter em edição quando houver erro de validação no formulário de pagamento.
+        const hasPaymentFormErrors = !!document.querySelector('#edit-mode .errorlist');
+        if (hasPaymentFormErrors) {
             if (viewMode) viewMode.classList.add('hidden');
             if (editMode) editMode.classList.add('active');
             if (btnEditar) btnEditar.style.display = 'none';
+        } else {
+            if (viewMode) viewMode.classList.remove('hidden');
+            if (editMode) editMode.classList.remove('active');
+            if (btnEditar) btnEditar.style.display = 'block';
         }
         
         if (btnEditar && btnCancelar && viewMode && editMode) {
@@ -851,6 +856,17 @@
                     }
                 });
             }
+
+            // Estado inicial: se select estiver em "Outro", preencher campo "Nome do Banco" com o valor salvo
+            atualizarCampoOutroPix();
+            (function preencherOutroPixInicial() {
+                if (bancoPixSelect.value === 'Outro') {
+                    const outro = document.getElementById('banco_pix_outro');
+                    if (outro && bancoPixHidden && bancoPixHidden.value) {
+                        outro.value = bancoPixHidden.value;
+                    }
+                }
+            })();
         }
         
         // Atualizar campos hidden quando o select de banco Transferência mudar
@@ -891,6 +907,16 @@
                     carteiraDigital.value = contaNumero.value;
                 }
             }
+
+            // Estado inicial: se select estiver em "Outro", preencher campo "Nome do Banco" com o valor salvo
+            (function preencherOutroTransfInicial() {
+                if (bancoTransfSelect.value === 'Outro') {
+                    const outro = document.getElementById('banco_transf_outro');
+                    if (outro && bancoTransfHidden && bancoTransfHidden.value) {
+                        outro.value = bancoTransfHidden.value;
+                    }
+                }
+            })();
         }
         
         // Máscaras para Agência e Conta

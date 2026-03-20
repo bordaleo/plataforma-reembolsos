@@ -365,20 +365,19 @@
 
                 <!-- Campos para PIX -->
                 <div id="pix-fields" style="display: none;">
-                    <div class="form-group" style="position: relative;">
+                    <div class="form-group">
                         <label for="id_banco_pix_select">
                             Banco
                             <span class="required">*</span>
                         </label>
-                        <div class="banco-input-wrapper">
-                            {{ form.banco_pix_select }}
-                            <button type="button" class="banco-toggle-btn" id="banco-pix-toggle-btn" title="Mostrar lista de bancos">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
+                        {{ form.banco_pix_select }}
+                        <div class="form-group" id="banco-pix-outro-group" style="display: none; margin-top: 0.5rem;">
+                            <label for="banco_pix_outro">
+                                Nome do Banco
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" id="banco_pix_outro" class="form-control" placeholder="Digite o nome do banco">
                         </div>
-                        <div id="banco-pix-autocomplete" class="autocomplete-dropdown"></div>
                         {{ form.banco_pix }}
                         {% if form.banco_pix_select.errors or form.banco_pix.errors %}<ul class="errorlist">{{ form.banco_pix_select.errors }}{{ form.banco_pix.errors }}</ul>{% endif %}
                     </div>
@@ -402,24 +401,23 @@
 
                 <!-- Campos para Transferência Bancária -->
                 <div id="transferencia-fields" style="display: none;">
-                    <div class="form-group" style="position: relative;">
+                    <div class="form-group">
                         <label for="id_banco_transf_select">
                             Banco
                             <span class="required">*</span>
                         </label>
-                        <div class="banco-input-wrapper">
-                            {{ form.banco_transf_select }}
-                            <button type="button" class="banco-toggle-btn" id="banco-transf-toggle-btn" title="Mostrar lista de bancos">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
+                        {{ form.banco_transf_select }}
+                        <div class="form-group" id="banco-transf-outro-group" style="display: none; margin-top: 0.5rem;">
+                            <label for="banco_transf_outro">
+                                Nome do Banco
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" id="banco_transf_outro" class="form-control" placeholder="Digite o nome do banco">
                         </div>
-                        <div id="banco-transf-autocomplete" class="autocomplete-dropdown"></div>
                         {{ form.banco }}
                         {% if form.banco_transf_select.errors or form.banco.errors %}<ul class="errorlist">{{ form.banco_transf_select.errors }}{{ form.banco.errors }}</ul>{% endif %}
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="agencia-conta-group">
                         <label for="id_agencia">
                             {{ form.agencia.label }}
                             <span class="required">*</span>
@@ -427,7 +425,7 @@
                         {{ form.agencia }}
                         {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="conta-tipo-group">
                         <label for="id_conta_tipo">
                             {{ form.conta_tipo.label }}
                             <span class="required">*</span>
@@ -435,13 +433,20 @@
                         {{ form.conta_tipo }}
                         {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="conta-numero-group">
                         <label for="id_conta_numero">
                             {{ form.conta_numero.label }}
                             <span class="required">*</span>
                         </label>
                         {{ form.conta_numero }}
                         {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                    </div>
+                    <div class="form-group" id="carteira-digital-group" style="display: none;">
+                        <label for="id_carteira_digital">
+                            Chave (E-mail, CPF ou Telefone)
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" id="id_carteira_digital" name="carteira_digital" class="form-control" placeholder="Digite e-mail, CPF ou telefone">
                     </div>
                     <div class="form-group">
                         <label for="id_cpf_transferencia">
@@ -535,355 +540,160 @@
             }
         })();
 
-        // Função reutilizável para autocomplete de bancos
-        function criarAutocompleteBanco(inputId, autocompleteId, toggleBtnId, hiddenInputId) {
-            const bancosPrincipais = [
-                'Banco do Brasil',
-                'Bradesco',
-                'Itaú',
-                'Santander',
-                'Caixa Econômica Federal',
-                'Banco Inter',
-                'Nubank',
-                'Banco Original',
-                'Banrisul',
-                'Banco Safra',
-                'BTG Pactual',
-                'Banco Pan',
-                'Banco Votorantim',
-                'Banco C6',
-                'Banco Next',
-                'Banco Neon',
-                'Banco Digio',
-                'Banco Will',
-                'Banco Sofisa',
-                'Banco Rendimento',
-                'Outro'
-            ];
-
-            const bancoInput = document.getElementById(inputId);
-            const bancoAutocomplete = document.getElementById(autocompleteId);
-            const bancoToggleBtn = document.getElementById(toggleBtnId);
-            const bancoHidden = document.getElementById(hiddenInputId);
-            
-            if (!bancoInput || !bancoAutocomplete || !bancoToggleBtn || !bancoHidden) {
-                return;
-            }
-
-            let bancoTimeoutId = null;
-            let bancoSelectedIndex = -1;
-            let bancosFiltrados = [];
-            let outroSelecionado = false;
-
-            function filtrarBancos(query) {
-                const queryLower = query.toLowerCase().trim();
-                if (!queryLower) {
-                    return bancosPrincipais;
-                }
-                return bancosPrincipais.filter(banco => 
-                    banco.toLowerCase().includes(queryLower)
-                );
-            }
-
-            function mostrarBancos() {
-                if (bancosFiltrados.length === 0) {
-                    bancoAutocomplete.classList.remove('show');
-                    bancoToggleBtn.classList.remove('active');
-                    return;
-                }
-
-                bancoAutocomplete.innerHTML = '';
-                bancosFiltrados.forEach((banco, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'banco-item';
-                    item.dataset.index = index;
-                    item.textContent = banco;
-                    item.addEventListener('click', () => selecionarBanco(banco));
-                    bancoAutocomplete.appendChild(item);
-                });
-                bancoAutocomplete.classList.add('show');
-                bancoToggleBtn.classList.add('active');
-                bancoSelectedIndex = -1;
-            }
-
-            function selecionarBanco(banco) {
-                if (banco === 'Outro') {
-                    outroSelecionado = true;
-                    bancoInput.value = '';
-                    bancoInput.placeholder = 'Digite o nome do banco...';
-                    bancoInput.focus();
-                } else {
-                    outroSelecionado = false;
-                    bancoInput.value = banco;
-                    bancoHidden.value = banco;
-                    bancoInput.placeholder = 'Selecione ou digite o banco...';
-                }
-                bancoAutocomplete.classList.remove('show');
-                bancoToggleBtn.classList.remove('active');
-            }
-
-            bancoInput.addEventListener('focus', function() {
-                const query = bancoInput.value.trim();
-                bancosFiltrados = filtrarBancos(query);
-                mostrarBancos();
-            });
-
-            bancoInput.addEventListener('click', function() {
-                if (!bancoAutocomplete.classList.contains('show')) {
-                    const query = bancoInput.value.trim();
-                    bancosFiltrados = filtrarBancos(query);
-                    mostrarBancos();
-                }
-            });
-
-            bancoInput.addEventListener('input', function(e) {
-                clearTimeout(bancoTimeoutId);
-                const query = e.target.value.trim();
-                
-                // Se "Outro" foi selecionado, atualizar o campo hidden
-                if (outroSelecionado || (!bancosPrincipais.includes(query) && query.length > 0)) {
-                    bancoHidden.value = query;
-                }
-                
-                bancoTimeoutId = setTimeout(() => {
-                    bancosFiltrados = filtrarBancos(query);
-                    mostrarBancos();
-                }, 100);
-            });
-
-            bancoInput.addEventListener('keydown', function(e) {
-                if (!bancoAutocomplete.classList.contains('show') || bancosFiltrados.length === 0) {
-                    return;
-                }
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    bancoSelectedIndex = Math.min(bancoSelectedIndex + 1, bancosFiltrados.length - 1);
-                    atualizarSelecaoBanco();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    bancoSelectedIndex = Math.max(bancoSelectedIndex - 1, -1);
-                    atualizarSelecaoBanco();
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (bancoSelectedIndex >= 0 && bancoSelectedIndex < bancosFiltrados.length) {
-                        selecionarBanco(bancosFiltrados[bancoSelectedIndex]);
-                    } else if (bancosFiltrados.length === 1) {
-                        selecionarBanco(bancosFiltrados[0]);
-                    }
-                } else if (e.key === 'Escape') {
-                    bancoAutocomplete.classList.remove('show');
-                    bancoToggleBtn.classList.remove('active');
-                }
-            });
-
-            function atualizarSelecaoBanco() {
-                const items = bancoAutocomplete.querySelectorAll('.banco-item');
-                items.forEach((item, index) => {
-                    if (index === bancoSelectedIndex) {
-                        item.classList.add('selected');
-                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                    } else {
-                        item.classList.remove('selected');
-                    }
-                });
-            }
-
-            bancoToggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (bancoAutocomplete.classList.contains('show')) {
-                    bancoAutocomplete.classList.remove('show');
-                    bancoToggleBtn.classList.remove('active');
-                } else {
-                    const query = bancoInput.value.trim();
-                    bancosFiltrados = filtrarBancos(query);
-                    mostrarBancos();
-                }
-            });
-
-            // Fechar autocomplete ao clicar fora
-            document.addEventListener('click', function(e) {
-                if (!bancoInput.contains(e.target) && !bancoAutocomplete.contains(e.target) && !bancoToggleBtn.contains(e.target)) {
-                    bancoAutocomplete.classList.remove('show');
-                    bancoToggleBtn.classList.remove('active');
-                }
-            });
-        }
-
-        // Criar autocomplete para banco PIX
-        criarAutocompleteBanco('id_banco_pix_select', 'banco-pix-autocomplete', 'banco-pix-toggle-btn', 'id_banco_pix');
-        
-        // Criar autocomplete para banco Transferência
-        criarAutocompleteBanco('id_banco_transf_select', 'banco-transf-autocomplete', 'banco-transf-toggle-btn', 'id_banco');
-
-        // Máscaras dinâmicas para Agência e Conta baseadas no banco
+        // Atualizar campos hidden quando selecionar banco e controlar Carteira Digital
         (function() {
-            const bancoInput = document.getElementById('id_banco_transf_select');
+            const bancoPixSelect = document.getElementById('id_banco_pix_select');
+            const bancoPixHidden = document.getElementById('id_banco_pix');
+            const bancoTransfSelect = document.getElementById('id_banco_transf_select');
             const bancoHidden = document.getElementById('id_banco');
+            
+            function atualizarCamposCarteiraDigital(isCarteiraDigital) {
+                const agenciaGroup = document.getElementById('agencia-conta-group');
+                const contaTipoGroup = document.getElementById('conta-tipo-group');
+                const contaNumeroGroup = document.getElementById('conta-numero-group');
+                const carteiraDigitalGroup = document.getElementById('carteira-digital-group');
+                
+                if (isCarteiraDigital) {
+                    if (agenciaGroup) agenciaGroup.style.display = 'none';
+                    if (contaTipoGroup) contaTipoGroup.style.display = 'none';
+                    if (contaNumeroGroup) contaNumeroGroup.style.display = 'none';
+                    if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'block';
+                } else {
+                    if (agenciaGroup) agenciaGroup.style.display = 'block';
+                    if (contaTipoGroup) contaTipoGroup.style.display = 'block';
+                    if (contaNumeroGroup) contaNumeroGroup.style.display = 'block';
+                    if (carteiraDigitalGroup) carteiraDigitalGroup.style.display = 'none';
+                }
+            }
+            
+            function atualizarCampoOutroPix() {
+                const bancoPixOutroGroup = document.getElementById('banco-pix-outro-group');
+                const bancoPixOutro = document.getElementById('banco_pix_outro');
+                const isOutro = bancoPixSelect && bancoPixSelect.value === 'Outro';
+                
+                if (bancoPixOutroGroup) {
+                    bancoPixOutroGroup.style.display = isOutro ? 'block' : 'none';
+                }
+                
+                if (bancoPixOutro) {
+                    if (isOutro) {
+                        bancoPixOutro.setAttribute('required', 'required');
+                    } else {
+                        bancoPixOutro.removeAttribute('required');
+                        bancoPixOutro.value = '';
+                    }
+                }
+            }
+            
+            function atualizarCampoOutroTransf() {
+                const bancoTransfOutroGroup = document.getElementById('banco-transf-outro-group');
+                const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                const isOutro = bancoTransfSelect && bancoTransfSelect.value === 'Outro';
+                
+                if (bancoTransfOutroGroup) {
+                    bancoTransfOutroGroup.style.display = isOutro ? 'block' : 'none';
+                }
+                
+                if (bancoTransfOutro) {
+                    if (isOutro) {
+                        bancoTransfOutro.setAttribute('required', 'required');
+                    } else {
+                        bancoTransfOutro.removeAttribute('required');
+                        bancoTransfOutro.value = '';
+                    }
+                }
+            }
+            
+            if (bancoPixSelect && bancoPixHidden) {
+                bancoPixSelect.addEventListener('change', function() {
+                    atualizarCampoOutroPix();
+                    const bancoPixOutro = document.getElementById('banco_pix_outro');
+                    if (this.value === 'Outro' && bancoPixOutro) {
+                        bancoPixHidden.value = bancoPixOutro.value.trim() || '';
+                    } else {
+                        bancoPixHidden.value = this.value;
+                    }
+                });
+                
+                const bancoPixOutro = document.getElementById('banco_pix_outro');
+                if (bancoPixOutro) {
+                    bancoPixOutro.addEventListener('input', function() {
+                        if (bancoPixSelect && bancoPixSelect.value === 'Outro') {
+                            bancoPixHidden.value = this.value.trim();
+                        }
+                    });
+                }
+                atualizarCampoOutroPix();
+            }
+            
+            if (bancoTransfSelect && bancoHidden) {
+                bancoTransfSelect.addEventListener('change', function() {
+                    atualizarCampoOutroTransf();
+                    const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                    if (this.value === 'Outro' && bancoTransfOutro) {
+                        bancoHidden.value = bancoTransfOutro.value.trim() || '';
+                    } else {
+                        bancoHidden.value = this.value;
+                    }
+                    atualizarCamposCarteiraDigital(this.value === 'Carteira Digital');
+                });
+                
+                const bancoTransfOutro = document.getElementById('banco_transf_outro');
+                if (bancoTransfOutro) {
+                    bancoTransfOutro.addEventListener('input', function() {
+                        if (bancoTransfSelect && bancoTransfSelect.value === 'Outro') {
+                            bancoHidden.value = this.value.trim();
+                        }
+                    });
+                }
+                
+                atualizarCampoOutroTransf();
+                atualizarCamposCarteiraDigital(bancoTransfSelect.value === 'Carteira Digital');
+            }
+        })();
+
+        // Máscaras para Agência e Conta (mesmo padrão de meu perfil)
+        (function() {
             const agenciaInput = document.getElementById('id_agencia');
             const contaInput = document.getElementById('id_conta_numero');
-
-            // Configurações de máscara por banco
-            const mascarasBancos = {
-                'Banco do Brasil': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 10, formato: '000000000-0', permiteX: true, min: 8 } // 8-10 dígitos + 1 dígito verificador (pode ser X)
-                },
-                'Caixa Econômica Federal': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 8, formato: '00000000-0', permiteX: false, min: 8 } // 8 dígitos + 1 dígito verificador
-                },
-                'Itaú': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 6, formato: '00000-0', permiteX: false, min: 5 } // 5-6 dígitos + 1 dígito verificador
-                },
-                'Bradesco': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 10, formato: '0000000-0', permiteX: false, min: 7 } // 7-10 dígitos + 1 dígito verificador
-                },
-                'Santander': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 11, formato: '00000000000-0', permiteX: false, min: 8 } // 8-11 dígitos + 1 dígito verificador
-                },
-                'Banco Inter': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
-                },
-                'Nubank': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
-                },
-                'Banco C6': {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 9, formato: '000000000-0', permiteX: false, min: 7 } // 7-9 dígitos + 1 dígito verificador
-                }
-            };
-
-            function getMascaraBanco() {
-                const bancoSelecionado = (bancoInput ? bancoInput.value.trim() : '') || (bancoHidden ? bancoHidden.value.trim() : '');
-                for (const [nomeBanco, mascara] of Object.entries(mascarasBancos)) {
-                    if (bancoSelecionado.toLowerCase().includes(nomeBanco.toLowerCase())) {
-                        return mascara;
-                    }
-                }
-                // Padrão para outros bancos
-                return {
-                    agencia: { max: 4, formato: '0000' },
-                    conta: { max: 10, formato: '000000000-0', permiteX: false }
-                };
-            }
-
-            function atualizarPlaceholders() {
-                const mascara = getMascaraBanco();
-                
-                // Atualizar placeholder da agência
-                if (agenciaInput) {
-                    agenciaInput.placeholder = mascara.agencia.formato;
-                }
-                
-                // Atualizar placeholder da conta
-                if (contaInput) {
-                    contaInput.placeholder = mascara.conta.formato;
-                }
-            }
-
+            
             function aplicarMascaraAgencia(value) {
-                const mascara = getMascaraBanco();
                 let numeros = value.replace(/\D/g, '');
-                if (numeros.length > mascara.agencia.max) {
-                    numeros = numeros.substring(0, mascara.agencia.max);
+                if (numeros.length > 5) {
+                    numeros = numeros.substring(0, 5);
+                }
+                if (numeros.length > 4) {
+                    return numeros.substring(0, 4) + '-' + numeros.substring(4);
                 }
                 return numeros;
             }
-
+            
             function aplicarMascaraConta(value) {
-                const mascara = getMascaraBanco();
-                let numeros = value.replace(/[^0-9Xx]/g, '');
-                
-                // Para Banco do Brasil, permite X no final (dígito verificador)
-                if (!mascara.conta.permiteX) {
-                    numeros = numeros.replace(/[Xx]/g, '');
+                let numeros = value.replace(/\D/g, '');
+                if (numeros.length > 13) {
+                    numeros = numeros.substring(0, 13);
                 }
-                
-                // Limitar tamanho máximo (incluindo dígito verificador)
-                const maxTotal = mascara.conta.max + 1;
-                if (numeros.length > maxTotal) {
-                    numeros = numeros.substring(0, maxTotal);
-                }
-
-                // Aplicar formato com hífen antes do último caractere (dígito verificador ou X)
-                if (numeros.length > mascara.conta.max) {
-                    const partePrincipal = numeros.substring(0, mascara.conta.max);
-                    const digitoVerificador = numeros.substring(mascara.conta.max);
-                    return partePrincipal + '-' + digitoVerificador.toUpperCase();
+                if (numeros.length > 5) {
+                    const partePrincipal = numeros.substring(0, Math.min(numeros.length - 1, 12));
+                    const digitoVerificador = numeros.substring(partePrincipal.length);
+                    if (digitoVerificador) {
+                        return partePrincipal + '-' + digitoVerificador;
+                    }
+                    return partePrincipal;
                 }
                 return numeros;
             }
-
-            // Máscara para Agência
+            
             if (agenciaInput) {
                 agenciaInput.addEventListener('input', function(e) {
                     e.target.value = aplicarMascaraAgencia(e.target.value);
                 });
-
-                agenciaInput.addEventListener('keypress', function(e) {
-                    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                        e.preventDefault();
-                    }
-                });
             }
-
-            // Máscara para Conta
+            
             if (contaInput) {
                 contaInput.addEventListener('input', function(e) {
                     e.target.value = aplicarMascaraConta(e.target.value);
                 });
-
-                contaInput.addEventListener('keypress', function(e) {
-                    const mascara = getMascaraBanco();
-                    const permitido = /[0-9]/.test(e.key) || 
-                        (mascara.conta.permiteX && /[Xx]/.test(e.key)) ||
-                        ['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key);
-                    
-                    if (!permitido) {
-                        e.preventDefault();
-                    }
-                });
-
-                // Atualizar máscara e placeholders quando o banco mudar
-                if (bancoInput) {
-                    bancoInput.addEventListener('change', function() {
-                        contaInput.value = aplicarMascaraConta(contaInput.value);
-                        atualizarPlaceholders();
-                    });
-
-                    bancoInput.addEventListener('input', function() {
-                        // Se o banco foi selecionado da lista, atualizar máscara e placeholders
-                        setTimeout(() => {
-                            contaInput.value = aplicarMascaraConta(contaInput.value);
-                            atualizarPlaceholders();
-                        }, 100);
-                    });
-
-                    // Atualizar placeholders quando o banco é selecionado da lista
-                    bancoInput.addEventListener('blur', function() {
-                        atualizarPlaceholders();
-                    });
-                }
-
-                if (bancoHidden) {
-                    bancoHidden.addEventListener('change', function() {
-                        contaInput.value = aplicarMascaraConta(contaInput.value);
-                        atualizarPlaceholders();
-                    });
-                }
-            }
-
-            // Inicializar placeholders ao carregar a página
-            if (agenciaInput && contaInput) {
-                atualizarPlaceholders();
             }
         })();
     </script>

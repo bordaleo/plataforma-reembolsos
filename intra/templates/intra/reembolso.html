@@ -711,7 +711,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="nome_gestor">E-mail do Gestor/Aprovador<span style="color: #e74c3c;">*</span></label>
+                <label for="nome_gestor">E-mail do Gestor(a)/Aprovador(a)<span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="nome_gestor" id="nome_gestor" required class="form-control" 
                        value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
                        placeholder="Digite o nome do gestor">
@@ -756,7 +756,7 @@
                         </div>
                         <div class="campo-valor-inner">
                             <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
-                            <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?">
+                            <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control">
                         </div>
                         <div class="campo-anexo-inner">
                             <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
@@ -910,7 +910,7 @@
 </div>
 
 <!-- Popup de Alerta - Nenhuma Alteração -->
-<div id="modal-sem-alteracoes" class="modal-overlay" aria-hidden="true">
+<div id="modal-sem-alteracoes" class="modal-overlay" aria-hidden="true" data-auto-open="{% if abrir_modal_sem_alteracoes %}1{% else %}0{% endif %}">
     <div class="modal-alerta">
         <h3>⚠️ Nenhuma Alteração Detectada</h3>
         <p>Você não fez nenhuma alteração na solicitação. Para reenviar, é necessário modificar pelo menos um campo.</p>
@@ -1027,19 +1027,25 @@
     var btnModalConfirmar = document.getElementById('modal-confirmar');
     var btnModalCancelar = document.getElementById('modal-cancelar');
     var valorInputRef = null;
+    var tipoDespesaRef = null;
 
     function abrirModalDeslocamento(linha) {
         valorInputRef = linha.querySelector('input[name^="valor_"]');
+        tipoDespesaRef = linha.querySelector('select[name^="tipo_despesa_"]');
         inputKm.value = '';
         inputKm.focus();
         modal.classList.add('aberto');
         modal.setAttribute('aria-hidden', 'false');
     }
 
-    function fecharModalDeslocamento() {
+    function fecharModalDeslocamento(manterTipoSelecionado) {
+        if (!manterTipoSelecionado && tipoDespesaRef) {
+            tipoDespesaRef.value = '';
+        }
         modal.classList.remove('aberto');
         modal.setAttribute('aria-hidden', 'true');
         valorInputRef = null;
+        tipoDespesaRef = null;
     }
 
     btnModalConfirmar.addEventListener('click', function() {
@@ -1049,14 +1055,19 @@
             return;
         }
         var valor = Math.round(km * 1.10 * 100) / 100;
-        if (valorInputRef) valorInputRef.value = valor.toFixed(2);
-        fecharModalDeslocamento();
+        if (valorInputRef) {
+            valorInputRef.value = valor.toFixed(2);
+            valorInputRef.readOnly = true;
+        }
+        fecharModalDeslocamento(true);
         if (typeof atualizarTotal === 'function') atualizarTotal();
     });
 
-    btnModalCancelar.addEventListener('click', fecharModalDeslocamento);
+    btnModalCancelar.addEventListener('click', function() {
+        fecharModalDeslocamento(false);
+    });
     modal.addEventListener('click', function(e) {
-        if (e.target === modal) fecharModalDeslocamento();
+        if (e.target === modal) fecharModalDeslocamento(false);
     });
 
     // Função para gerenciar exibição do anexo
@@ -1125,6 +1136,10 @@
         if (sel.name && sel.name.indexOf('tipo_despesa_') === 0) {
             var linha = sel.closest('.linha-despesa');
             if (linha) {
+                var inputValorLinha = linha.querySelector('input[name^="valor_"]');
+                if (inputValorLinha && sel.value !== 'DESLOCAMENTO') {
+                    inputValorLinha.readOnly = false;
+                }
                 if (sel.value === 'DESLOCAMENTO') {
                     abrirModalDeslocamento(linha);
                 }
@@ -1164,7 +1179,7 @@
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
-            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control" pattern="[0-9]+([,\.][0-9]{1,2})?"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
+            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
             '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
@@ -2594,6 +2609,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Configurar botão de fechar modal de alerta
     var btnFecharAlerta = document.getElementById('modal-alerta-fechar');
     var modalAlerta = document.getElementById('modal-sem-alteracoes');
+    var deveAbrirModalSemAlteracoes = modalAlerta && modalAlerta.getAttribute('data-auto-open') === '1';
+    if (deveAbrirModalSemAlteracoes && modalAlerta) {
+        modalAlerta.classList.add('aberto');
+        modalAlerta.setAttribute('aria-hidden', 'false');
+    }
     if (btnFecharAlerta && modalAlerta) {
         btnFecharAlerta.addEventListener('click', function() {
             modalAlerta.classList.remove('aberto');

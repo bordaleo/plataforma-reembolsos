@@ -333,21 +333,6 @@
         padding-top: 1rem;
         border-top: 2px solid #e1e8ed;
     }
-    .btn-notificar-gestor {
-        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
-        color: #ffffff;
-        border: none;
-        padding: 0.875rem 2rem;
-        font-size: 1.05rem;
-        font-weight: 600;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .btn-notificar-gestor:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(52, 73, 94, 0.3);
-    }
     /* Responsividade Mobile */
     @media (max-width: 768px) {
         .tabela-reembolsos {
@@ -428,11 +413,6 @@
         .detalhe-subtitulo {
             font-size: 0.95rem;
             margin: 1rem 0 0.75rem;
-        }
-        .btn-notificar-gestor {
-            width: 100%;
-            padding: 0.875rem 1.5rem;
-            font-size: 0.95rem;
         }
     }
     @media (min-width: 769px) {
@@ -736,11 +716,6 @@
                 <p style="margin: 0; color: #744210; font-size: 1rem; line-height: 1.6;" id="detalhe-motivo-texto"></p>
             </div>
             <div id="detalhe-historico" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed;"></div>
-            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e1e8ed; text-align: center;">
-                <button type="button" class="btn-notificar-gestor" id="btn-notificar-gestor" data-pk="">
-                    Enviar Notificação ao Gestor
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -1033,9 +1008,6 @@
                         historicoDiv.style.display = 'none';
                     }
                     
-                    // Atualizar o data-pk do botão de notificação
-                    var btnNotificar = document.getElementById('btn-notificar-gestor');
-                    if (btnNotificar) btnNotificar.setAttribute('data-pk', pk);
                     abrirModal();
                 })
                 .catch(function() {
@@ -1043,18 +1015,6 @@
                 });
         });
     });
-
-    // Listener para botão de notificar gestor
-    var btnNotificar = document.getElementById('btn-notificar-gestor');
-    if (btnNotificar) {
-        btnNotificar.addEventListener('click', function() {
-            var pk = this.getAttribute('data-pk');
-            if (pk) {
-                // TODO: Implementar funcionalidade de enviar notificação
-                alert('Funcionalidade de notificação será implementada em breve.');
-            }
-        });
-    }
 
     if (btnFechar) btnFechar.addEventListener('click', fecharModal);
     modal.addEventListener('click', function(e) { if (e.target === modal) fecharModal(); });

@@ -3908,6 +3908,7 @@ def reembolso(request):
     # Verificar se é edição de uma solicitação rejeitada
     solicitacao_editar = None
     editar_id = request.GET.get("editar", "").strip()
+    abrir_modal_sem_alteracoes = request.GET.get("sem_alteracoes", "").strip() == "1"
     if editar_id:
         try:
             solicitacao_editar = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
@@ -3955,6 +3956,7 @@ def reembolso(request):
         "codigos_por_programa_json": json.dumps(codigos_por_programa),
         "perfil": perfil,
         "solicitacao_editar": solicitacao_editar,
+        "abrir_modal_sem_alteracoes": abrir_modal_sem_alteracoes,
         "bancos_choices": BANCOS_CHOICES,
     }
     if request.method == "POST":
@@ -3994,6 +3996,7 @@ def reembolso(request):
             # Verificar se é edição de uma solicitação rejeitada
             editar_id = request.POST.get("editar_id", "").strip()
             sol = None
+            reenvio_direto_gestor_admin = False
             if editar_id:
                 try:
                     sol = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
@@ -4014,16 +4017,20 @@ def reembolso(request):
                     for idx, item_antigo in enumerate(itens_antigos):
                         if item_antigo.anexo:
                             anexos_existentes[idx] = item_antigo.anexo
-                    # Deletar itens antigos
-                    sol.itens.all().delete()
-                    # Resetar status para permitir nova aprovação
-                    sol.status_gestor = SolicitacaoReembolso.STATUS_PENDENTE
+                    # Se a rejeição foi do gestor administrativo, mantém a aprovação do gestor
+                    # e reenviará direto para o segundo nível.
+                    if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
+                        reenvio_direto_gestor_admin = True
+                        sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
+                    else:
+                        sol.status_gestor = SolicitacaoReembolso.STATUS_PENDENTE
+                        sol.aprovado_por_gestor = None
+                        sol.aprovado_em_gestor = None
+
                     sol.status_gestor_admin = SolicitacaoReembolso.STATUS_PENDENTE
                     sol.status = SolicitacaoReembolso.STATUS_PENDENTE
                     sol.motivo_rejeicao_gestor = ""
                     sol.motivo_rejeicao_gestor_admin = ""
-                    sol.aprovado_por_gestor = None
-                    sol.aprovado_em_gestor = None
                     sol.aprovado_por_gestor_admin = None
                     sol.aprovado_em_gestor_admin = None
                     sol.pago = False
@@ -4141,6 +4148,7 @@ def reembolso(request):
                 alteracoes = []
                 num_itens_antigos = len(itens_antigos)
                 num_itens_novos = len([i for i in itens_dados if i.get("tipo_despesa")])
+                houve_alteracao = False
                 
                 # Verificar motivo de rejeição anterior
                 motivo_rejeicao_anterior = ""
@@ -4150,21 +4158,49 @@ def reembolso(request):
                     motivo_rejeicao_anterior = f"Motivo da rejeição pelo gestor administrativo: {sol.motivo_rejeicao_gestor_admin}"
                 
                 if sol.centro_custo != centro_custo:
+                    houve_alteracao = True
                     alteracoes.append(f"Centro de custo alterado de '{sol.centro_custo}' para '{centro_custo}'")
                 if float(sol.valor_total) != valor_total:
+                    houve_alteracao = True
                     alteracoes.append(f"Valor total alterado de R$ {sol.valor_total:.2f} para R$ {valor_total:.2f}")
                 if sol.nome_gestor != nome_gestor:
+                    houve_alteracao = True
                     alteracoes.append(f"Nome do gestor alterado de '{sol.nome_gestor or '—'}' para '{nome_gestor or '—'}'")
                 if sol.forma_pagamento != forma_pagamento:
+                    houve_alteracao = True
                     alteracoes.append(f"Forma de pagamento alterada de '{sol.forma_pagamento or '—'}' para '{forma_pagamento or '—'}'")
                 
                 # Verificar mudanças nos itens
                 if num_itens_antigos != num_itens_novos:
+                    houve_alteracao = True
                     alteracoes.append(f"Número de itens alterado de {num_itens_antigos} para {num_itens_novos}")
                     if num_itens_novos > num_itens_antigos:
                         alteracoes.append(f"Item(ns) adicionado(s): {num_itens_novos - num_itens_antigos}")
                     else:
                         alteracoes.append(f"Item(ns) removido(s): {num_itens_antigos - num_itens_novos}")
+                else:
+                    itens_novos_validos = [i for i in itens_dados if i.get("tipo_despesa")]
+                    for idx, item_antigo in enumerate(itens_antigos):
+                        item_novo = itens_novos_validos[idx]
+                        data_antiga = item_antigo.data_despesa.isoformat() if item_antigo.data_despesa else ""
+                        data_nova = item_novo.get("data_despesa").isoformat() if item_novo.get("data_despesa") else ""
+                        if (
+                            item_antigo.tipo_despesa != item_novo.get("tipo_despesa")
+                            or item_antigo.cod_despesa != item_novo.get("cod_despesa")
+                            or data_antiga != data_nova
+                            or (item_antigo.descricao or "") != (item_novo.get("descricao") or "")
+                            or float(item_antigo.valor) != float(item_novo.get("valor") or 0)
+                        ):
+                            houve_alteracao = True
+                            break
+
+                # Troca de anexo também conta como alteração
+                if any(k.startswith("anexo_") for k in request.FILES.keys()):
+                    houve_alteracao = True
+
+                if not houve_alteracao:
+                    messages.warning(request, "Nenhuma alteração detectada. Faça alguma mudança antes de reenviar a solicitação.")
+                    return redirect(f"{reverse('intra:reembolso')}?editar={sol.pk}&sem_alteracoes=1")
                 
                 sol.centro_custo = centro_custo
                 sol.cod_despesa = ""  # Não é mais obrigatório no nível da solicitação
@@ -4179,6 +4215,8 @@ def reembolso(request):
                 sol.transf_conta_numero = transf_conta_numero if transf_conta_numero else None
                 sol.transf_cpf = transf_cpf if transf_cpf else None
                 sol.nome_gestor = nome_gestor if nome_gestor else None
+                # Deletar itens antigos somente após confirmar que houve alterações
+                sol.itens.all().delete()
                 sol.save()
                 
                 # Registrar no histórico
@@ -4301,14 +4339,16 @@ def reembolso(request):
                     else:
                         print(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
                         logger.warning(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
-            # Verificar se o solicitante é gestor - se for, pular primeiro nível
+            # Regra de encaminhamento:
+            # - Reenvio após rejeição do gestor administrativo: volta direto para gestor administrativo.
+            # - Solicitante que é gestor simples: também pula o primeiro nível.
             is_solicitante_gestor = _is_gestor_simples(request.user)
-            
-            if is_solicitante_gestor:
+            if reenvio_direto_gestor_admin or is_solicitante_gestor:
                 # Se o solicitante é gestor, vai direto para gestor administrativo
-                sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
-                sol.aprovado_por_gestor = request.user  # Auto-aprovado
-                sol.aprovado_em_gestor = timezone.now()
+                if not reenvio_direto_gestor_admin:
+                    sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
+                    sol.aprovado_por_gestor = request.user  # Auto-aprovado
+                    sol.aprovado_em_gestor = timezone.now()
                 sol.save()
                 # Registrar no histórico (já foi criado antes, então não precisa criar novamente)
                 # Enviar e-mail aos gestores administrativos

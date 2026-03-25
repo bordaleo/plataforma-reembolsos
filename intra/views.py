@@ -1479,6 +1479,17 @@ def completar_cadastro_view(request):
     form = CompletarCadastroForm(request.POST or None, instance=perfil)
     if form.is_valid():
         form.save()
+
+        # Normaliza roles legadas após o primeiro cadastro.
+        # Mantém Gestor Administrativo quando existir; caso contrário, garante Gestor.
+        allowed_roles = {
+            RegraUsuario.ROLE_GESTOR,
+            RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO,
+        }
+        request.user.regras_usuario.exclude(role__in=allowed_roles).delete()
+        if not request.user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists():
+            RegraUsuario.objects.get_or_create(user=request.user, role=RegraUsuario.ROLE_GESTOR)
+
         messages.success(request, "Cadastro concluído. Você já pode usar a intranet.")
         next_url = request.POST.get("next") or request.GET.get("next") or reverse("intra:home")
         return redirect(next_url)
@@ -3931,8 +3942,13 @@ def reembolso(request):
             if key.startswith("valor_") and value:
                 try:
                     idx = key.replace("valor_", "")
-                    # Remover pontos (milhares) e substituir vírgula por ponto para parseFloat
-                    valor_limpo = str(value).replace(".", "").replace(",", ".")
+                    valor_texto = str(value).strip()
+                    if "," in valor_texto:
+                        # Formato pt-BR: 1.234,56
+                        valor_limpo = valor_texto.replace(".", "").replace(",", ".")
+                    else:
+                        # Formato com ponto decimal: 1234.56
+                        valor_limpo = valor_texto
                     v = float(valor_limpo)
                     valor_total += v
                     tipo = request.POST.get(f"tipo_despesa_{idx}", "").strip()

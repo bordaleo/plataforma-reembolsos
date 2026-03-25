@@ -1128,7 +1128,10 @@
         }
         var valor = Math.round(km * 1.10 * 100) / 100;
         if (valorInputRef) {
-            valorInputRef.value = valor.toFixed(2);
+            valorInputRef.value = valor.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             valorInputRef.readOnly = true;
         }
         fecharModalDeslocamento(true);
@@ -1479,8 +1482,15 @@
     function atualizarTotal() {
         var total = 0;
         container.querySelectorAll('input[name^="valor_"]').forEach(function(input) {
-            // Remove pontos (milhares) e substitui vírgula por ponto para parseFloat
-            var valorLimpo = input.value.replace(/\./g, '').replace(',', '.');
+            var valorTexto = (input.value || '').trim();
+            var valorLimpo = '';
+            if (valorTexto.indexOf(',') !== -1) {
+                // Formato pt-BR: 1.234,56
+                valorLimpo = valorTexto.replace(/\./g, '').replace(',', '.');
+            } else {
+                // Formato com ponto decimal: 1234.56
+                valorLimpo = valorTexto;
+            }
             var v = parseFloat(valorLimpo) || 0;
             total += v;
         });

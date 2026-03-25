@@ -21,13 +21,10 @@ _PATH_PODE_NAO_TER_CADASTRO = (
 
 
 def _is_gestor(user):
-    """Usuário com regra Gestor ou Gestor Administrativo não precisa completar cadastro."""
+    """Apenas Gestor Administrativo não precisa completar cadastro."""
     return (
         user.is_authenticated
-        and (
-            user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR).exists()
-            or user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists()
-        )
+        and user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists()
     )
 
 
@@ -39,7 +36,7 @@ class ExigeCadastroCompletoMiddleware:
         # Proteção contra request sem user (caso raro, mas pode acontecer)
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             return self.get_response(request)
-        # Gestor não precisa preencher dados no primeiro login
+        # Apenas Gestor Administrativo não precisa preencher dados no primeiro login
         if _is_gestor(request.user):
             return self.get_response(request)
         path = request.path

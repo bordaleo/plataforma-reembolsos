@@ -1374,7 +1374,6 @@ def esqueceu_acesso_view(request):
                 password=nova_senha,
             )
             PerfilSolicitante.objects.get_or_create(user=user)
-            RegraUsuario.objects.get_or_create(user=user, role=RegraUsuario.ROLE_GESTOR)
             send_mail(
                 subject="Acesso à Intranet Parceiros - Senha de acesso",
                 message=(

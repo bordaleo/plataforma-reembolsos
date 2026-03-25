@@ -1819,7 +1819,7 @@
                             // Código de despesa
                             if (item.cod_despesa_com_descricao || item.cod_despesa) {
                                 html += '<div style="margin-bottom: 0.75rem;">';
-                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> ';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código no orçamento:</strong> ';
                                 html += '<span style="color: #2c3e50;">' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
                                 html += '</div>';
                             }
@@ -2083,7 +2083,7 @@
                     html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + (data.nome_gestor || '—') + '</span></div>';
                     
                     // Código de despesa
-                    html += '<div class="detalhe-solicitacao-item"><strong>Código de despesa</strong>';
+                    html += '<div class="detalhe-solicitacao-item"><strong>Código no orçamento</strong>';
                     if (data.cod_despesa_com_descricao && data.cod_despesa_com_descricao.length > 0) {
                         html += '<span>' + escapeHtml(data.cod_despesa_com_descricao.join(', ')) + '</span>';
                     } else if (data.cod_despesa && data.cod_despesa.length > 0) {
@@ -2136,7 +2136,7 @@
                             // Código de despesa
                             if (item.cod_despesa_com_descricao || item.cod_despesa) {
                                 html += '<div style="margin-bottom: 0.75rem;">';
-                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> ';
+                                html += '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código no orçamento:</strong> ';
                                 html += '<span style="color: #2c3e50;">' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
                                 html += '</div>';
                             }

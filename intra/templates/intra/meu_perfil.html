@@ -925,32 +925,17 @@
             const contaInput = document.getElementById('id_conta_numero');
             
             function aplicarMascaraAgencia(value) {
-                // Regex: ^\d{4}-?\d{0,1}$ - 4 a 5 dígitos (com ou sem hífen)
                 let numeros = value.replace(/\D/g, '');
                 if (numeros.length > 5) {
                     numeros = numeros.substring(0, 5);
-                }
-                // Formatar com hífen opcional após 4 dígitos
-                if (numeros.length > 4) {
-                    return numeros.substring(0, 4) + '-' + numeros.substring(4);
                 }
                 return numeros;
             }
             
             function aplicarMascaraConta(value) {
-                // Regex: ^\d{5,12}-?\d{0,1}$ - 5 a 13 dígitos (com ou sem hífen)
                 let numeros = value.replace(/\D/g, '');
                 if (numeros.length > 13) {
                     numeros = numeros.substring(0, 13);
-                }
-                // Formatar com hífen opcional após 5-12 dígitos
-                if (numeros.length > 5) {
-                    const partePrincipal = numeros.substring(0, Math.min(numeros.length - 1, 12));
-                    const digitoVerificador = numeros.substring(partePrincipal.length);
-                    if (digitoVerificador) {
-                        return partePrincipal + '-' + digitoVerificador;
-                    }
-                    return partePrincipal;
                 }
                 return numeros;
             }

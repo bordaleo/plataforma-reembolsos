@@ -782,15 +782,6 @@
                     <div class="user-indicator-name">
                         {{ user_display_name }}
                     </div>
-                    <div class="user-indicator-role {% if is_gestor_admin %}gestor-admin{% elif is_gestor_simples %}gestor{% else %}solicitante{% endif %}">
-                        {% if is_gestor_admin %}
-                            Gestor Administrativo
-                        {% elif is_gestor_simples %}
-                             Gestor
-                        {% else %}
-                             Solicitante
-                        {% endif %}
-                    </div>
                 </div>
                 <div class="user-indicator-menu-icon">▼</div>
                 <div class="user-indicator-dropdown" id="user-indicator-dropdown">

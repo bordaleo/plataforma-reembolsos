@@ -24,6 +24,7 @@
     }
     .card .form-group select,
     .card .form-group input[type="text"],
+    .card .form-group input[type="email"],
     .card .form-group input[type="number"],
     .card .form-group input[type="date"],
     .card .form-group input[type="file"] {
@@ -712,9 +713,11 @@
             </div>
             <div class="form-group">
                 <label for="nome_gestor">E-mail do Gestor(a)/Aprovador(a)<span style="color: #e74c3c;">*</span></label>
-                <input type="text" name="nome_gestor" id="nome_gestor" required class="form-control" 
+                <input type="email" name="nome_gestor" id="nome_gestor" required class="form-control"
+                       pattern="^[A-Za-z0-9._%+-]+@parceirosedu\.org\.br$"
+                       title="Informe um e-mail no domínio @parceirosedu.org.br"
                        value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
-                       placeholder="Digite o nome do gestor">
+                       placeholder="Digite o e-mail do gestor/aprovador">
             </div>
         </div>
     </div>
@@ -740,13 +743,15 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Código de Despesa <span style="color: #e74c3c;">*</span></label>
-                    <select name="cod_despesa_0" required class="form-control">
+                    <label>Código no Orçamento <span style="color: #e74c3c;">*</span></label>
+                    <select name="cod_despesa_0" id="cod_despesa_0" required class="form-control">
                         <option value="">Selecione...</option>
                         {% for c in codigos %}
                         <option value="{{ c.CODIGO }}">{{ c.CODIGO }} - {{ c.DESCRICAO }}</option>
                         {% endfor %}
+                        <option value="Outro">Outro</option>
                     </select>
+                    <input type="text" name="cod_despesa_outro_0" id="cod_despesa_outro_0" class="form-control" placeholder="Digite o código no orçamento" maxlength="50" style="margin-top: 8px; display: none;">
                 </div>
                 <div class="form-group-desc-valor-linha">
                     <div class="desc-valor-campos">
@@ -872,7 +877,7 @@
             <div class="form-group" id="transf-conta-numero-group">
                 <label for="transf_conta_numero">Conta Corrente ou Poupança <span style="color: #e74c3c;">*</span></label>
                 <input type="text" name="transf_conta_numero" id="transf_conta_numero" class="form-control" 
-                       placeholder="00000-0" maxlength="30">
+                       placeholder="000000" maxlength="30">
             </div>
             <div class="form-group" id="transf-carteira-digital-group" style="display: none;">
                 <label for="transf_carteira_digital">Chave (E-mail, CPF ou Telefone) <span style="color: #e74c3c;">*</span></label>
@@ -928,6 +933,8 @@
     var tiposDespesa = {{ tipos_despesa_json|safe }};
     var codigosDespesa = {{ codigos_despesa_json|safe }};
     var codigosPorPrograma = {{ codigos_por_programa_json|safe }};
+    var aprovadorInput = document.getElementById('nome_gestor');
+    var emailUsuarioLogado = '{{ request.user.email|default:""|escapejs }}';
     var count = 1;
     
     // Função para obter data máxima (hoje) no formato YYYY-MM-DD
@@ -968,6 +975,41 @@
     // Inicialmente desabilitar campos
     toggleCamposDespesa(false);
 
+    // Validação de domínio do aprovador (@parceirosedu.org.br)
+    function emailParceirosValido(valor) {
+        var re = /^[A-Za-z0-9._%+-]+@parceirosedu\.org\.br$/i;
+        return re.test((valor || '').trim());
+    }
+
+    function atualizarValidadeAprovador() {
+        if (!aprovadorInput) return;
+        var valor = (aprovadorInput.value || '').trim();
+        if (valor && !emailParceirosValido(valor)) {
+            aprovadorInput.setCustomValidity('Use um e-mail @parceirosedu.org.br');
+        } else if (valor && emailUsuarioLogado && valor.toLowerCase() === emailUsuarioLogado.toLowerCase()) {
+            aprovadorInput.setCustomValidity('Você não pode usar seu próprio e-mail como aprovador.');
+        } else {
+            aprovadorInput.setCustomValidity('');
+        }
+    }
+
+    function podeEditarDespesa() {
+        var ccOk = !!(centroCusto && centroCusto.value);
+        var aprovadorValor = (aprovadorInput && aprovadorInput.value) ? aprovadorInput.value.trim() : '';
+        var naoEhProprioEmail = !(
+            aprovadorValor &&
+            emailUsuarioLogado &&
+            aprovadorValor.toLowerCase() === emailUsuarioLogado.toLowerCase()
+        );
+        var aprovadorOk = !!(aprovadorInput && emailParceirosValido(aprovadorValor) && naoEhProprioEmail);
+        return ccOk && aprovadorOk;
+    }
+
+    function atualizarHabilitacaoDespesa() {
+        atualizarValidadeAprovador();
+        toggleCamposDespesa(podeEditarDespesa());
+    }
+
     // Função para atualizar códigos de despesa baseado no centro de custo selecionado
     function atualizarCodigosDespesa(programaSelecionado) {
         var codigosFiltrados = [];
@@ -985,7 +1027,7 @@
             console.log('Mostrando todos os códigos:', codigosFiltrados.length);
         }
         
-        // Atualizar todos os selects de código de despesa em todas as linhas
+        // Atualizar todos os selects de código no orçamento em todas as linhas
         container.querySelectorAll('select[name^="cod_despesa_"]').forEach(function(select) {
             var valorAtual = select.value;
             select.innerHTML = '<option value="">Selecione...</option>';
@@ -996,6 +1038,10 @@
                 option.textContent = cod.codigo + ' - ' + cod.descricao;
                 select.appendChild(option);
             });
+            var optionOutro = document.createElement('option');
+            optionOutro.value = 'Outro';
+            optionOutro.textContent = 'Outro';
+            select.appendChild(optionOutro);
             
             // Restaurar valor anterior se ainda existir
             if (valorAtual) {
@@ -1012,12 +1058,38 @@
     // Listener para Centro de Custo
     if (centroCusto) {
         centroCusto.addEventListener('change', function() {
-            if (this.value) {
-                toggleCamposDespesa(true);
-                atualizarCodigosDespesa(this.value);
-            } else {
-                toggleCamposDespesa(false);
-                atualizarCodigosDespesa(null);
+            atualizarHabilitacaoDespesa();
+            atualizarCodigosDespesa(this.value || null);
+        });
+    }
+
+    // Listener para E-mail do Aprovador
+    if (aprovadorInput) {
+        aprovadorInput.addEventListener('input', function() {
+            // Forçar mensagem nativa do browser se o domínio for inválido
+            atualizarValidadeAprovador();
+            atualizarHabilitacaoDespesa();
+        });
+        aprovadorInput.addEventListener('blur', function() {
+            atualizarHabilitacaoDespesa();
+        });
+    }
+
+    // Estado inicial (preenchidos via servidor/edição)
+    atualizarHabilitacaoDespesa();
+
+    // Evita comportamento estranho ao clicar na seção de itens quando dados gerais estão inválidos.
+    if (container) {
+        container.addEventListener('mousedown', function(e) {
+            if (podeEditarDespesa()) return;
+            e.preventDefault();
+            if (centroCusto && !centroCusto.value) {
+                centroCusto.focus();
+                return;
+            }
+            if (aprovadorInput) {
+                aprovadorInput.focus();
+                aprovadorInput.reportValidity();
             }
         });
     }
@@ -1157,6 +1229,52 @@
                 }
             }
         }
+        // Mostrar campo "Outro" para código no orçamento por linha
+        if (sel.tagName === 'SELECT' && sel.name && /^cod_despesa_\d+$/.test(sel.name)) {
+            var linha = sel.closest('.linha-despesa');
+            if (linha) {
+                var idx = linha.getAttribute('data-index') || '0';
+                var inputOutro = linha.querySelector('input[name="cod_despesa_outro_' + idx + '"]');
+                if (inputOutro) {
+                    if (sel.value === 'Outro') {
+                        inputOutro.style.display = 'block';
+                        inputOutro.focus();
+                    } else {
+                        inputOutro.style.display = 'none';
+                    }
+                }
+            }
+        }
+    });
+
+    // Garante que o campo manual continue editável enquanto "Outro" estiver selecionado.
+    container.addEventListener('focusin', function(e) {
+        var el = e.target;
+        if (!el.name || el.name.indexOf('cod_despesa_outro_') !== 0) return;
+        var idx = el.name.replace('cod_despesa_outro_', '');
+        var linha = el.closest('.linha-despesa');
+        if (!linha) return;
+        var select = linha.querySelector('select[name="cod_despesa_' + idx + '"]');
+        if (select && select.value === 'Outro') {
+            el.style.display = 'block';
+            el.removeAttribute('readonly');
+            el.removeAttribute('disabled');
+        }
+    });
+
+    // Mostra no próprio select o texto digitado em "Outro", sem perder a edição.
+    container.addEventListener('input', function(e) {
+        var el = e.target;
+        if (!el.name || el.name.indexOf('cod_despesa_outro_') !== 0) return;
+        var idx = el.name.replace('cod_despesa_outro_', '');
+        var linha = el.closest('.linha-despesa');
+        if (!linha) return;
+        var select = linha.querySelector('select[name="cod_despesa_' + idx + '"]');
+        if (!select || select.value !== 'Outro') return;
+        var optionOutro = select.querySelector('option[value="Outro"]');
+        if (!optionOutro) return;
+        var valor = (el.value || '').trim();
+        optionOutro.textContent = valor ? valor : 'Outro';
     });
 
     function novaLinha() {
@@ -1178,7 +1296,7 @@
         div.innerHTML =
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
-            '<div class="form-group"><label>Código de Despesa <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '</select></div>' +
+            '<div class="form-group"><label>Código no Orçamento <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '<option value="Outro">Outro</option></select><input type="text" name="cod_despesa_outro_' + count + '" class="form-control" placeholder="Digite o código no orçamento" maxlength="50" style="margin-top: 8px; display: none;"></div>' +
             '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
             '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
@@ -1733,32 +1851,17 @@
         var contaInput = document.getElementById('transf_conta_numero');
         
         function aplicarMascaraAgencia(value) {
-            // Regex: ^\d{4}-?\d{0,1}$ - 4 a 5 dígitos (com ou sem hífen)
             var numeros = value.replace(/\D/g, '');
             if (numeros.length > 5) {
                 numeros = numeros.substring(0, 5);
-            }
-            // Formatar com hífen opcional após 4 dígitos
-            if (numeros.length > 4) {
-                return numeros.substring(0, 4) + '-' + numeros.substring(4);
             }
             return numeros;
         }
         
         function aplicarMascaraConta(value) {
-            // Regex: ^\d{5,12}-?\d{0,1}$ - 5 a 13 dígitos (com ou sem hífen)
             var numeros = value.replace(/\D/g, '');
             if (numeros.length > 13) {
                 numeros = numeros.substring(0, 13);
-            }
-            // Formatar com hífen opcional após 5-12 dígitos
-            if (numeros.length > 5) {
-                var partePrincipal = numeros.substring(0, Math.min(numeros.length - 1, 12));
-                var digitoVerificador = numeros.substring(partePrincipal.length);
-                if (digitoVerificador) {
-                    return partePrincipal + '-' + digitoVerificador;
-                }
-                return partePrincipal;
             }
             return numeros;
         }
@@ -2274,9 +2377,26 @@
                 tipoDespesa.value = item.tipo_despesa;
             }
             if (codDespesa && item.cod_despesa) {
-                // Aguardar um pouco para garantir que os códigos foram carregados
+                // Aguardar um pouco para garantir que os códigos foram carregados.
+                // Se o código salvo não existir na lista, usar "Outro" e manter editável.
                 setTimeout(function() {
-                    codDespesa.value = item.cod_despesa;
+                    var optExiste = Array.from(codDespesa.options).some(function(opt) {
+                        return opt.value === item.cod_despesa;
+                    });
+                    if (optExiste) {
+                        codDespesa.value = item.cod_despesa;
+                    } else {
+                        codDespesa.value = 'Outro';
+                        var inputOutro = linha.querySelector('input[name="cod_despesa_outro_' + index + '"]');
+                        if (inputOutro) {
+                            inputOutro.style.display = 'block';
+                            inputOutro.value = (item.cod_despesa || '').toString().slice(0, 50);
+                        }
+                        var optionOutro = codDespesa.querySelector('option[value="Outro"]');
+                        if (optionOutro) {
+                            optionOutro.textContent = inputOutro && inputOutro.value ? inputOutro.value : 'Outro';
+                        }
+                    }
                 }, 50);
             }
             if (descricao && item.descricao) {
@@ -2523,6 +2643,24 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Usar capture phase e invalid event para interceptar antes da validação
         form.addEventListener('submit', function(e) {
+            // Manter "Outro" selecionado no front para não quebrar a edição.
+            // A substituição pelo código digitado é feita no backend ao salvar.
+            var selectsCod = form.querySelectorAll('select[name^="cod_despesa_"]');
+            for (var i = 0; i < selectsCod.length; i++) {
+                var selectCod = selectsCod[i];
+                var idx = (selectCod.name || '').replace('cod_despesa_', '');
+                var inputOutro = form.querySelector('input[name="cod_despesa_outro_' + idx + '"]');
+                if (selectCod.value === 'Outro') {
+                    var codigoLivre = inputOutro ? (inputOutro.value || '').trim() : '';
+                    if (!codigoLivre) {
+                        e.preventDefault();
+                        alert('Ao selecionar "Outro" em Código no orçamento, informe o código manualmente.');
+                        if (inputOutro) inputOutro.focus();
+                        return false;
+                    }
+                }
+            }
+
             // Validar formulário de pagamento antes de submeter
             if (!validarFormularioPagamento()) {
                 e.preventDefault();

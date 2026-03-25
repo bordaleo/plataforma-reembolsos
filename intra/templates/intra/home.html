@@ -207,15 +207,6 @@
         </div>
         <h1>Olá, {{ user_display_name }}! 👋</h1>
         <p class="welcome-subtitle">Bem-vindo à Intranet Parceiros da Educação</p>
-        <div class="user-role-badge">
-            {% if is_gestor_admin %}
-                👑 Gestor Administrativo
-            {% elif is_gestor_simples %}
-                ⚡ Gestor
-            {% else %}
-                👤 Solicitante
-            {% endif %}
-        </div>
     </div>
 
     <div class="quick-actions" id="quick-actions">

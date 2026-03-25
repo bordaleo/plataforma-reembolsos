@@ -115,7 +115,7 @@ class SolicitacaoReembolso(models.Model):
         related_name="solicitacoes_reembolso",
     )
     centro_custo = models.CharField("Centro de custo", max_length=50)
-    cod_despesa = models.CharField("Código de despesa", max_length=50)
+    cod_despesa = models.CharField("Código no orçamento", max_length=50)
     valor_total = models.DecimalField(
         "Valor total",
         max_digits=12,
@@ -298,7 +298,7 @@ class ItemReembolso(models.Model):
         related_name="itens",
     )
     tipo_despesa = models.CharField("Tipo de despesa", max_length=30)
-    cod_despesa = models.CharField("Código de despesa", max_length=50, blank=True)
+    cod_despesa = models.CharField("Código no orçamento", max_length=50, blank=True)
     data_despesa = models.DateField("Data da despesa", null=True, blank=True)
     descricao = models.TextField(max_length=300)  # ou CharField(max_length=300)
     valor = models.DecimalField("Valor", max_digits=12, decimal_places=2, default=0)

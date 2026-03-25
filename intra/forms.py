@@ -115,7 +115,7 @@ class CompletarCadastroForm(forms.ModelForm):
             "cpf_pix": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
             "banco": forms.HiddenInput(),
             "agencia": forms.TextInput(attrs={"placeholder": "0000", "maxlength": "4"}),
-            "conta_numero": forms.TextInput(attrs={"placeholder": "00000-0", "maxlength": "8"}),
+            "conta_numero": forms.TextInput(attrs={"placeholder": "000000", "maxlength": "8"}),
             "cpf_transferencia": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
         }
         labels = {
@@ -386,7 +386,7 @@ class EditarPagamentoForm(forms.ModelForm):
             "cpf_pix": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
             "banco": forms.HiddenInput(),
             "agencia": forms.TextInput(attrs={"placeholder": "0000", "maxlength": "4"}),
-            "conta_numero": forms.TextInput(attrs={"placeholder": "00000-0", "maxlength": "8"}),
+            "conta_numero": forms.TextInput(attrs={"placeholder": "000000", "maxlength": "8"}),
             "cpf_transferencia": forms.TextInput(attrs={"placeholder": "CPF ou CNPJ"}),
         }
         labels = {

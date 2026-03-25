@@ -516,7 +516,7 @@
                 <th>ID</th>
                 <th>Data de Envio</th>
                 <th>Centro de custo</th>
-                <th>Código de despesa</th>
+                <th>Código no orçamento</th>
                 <th class="valor">Valor total</th>
                 <th style="text-align: center;">Status</th>
                 <th style="text-align: center;">Status do contrato</th>
@@ -581,7 +581,7 @@
                 <span class="reembolso-card-mobile-value">{{ s.centro_custo }}</span>
             </div>
             <div class="reembolso-card-mobile-field">
-                <span class="reembolso-card-mobile-label">Código de Despesa</span>
+                <span class="reembolso-card-mobile-label">Código no Orçamento</span>
                 <span class="reembolso-card-mobile-value">{{ s.codigos_despesa }}</span>
             </div>
             <div class="reembolso-card-mobile-field">
@@ -689,7 +689,7 @@
                 <p><strong>ID da Solicitação:</strong> <span id="detalhe-id"></span></p>
                 <p><strong>Data:</strong> <span id="detalhe-data"></span></p>
                 <p><strong>Centro de custo:</strong> <span id="detalhe-centro"></span></p>
-                <p><strong>Código de despesa:</strong> <span id="detalhe-cod"></span></p>
+                <p><strong>Código no orçamento:</strong> <span id="detalhe-cod"></span></p>
             </div>
             <h3 class="detalhe-subtitulo">Itens de despesa</h3>
             <div id="detalhe-itens-container" style="margin-bottom: 1.5rem;"></div>
@@ -787,7 +787,7 @@
                             if (item.cod_despesa_com_descricao || item.cod_despesa) {
                                 var codDiv = document.createElement('div');
                                 codDiv.style.cssText = 'margin-bottom: 0.75rem;';
-                                codDiv.innerHTML = '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código de despesa:</strong> <span style="color: #2c3e50;">' + (item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
+                                codDiv.innerHTML = '<strong style="color: #7f8c8d; font-size: 0.9rem;">Código no orçamento:</strong> <span style="color: #2c3e50;">' + (item.cod_despesa_com_descricao || item.cod_despesa || '—') + '</span>';
                                 itemDiv.appendChild(codDiv);
                             }
                             

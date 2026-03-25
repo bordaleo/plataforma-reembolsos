@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import PasswordResetConfirmView
 from django.core.mail import send_mail, EmailMultiAlternatives
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.urls import reverse
 from django.contrib import messages
@@ -261,51 +263,22 @@ def _obter_dados_solicitante_para_assinatura(sol):
 def _obter_dados_gestor_para_assinatura(sol):
     """
     Retorna e-mail e nome do gestor para assinatura.
-    Prioriza os dados do perfil do solicitante e usa nome_gestor da solicitação como fallback.
+    Prioriza o aprovador informado na solicitação.
     """
-    email_gestor = None
-    nome_gestor = None
-
-    try:
-        perfil_solicitante = PerfilSolicitante.objects.get(user=sol.user)
-        if perfil_solicitante.email_gestor:
-            email_gestor = perfil_solicitante.email_gestor.strip()
-            nome_gestor = (perfil_solicitante.nome_gestor or "").strip() or email_gestor
-            try:
-                gestor_user = User.objects.get(email__iexact=email_gestor)
-                email_gestor = gestor_user.email
-                nome_gestor = gestor_user.get_full_name() or nome_gestor
-            except User.DoesNotExist:
-                pass
-    except PerfilSolicitante.DoesNotExist:
-        pass
-
-    if email_gestor:
-        return email_gestor, nome_gestor
-
-    nome_gestor = (sol.nome_gestor or "").strip() or None
-    if not nome_gestor:
+    aprovador_informado = (sol.nome_gestor or "").strip() or None
+    if not aprovador_informado:
         return None, None
 
     try:
-        partes_nome = nome_gestor.split()
-        if len(partes_nome) >= 2:
-            gestor_user = User.objects.filter(
-                first_name__iexact=partes_nome[0],
-                last_name__iexact=" ".join(partes_nome[1:])
-            ).first()
-        else:
-            gestor_user = User.objects.filter(
-                Q(email__iexact=nome_gestor) |
-                Q(first_name__iexact=nome_gestor) |
-                Q(last_name__iexact=nome_gestor)
-            ).first()
+        gestor_user = User.objects.get(email__iexact=aprovador_informado)
         if gestor_user:
-            return gestor_user.email, gestor_user.get_full_name() or nome_gestor
-    except Exception:
+            nome_gestor = gestor_user.get_full_name() or gestor_user.email
+            return gestor_user.email, nome_gestor
+    except User.DoesNotExist:
         pass
 
-    return None, nome_gestor
+    # Em caso de aprovador externo ao sistema, usa o valor informado como e-mail/nome.
+    return aprovador_informado, aprovador_informado
 
 
 def _processar_pagamentos_programados():
@@ -747,19 +720,10 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
         if solicitacao.user.email:
             destinatarios.append(solicitacao.user.email)
         
-        # Buscar email do gestor
-        try:
-            perfil = PerfilSolicitante.objects.get(user=solicitacao.user)
-            if perfil.email_gestor:
-                # Verificar se o email do gestor existe como usuário
-                try:
-                    gestor_user = User.objects.get(email__iexact=perfil.email_gestor)
-                    if gestor_user.email and gestor_user.email not in destinatarios:
-                        destinatarios.append(gestor_user.email)
-                except User.DoesNotExist:
-                    pass
-        except PerfilSolicitante.DoesNotExist:
-            pass
+        # Incluir aprovador informado na solicitação, quando houver.
+        email_aprovador, _ = _obter_dados_gestor_para_assinatura(solicitacao)
+        if email_aprovador and email_aprovador not in destinatarios:
+            destinatarios.append(email_aprovador)
         
         if not destinatarios:
             return
@@ -1396,10 +1360,10 @@ def esqueceu_acesso_view(request):
         except User.DoesNotExist:
             user = None
 
-        if user and _is_gestor_ou_gestor_admin(user):
+        if user and _is_gestor(user):
             messages.info(
                 request,
-                "Para usuários Gestor ou Gestor Administrativo, a senha é definida exclusivamente no painel administrativo. Entre em contato com o administrador.",
+                "Para usuários Gestor Administrativo, a senha é definida exclusivamente no painel administrativo. Entre em contato com o administrador.",
             )
         elif user is None:
             # Primeiro acesso: cria usuário e envia senha
@@ -1410,6 +1374,7 @@ def esqueceu_acesso_view(request):
                 password=nova_senha,
             )
             PerfilSolicitante.objects.get_or_create(user=user)
+            RegraUsuario.objects.get_or_create(user=user, role=RegraUsuario.ROLE_GESTOR)
             send_mail(
                 subject="Acesso à Intranet Parceiros - Senha de acesso",
                 message=(
@@ -1469,9 +1434,9 @@ def buscar_gestores_json(request):
     """Retorna lista de gestores para autocomplete."""
     query = request.GET.get("q", "").strip()
     
-    # Busca todos os gestores ou filtra por query
+    # Busca usuários com papel de Gestor (aprovador do primeiro nível).
     gestores_query = User.objects.filter(
-        regras_usuario__role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO
+        regras_usuario__role=RegraUsuario.ROLE_GESTOR
     )
     
     if len(query) >= 2:
@@ -1758,7 +1723,7 @@ def reembolso_detalhe_gestor_json(request, pk):
     
     itens = []
     for item in sol.itens.all():
-        # Buscar descrição do código de despesa
+        # Buscar descrição do código no orçamento
         cod_despesa_com_descricao = item.cod_despesa or ""
         if item.cod_despesa:
             try:
@@ -1981,7 +1946,7 @@ def reembolso_detalhe_json(request, pk):
     tipos_labels = dict(TIPOS_DESPESA)
     itens = []
     for item in sol.itens.all():
-        # Buscar descrição do código de despesa
+        # Buscar descrição do código no orçamento
         cod_despesa_com_descricao = item.cod_despesa or ""
         if item.cod_despesa:
             try:
@@ -3880,7 +3845,7 @@ def reembolso(request):
     # Buscar valores únicos de PROGRAMA para Centro de Custo
     programas = CentroCusto.objects.exclude(PROGRAMA__isnull=True).exclude(PROGRAMA__exact='').values_list("PROGRAMA", flat=True).distinct().order_by("PROGRAMA")
     
-    # Buscar todos os registros de CentroCusto para Código de Despesa
+    # Buscar todos os registros de CentroCusto para Código no Orçamento
     codigos = CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact='').exclude(DESCRICAO__isnull=True).exclude(DESCRICAO__exact='').order_by("CODIGO")
     
     # Preparar dados para JSON organizados por PROGRAMA (para filtro dinâmico)
@@ -3973,6 +3938,10 @@ def reembolso(request):
                     valor_total += v
                     tipo = request.POST.get(f"tipo_despesa_{idx}", "").strip()
                     cod_despesa = request.POST.get(f"cod_despesa_{idx}", "").strip()
+                    if cod_despesa == "Outro":
+                        cod_despesa_outro = request.POST.get(f"cod_despesa_outro_{idx}", "").strip()
+                        if cod_despesa_outro:
+                            cod_despesa = cod_despesa_outro[:50]
                     data_despesa_str = request.POST.get(f"data_despesa_{idx}", "").strip()
                     desc = request.POST.get(f"descricao_{idx}", "").strip()
                     data_despesa = None
@@ -4076,6 +4045,16 @@ def reembolso(request):
             
             # Capturar nome do gestor
             nome_gestor = request.POST.get("nome_gestor", "").strip()
+            if nome_gestor:
+                try:
+                    validate_email(nome_gestor)
+                except ValidationError:
+                    messages.error(request, "Informe um e-mail válido no campo do Gestor(a)/Aprovador(a).")
+                    erro_validacao = True
+                else:
+                    if not nome_gestor.lower().endswith("@parceirosedu.org.br"):
+                        messages.error(request, "O e-mail do Gestor(a)/Aprovador(a) deve ser do domínio @parceirosedu.org.br.")
+                        erro_validacao = True
             
             # Validar CPF/CNPJ
             import re
@@ -4341,27 +4320,14 @@ def reembolso(request):
                         logger.warning(f"[DEBUG S3] Item salvo sem anexo - ID: {item_obj.pk}")
             # Regra de encaminhamento:
             # - Reenvio após rejeição do gestor administrativo: volta direto para gestor administrativo.
-            # - Solicitante que é gestor simples: também pula o primeiro nível.
-            is_solicitante_gestor = _is_gestor_simples(request.user)
-            if reenvio_direto_gestor_admin or is_solicitante_gestor:
-                # Se o solicitante é gestor, vai direto para gestor administrativo
-                if not reenvio_direto_gestor_admin:
-                    sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
-                    sol.aprovado_por_gestor = request.user  # Auto-aprovado
-                    sol.aprovado_em_gestor = timezone.now()
+            # - Nova solicitação: envia para o aprovador informado no campo de e-mail.
+            if reenvio_direto_gestor_admin:
                 sol.save()
-                # Registrar no histórico (já foi criado antes, então não precisa criar novamente)
-                # Enviar e-mail aos gestores administrativos
                 _enviar_email_nova_solicitacao_gestor_admin(sol, request)
             else:
-                # Se não é gestor, enviar e-mail ao gestor do solicitante
-                try:
-                    perfil = PerfilSolicitante.objects.get(user=request.user)
-                    if perfil.email_gestor:
-                        # Enviar e-mail ao gestor
-                        _enviar_email_nova_solicitacao_gestor(sol, request, perfil.email_gestor)
-                except PerfilSolicitante.DoesNotExist:
-                    pass
+                email_aprovador = nome_gestor if nome_gestor else None
+                if email_aprovador:
+                    _enviar_email_nova_solicitacao_gestor(sol, request, email_aprovador)
             # Verificar se foi edição
             editar_id_final = request.POST.get("editar_id", "").strip()
             if editar_id_final:

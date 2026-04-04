@@ -2664,6 +2664,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     var codigoLivre = inputOutro ? (inputOutro.value || '').trim() : '';
                     if (!codigoLivre) {
                         e.preventDefault();
+                        if (typeof e.stopImmediatePropagation === 'function') {
+                            e.stopImmediatePropagation();
+                        } else {
+                            e.stopPropagation();
+                        }
                         alert('Ao selecionar "Outro" em Código no orçamento, informe o código manualmente.');
                         if (inputOutro) inputOutro.focus();
                         return false;

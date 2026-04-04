@@ -239,6 +239,43 @@ def _gerar_folha_rosto(solicitacao):
     width, height = w, h
     margin_left = 20 * mm
     margin_right = width - 20 * mm
+
+    def _resolver_nome_gestor_para_pdf(solic):
+        """
+        Resolve um nome amigável do gestor para exibir no PDF a partir do campo
+        solicitacao.nome_gestor (que armazena o e-mail informado no formulário).
+        - Se houver um usuário com esse e-mail, usa o nome do perfil (PerfilSolicitante.nome_solicitante)
+          ou o nome completo do usuário; como fallback, o e-mail do usuário.
+        - Se não houver usuário, deriva um nome do próprio e-mail (parte antes do @),
+          com formatação Title Case; como fallback final, retorna o texto original.
+        """
+        try:
+            from django.contrib.auth import get_user_model
+            from intra.models import PerfilSolicitante
+            User = get_user_model()
+            aprovador = (solic.nome_gestor or "").strip()
+            if not aprovador:
+                return "-"
+            try:
+                gestor_user = User.objects.get(email__iexact=aprovador)
+                try:
+                    perfil = PerfilSolicitante.objects.get(user=gestor_user)
+                    nome = (perfil.nome_solicitante or "").strip()
+                    if nome:
+                        return nome
+                except PerfilSolicitante.DoesNotExist:
+                    pass
+                nome = (gestor_user.get_full_name() or "").strip()
+                if nome:
+                    return nome
+                return gestor_user.email or "-"
+            except User.DoesNotExist:
+                if "@" in aprovador:
+                    candidato = aprovador.split("@")[0].replace(".", " ").replace("_", " ").strip()
+                    return candidato.title() or aprovador
+                return aprovador
+        except Exception:
+            return (solic.nome_gestor or "-")
     
     # --- Logo no canto superior direito (mais para cima) ---
     logo_paths = [
@@ -638,7 +675,7 @@ def _gerar_folha_rosto(solicitacao):
     # nome_solicitante já está definido na linha 378
     
     # Obter nome do gestor
-    nome_gestor = solicitacao.nome_gestor or "-"
+    nome_gestor = _resolver_nome_gestor_para_pdf(solicitacao)
     
     # Linha para Assinatura - Solicitante (com nome)
     c.line(margin_left, linha_y, margin_left + linha_largura, linha_y)

@@ -751,6 +751,7 @@
         border-collapse: collapse;
         margin-top: 1rem;
         font-size: 0.95rem;
+        min-width: 1100px;
     }
     
     .data-table thead {
@@ -1229,6 +1230,7 @@
         <div class="table-card">
             <h2>❌ Rejeitados por Área</h2>
             {% if areas_ordenadas_rejeitados %}
+            <div class="tabela-wrapper">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -1255,6 +1257,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <div class="no-data">Nenhum reembolso rejeitado encontrado</div>
             {% endif %}
@@ -1264,6 +1267,7 @@
         <div class="table-card">
             <h2>✅ Concluídos por Área</h2>
             {% if areas_ordenadas_concluidos %}
+            <div class="tabela-wrapper">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -1290,6 +1294,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <div class="no-data">Nenhum reembolso concluído encontrado</div>
             {% endif %}
@@ -1299,6 +1304,7 @@
         <div class="table-card full-width">
             <h2>📊 Taxa de Rejeição por Área (Ranking)</h2>
             {% if areas_ordenadas_taxa_rejeicao %}
+            <div class="tabela-wrapper">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -1342,6 +1348,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <div class="no-data">Nenhum dado disponível</div>
             {% endif %}

@@ -619,7 +619,7 @@ def _enviar_email_nova_solicitacao_gestor_admin(solicitacao, request=None):
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
-                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                <div style="background-color: #1a252f; padding: 30px 20px; text-align: center;">
                     <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                         Solicitação Aprovada pelo Gestor
                     </h1>
@@ -670,9 +670,19 @@ def _enviar_email_nova_solicitacao_gestor_admin(solicitacao, request=None):
                     </table>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
-                            Visualizar e Processar Solicitação
+                        <!--[if mso]>
+                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{aprovar_url}" style="height:48px;v-text-anchor:middle;width:520px;" arcsize="8%" strokecolor="#1a252f" fillcolor="#1a252f">
+                            <w:anchorlock/>
+                            <center style="color:#ffffff; font-family:Segoe UI, Arial, sans-serif; font-size:16px; font-weight:600;">
+                                Clique aqui para Visualizar e Processar Solicitação
+                            </center>
+                        </v:roundrect>
+                        <![endif]-->
+                        <!--[if !mso]><!-- -->
+                        <a href="{aprovar_url}" style="display:inline-block; background-color:#1a252f; color:#ffffff; text-decoration:none; padding:15px 40px; border-radius:6px; font-weight:600; font-size:16px;">
+                            Clique aqui para Visualizar e Processar Solicitação
                         </a>
+                        <!--<![endif]-->
                     </div>
                 </div>
                 
@@ -1049,7 +1059,7 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
-                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                <div style="background-color: #1a252f; padding: 30px 20px; text-align: center;">
                     <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                         Nova Solicitação de Reembolso
                     </h1>
@@ -1100,9 +1110,19 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
                     </table>
                     
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
-                            Visualizar e Processar Solicitação
+                        <!--[if mso]>
+                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{aprovar_url}" style="height:48px;v-text-anchor:middle;width:520px;" arcsize="8%" strokecolor="#1a252f" fillcolor="#1a252f">
+                            <w:anchorlock/>
+                            <center style="color:#ffffff; font-family:Segoe UI, Arial, sans-serif; font-size:16px; font-weight:600;">
+                                Clique aqui para Visualizar e Processar Solicitação
+                            </center>
+                        </v:roundrect>
+                        <![endif]-->
+                        <!--[if !mso]><!-- -->
+                        <a href="{aprovar_url}" style="display:inline-block; background-color:#1a252f; color:#ffffff; text-decoration:none; padding:15px 40px; border-radius:6px; font-weight:600; font-size:16px;">
+                            Clique aqui para Visualizar e Processar Solicitação
                         </a>
+                        <!--<![endif]-->
                     </div>
                 </div>
                 
@@ -1202,7 +1222,7 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2c3e50; margin: 0; padding: 0; background-color: #f5f7fa;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;">
                 <!-- Header com destaque -->
-                <div style="background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); padding: 30px 20px; text-align: center;">
+                <div style="background-color: #1a252f; padding: 30px 20px; text-align: center;">
                     <h1 style="color: #ecf0f1; margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                         Nova Solicitação de Reembolso
                     </h1>
@@ -1256,9 +1276,19 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
                     
                     <!-- Botão de ação -->
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{aprovar_url}" style="display: inline-block; background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%); color: #ecf0f1; text-decoration: none; padding: 15px 40px; border-radius: 4px; font-weight: 600; font-size: 16px; box-shadow: 0 2px 6px rgba(52, 73, 94, 0.25);">
-                            Visualizar e Processar Solicitação
+                        <!--[if mso]>
+                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{aprovar_url}" style="height:48px;v-text-anchor:middle;width:520px;" arcsize="8%" strokecolor="#1a252f" fillcolor="#1a252f">
+                            <w:anchorlock/>
+                            <center style="color:#ffffff; font-family:Segoe UI, Arial, sans-serif; font-size:16px; font-weight:600;">
+                                Clique aqui para Visualizar e Processar Solicitação
+                            </center>
+                        </v:roundrect>
+                        <![endif]-->
+                        <!--[if !mso]><!-- -->
+                        <a href="{aprovar_url}" style="display:inline-block; background-color:#1a252f; color:#ffffff; text-decoration:none; padding:15px 40px; border-radius:6px; font-weight:600; font-size:16px;">
+                            Clique aqui para Visualizar e Processar Solicitação
                         </a>
+                        <!--<![endif]-->
                     </div>
                     
                     <p style="color: #7f8c8d; font-size: 13px; text-align: center; margin-top: 20px;">

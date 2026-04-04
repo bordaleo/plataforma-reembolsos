@@ -956,6 +956,10 @@
                 }
                 
                 form.addEventListener('submit', function(e) {
+                    // Se outro handler preveniu o submit, não mostrar loading
+                    if (e.defaultPrevented) {
+                        return;
+                    }
                     const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
                     if (submitBtn && !form.dataset.noLoading) {
                         let message = 'Processando...';

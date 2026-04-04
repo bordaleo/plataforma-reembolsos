@@ -262,23 +262,41 @@ def _obter_dados_solicitante_para_assinatura(sol):
 
 def _obter_dados_gestor_para_assinatura(sol):
     """
-    Retorna e-mail e nome do gestor para assinatura.
-    Prioriza o aprovador informado na solicitação.
+    Retorna e-mail e nome do gestor para assinatura (DocuSign),
+    usando a MESMA lógica de resolução de nome que o PDF utiliza,
+    garantindo que a âncora "Assinatura - {nome_gestor}" coincida.
     """
-    aprovador_informado = (sol.nome_gestor or "").strip() or None
+    from django.contrib.auth import get_user_model
+    from intra.models import PerfilSolicitante
+
+    aprovador_informado = (sol.nome_gestor or "").strip()
     if not aprovador_informado:
         return None, None
 
+    User = get_user_model()
+
+    # 1) Tentar localizar usuário interno pelo e-mail informado
     try:
         gestor_user = User.objects.get(email__iexact=aprovador_informado)
-        if gestor_user:
-            nome_gestor = gestor_user.get_full_name() or gestor_user.email
-            return gestor_user.email, nome_gestor
+        # Nome com a mesma hierarquia do PDF: PerfilSolicitante.nome_solicitante -> full_name -> email
+        try:
+            perfil = PerfilSolicitante.objects.get(user=gestor_user)
+            nome_resolvido = (perfil.nome_solicitante or "").strip()
+            if not nome_resolvido:
+                raise PerfilSolicitante.DoesNotExist
+        except PerfilSolicitante.DoesNotExist:
+            nome_resolvido = (gestor_user.get_full_name() or gestor_user.email).strip()
+        return gestor_user.email, nome_resolvido
     except User.DoesNotExist:
         pass
 
-    # Em caso de aprovador externo ao sistema, usa o valor informado como e-mail/nome.
-    return aprovador_informado, aprovador_informado
+    # 2) Aprovador externo: derivar nome amigável do e-mail igual ao PDF
+    nome_resolvido = aprovador_informado
+    if "@" in aprovador_informado:
+        candidato = aprovador_informado.split("@")[0].replace(".", " ").replace("_", " ").strip()
+        if candidato:
+            nome_resolvido = candidato.title()
+    return aprovador_informado, nome_resolvido
 
 
 def _processar_pagamentos_programados():

@@ -9,6 +9,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
+from intra.docusign_integration import DOCUSIGN_ANCHOR_GESTOR, DOCUSIGN_ANCHOR_SOLICITANTE
+
 try:
     from PyPDF2 import PdfReader, PdfWriter
     PYPDF2_AVAILABLE = True
@@ -497,7 +499,8 @@ def _gerar_folha_rosto(solicitacao):
         y -= 4 * mm
         y_table_bottom = y
     
-    # Preencher linhas restantes com "-" até o limite
+    # Preencher linhas restantes com "-" até o limite visual da tabela (como no modelo impresso)
+    c.setFont("Helvetica", 7)
     while y > 120 * mm:
         c.drawString(col_programa, y, "-")
         c.drawString(col_cod, y, "-")
@@ -671,22 +674,35 @@ def _gerar_folha_rosto(solicitacao):
     linha_y = y + 5 * mm  # Linha acima do texto (mais próxima)
     linha_largura = 50 * mm  # Largura da linha
     
-    # Obter nome do solicitante (já obtido anteriormente)
-    # nome_solicitante já está definido na linha 378
-    
-    # Obter nome do gestor
+    # Obter nome do gestor (texto legível; âncoras DocuSign são fixas e invisíveis)
     nome_gestor = _resolver_nome_gestor_para_pdf(solicitacao)
+    tem_aprovador_no_pedido = bool((solicitacao.nome_gestor or "").strip())
     
-    # Linha para Assinatura - Solicitante (com nome)
+    # Linha para Assinatura - Solicitante (âncora invisível para o DocuSign)
     c.line(margin_left, linha_y, margin_left + linha_largura, linha_y)
+    c.saveState()
+    c.setFillColorRGB(1, 1, 1)
+    c.setFont("Helvetica", 1)
+    c.drawString(margin_left, linha_y, DOCUSIGN_ANCHOR_SOLICITANTE)
+    c.restoreState()
     c.setFont("Helvetica", 9)
-    texto_solicitante = f"Assinatura - {nome_solicitante}"
-    c.drawString(margin_left, y, texto_solicitante)
+    c.drawString(margin_left, y, f"Assinatura — {nome_solicitante}")
     
-    # Linha para Assinatura - Gestor (com nome)
+    # Segundo signatário só se houver aprovador informado (evita âncora órfã no PDF)
     c.line(margin_left + 70 * mm, linha_y, margin_left + 70 * mm + linha_largura, linha_y)
-    texto_gestor = f"Assinatura - {nome_gestor}"
-    c.drawString(margin_left + 70 * mm, y, texto_gestor)
+    if tem_aprovador_no_pedido:
+        c.saveState()
+        c.setFillColorRGB(1, 1, 1)
+        c.setFont("Helvetica", 1)
+        c.drawString(margin_left + 70 * mm, linha_y, DOCUSIGN_ANCHOR_GESTOR)
+        c.restoreState()
+        c.setFont("Helvetica", 9)
+        c.drawString(margin_left + 70 * mm, y, f"Assinatura — {nome_gestor}")
+    else:
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(0.45, 0.45, 0.45)
+        c.drawString(margin_left + 70 * mm, y, "Aprovador (segunda assinatura): não informado")
+        c.setFillColorRGB(0, 0, 0)
     
     c.showPage()
     c.save()

@@ -31,9 +31,19 @@ logger = logging.getLogger(__name__)
 from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm, EditarPagamentoForm, TrocarSenhaForm
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso
 from .pdf_reembolso import gerar_pdf
-from .docusign_integration import enviar_documento_para_assinatura, baixar_pdf_assinado, consultar_status_envelope
+from .docusign_integration import (
+    enviar_documento_para_assinatura,
+    baixar_pdf_assinado,
+    consultar_status_envelope,
+    reenviar_envelope_docusign,
+)
 
 User = get_user_model()
+
+
+def _q_excluir_solicitacao_ja_concluida():
+    """Evita o mesmo pedido em 'Em processo' e 'Concluídos' quando status/concluido divergem no banco."""
+    return ~(Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True))
 
 
 def medir_tempo(view_func):
@@ -299,6 +309,48 @@ def _obter_dados_gestor_para_assinatura(sol):
     return aprovador_informado, nome_resolvido
 
 
+def _enviar_docusign_para_solicitacao(sol):
+    """
+    Gera o PDF e envia ao DocuSign se a solicitação estiver paga e ainda sem envelope.
+    Evita criar um segundo envelope quando já existe ID salvo.
+    Retorna ('ok', None), ('skipped', motivo) ou ('error', mensagem).
+    """
+    if sol.envelope_id_docusign:
+        return "skipped", "já existe envelope DocuSign"
+    nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
+    if not email_solicitante:
+        logger.warning(
+            "DocuSign não enviado: solicitação #%s sem e-mail do solicitante.",
+            sol.pk,
+        )
+        return "error", "E-mail do solicitante não encontrado"
+    try:
+        pdf_bytes = gerar_pdf(sol)
+        email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
+        resposta = enviar_documento_para_assinatura(
+            pdf_bytes=pdf_bytes,
+            email_solicitante=email_solicitante,
+            nome_solicitante=nome_solicitante,
+            email_gestor=email_gestor,
+            nome_gestor=nome_gestor,
+        )
+        envelope_id = resposta.get("envelopeId")
+        status_envelope = resposta.get("status", "sent")
+        sol.envelope_id_docusign = envelope_id
+        sol.status_docusign = status_envelope
+        sol.save(update_fields=["envelope_id_docusign", "status_docusign"])
+        logger.info(
+            "DocuSign: solicitação #%s envelope=%s status=%s",
+            sol.pk,
+            envelope_id,
+            status_envelope,
+        )
+        return "ok", None
+    except Exception as e:
+        logger.error("Erro ao enviar solicitação #%s ao DocuSign: %s", sol.pk, e)
+        return "error", str(e)
+
+
 def _processar_pagamentos_programados():
     """
     Verifica solicitações com data de pagamento programada que já passou
@@ -339,32 +391,18 @@ def _processar_pagamentos_programados():
             sol.data_pagamento_programada = None  # Limpar data programada após processar
             sol.save()
             
-            # Enviar documento para assinatura no DocuSign
-            try:
-                # Gerar PDF da solicitação
-                pdf_bytes = gerar_pdf(sol)
-                
-                nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
-                email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
-                
-                # Enviar para DocuSign
-                if email_solicitante:
-                    resposta_docusign = enviar_documento_para_assinatura(
-                        pdf_bytes=pdf_bytes,
-                        email_solicitante=email_solicitante,
-                        nome_solicitante=nome_solicitante,
-                        email_gestor=email_gestor,
-                        nome_gestor=nome_gestor
-                    )
-                    envelope_id = resposta_docusign.get('envelopeId')
-                    status_envelope = resposta_docusign.get('status', 'sent')
-                    # Salvar envelope_id e status no banco
-                    sol.envelope_id_docusign = envelope_id
-                    sol.status_docusign = status_envelope
-                    sol.save()
-                    logger.info(f"Pagamento programado processado automaticamente. Solicitação #{sol.pk} marcada como paga e enviada para DocuSign. Envelope ID: {envelope_id}")
-            except Exception as e:
-                logger.error(f"Erro ao enviar documento para DocuSign ao processar pagamento programado (Solicitação #{sol.pk}): {e}")
+            tag, extra = _enviar_docusign_para_solicitacao(sol)
+            if tag == "ok":
+                logger.info(
+                    "Pagamento programado processado automaticamente. Solicitação #%s enviada ao DocuSign.",
+                    sol.pk,
+                )
+            elif tag == "error":
+                logger.error(
+                    "Erro DocuSign ao processar pagamento programado (solicitação #%s): %s",
+                    sol.pk,
+                    extra,
+                )
         except Exception as e:
             logger.error(f"Erro ao processar pagamento programado (Solicitação #{sol.pk}): {e}")
 
@@ -453,7 +491,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
         valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada pelo Gestor - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Aprovada pelo Gestor - Plataforma de Reembolsos Parceiros"
             message = (
                 f"Olá {nome_solicitante},\n\n"
                 f"{'='*60}\n"
@@ -469,7 +507,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"A solicitação agora aguarda aprovação do gestor administrativo.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             nome_solicitante_escaped = html.escape(nome_solicitante)
             centro_custo_escaped = html.escape(solicitacao.centro_custo)
@@ -499,12 +537,12 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>A solicitação agora aguarda aprovação do gestor administrativo.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada pelo Gestor - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor - Plataforma de Reembolsos Parceiros"
             motivo = solicitacao.motivo_rejeicao_gestor or "Não informado"
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -522,7 +560,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             motivo_escaped = html.escape(motivo)
             nome_solicitante_escaped = html.escape(nome_solicitante)
@@ -554,7 +592,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
@@ -627,7 +665,7 @@ def _enviar_email_nova_solicitacao_gestor_admin(solicitacao, request=None):
             f"Para visualizar e processar a solicitação, acesse:\n"
             f"{aprovar_url}\n\n"
             f"Atenciosamente,\n"
-            f"Equipe Intranet Parceiros"
+            f"Financeiro"
         )
         
         html_message = f"""
@@ -707,7 +745,7 @@ def _enviar_email_nova_solicitacao_gestor_admin(solicitacao, request=None):
                 <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
                     <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
                         Este é um e-mail automático. Por favor, não responda.<br>
-                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                        <strong style="color: #34495e;">Financeiro</strong>
                     </p>
                 </div>
             </div>
@@ -757,7 +795,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
             return
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos Parceiros"
             message = (
                 f"Olá {nome_solicitante},\n\n"
                 f"{'='*60}\n"
@@ -773,7 +811,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"O reembolso será processado conforme os procedimentos internos.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             nome_solicitante_escaped = html.escape(nome_solicitante)
             centro_custo_escaped = html.escape(solicitacao.centro_custo)
@@ -803,12 +841,12 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>O reembolso será processado conforme os procedimentos internos.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada pelo Gestor Administrativo - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor Administrativo - Plataforma de Reembolsos Parceiros"
             motivo = solicitacao.motivo_rejeicao_gestor_admin or "Não informado"
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -826,7 +864,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             motivo_escaped = html.escape(motivo)
             nome_solicitante_escaped = html.escape(nome_solicitante)
@@ -858,7 +896,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
@@ -896,7 +934,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
         valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos Parceiros"
             # Versão texto plano
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -913,7 +951,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"O reembolso será processado conforme os procedimentos internos.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             # Escapar caracteres especiais para HTML
             nome_solicitante_escaped = html.escape(nome_solicitante)
@@ -945,12 +983,12 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>O reembolso será processado conforme os procedimentos internos.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada - Intranet Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada - Plataforma de Reembolsos Parceiros"
             motivo = solicitacao.motivo_rejeicao or "Não informado"
             # Versão texto plano
             message = (
@@ -969,7 +1007,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
                 f"{'-'*60}\n\n"
                 f"Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.\n\n"
                 f"Atenciosamente,\n"
-                f"Equipe Intranet Parceiros"
+                f"Financeiro"
             )
             # Escapar caracteres especiais para HTML
             motivo_escaped = html.escape(motivo)
@@ -1003,7 +1041,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
                     </table>
                 </div>
                 <p>Se tiver dúvidas sobre a rejeição, entre em contato com o gestor administrativo.</p>
-                <p>Atenciosamente,<br>Equipe Intranet Parceiros</p>
+                <p>Atenciosamente,<br>Financeiro</p>
             </body>
             </html>
             """
@@ -1048,7 +1086,7 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
         else:
             aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
         
-        subject = "Nova Solicitação de Reembolso Aguardando sua Aprovação - Intranet Parceiros"
+        subject = "Nova Solicitação de Reembolso Aguardando sua Aprovação - Plataforma de Reembolsos Parceiros"
         
         message = (
             f"Olá,\n\n"
@@ -1067,7 +1105,7 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
             f"Para visualizar e processar a solicitação, acesse:\n"
             f"{aprovar_url}\n\n"
             f"Atenciosamente,\n"
-            f"Equipe Intranet Parceiros"
+            f"Financeiro"
         )
         
         html_message = f"""
@@ -1147,7 +1185,7 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
                 <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
                     <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
                         Este é um e-mail automático. Por favor, não responda.<br>
-                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                        <strong style="color: #34495e;">Financeiro</strong>
                     </p>
                 </div>
             </div>
@@ -1208,7 +1246,7 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
         else:
             aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
         
-        subject = "Nova Solicitação de Reembolso Aguardando Aprovação - Intranet Parceiros"
+        subject = "Nova Solicitação de Reembolso Aguardando Aprovação - Plataforma de Reembolsos Parceiros"
         
         # Versão texto plano
         message = (
@@ -1228,7 +1266,7 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
             f"Para visualizar e processar a solicitação, acesse:\n"
             f"{aprovar_url}\n\n"
             f"Atenciosamente,\n"
-            f"Equipe Intranet Parceiros"
+            f"Financeiro"
         )
         
         # Versão HTML com destaque profissional
@@ -1319,7 +1357,7 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
                 <div style="background-color: #f5f7fa; padding: 20px; text-align: center; border-top: 1px solid #e1e8ed;">
                     <p style="margin: 0; color: #7f8c8d; font-size: 13px;">
                         Este é um e-mail automático. Por favor, não responda.<br>
-                        <strong style="color: #34495e;">Equipe Intranet Parceiros</strong>
+                        <strong style="color: #34495e;">Financeiro</strong>
                     </p>
                 </div>
             </div>
@@ -1423,10 +1461,10 @@ def esqueceu_acesso_view(request):
             )
             PerfilSolicitante.objects.get_or_create(user=user)
             send_mail(
-                subject="Acesso à Intranet Parceiros - Senha de acesso",
+                subject="Acesso à Plataforma de Reembolsos Parceiros - Senha de acesso",
                 message=(
                     f"Olá,\n\n"
-                    f"Seu acesso à Intranet Parceiros foi criado.\n\n"
+                    f"Seu acesso à Plataforma de Reembolsos Parceiros foi criado.\n\n"
                     f"E-mail: {email}\n"
                     f"Senha: {nova_senha}\n\n"
                     f"Faça login em: {login_url}\n\n"
@@ -1442,10 +1480,10 @@ def esqueceu_acesso_view(request):
             user.set_password(nova_senha)
             user.save(update_fields=["password"])
             send_mail(
-                subject="Intranet Parceiros - Nova senha de acesso",
+                subject="Plataforma de Reembolsos Parceiros - Nova senha de acesso",
                 message=(
                     f"Olá,\n\n"
-                    f"Você já estava cadastrado na Intranet Parceiros. "
+                    f"Você já estava cadastrado na Plataforma de Reembolsos Parceiros. "
                     f"Sua senha foi alterada conforme solicitado.\n\n"
                     f"E-mail: {email}\n"
                     f"Nova senha: {nova_senha}\n\n"
@@ -1538,7 +1576,7 @@ def completar_cadastro_view(request):
         if not request.user.regras_usuario.filter(role=RegraUsuario.ROLE_GESTOR_ADMINISTRATIVO).exists():
             RegraUsuario.objects.get_or_create(user=request.user, role=RegraUsuario.ROLE_GESTOR)
 
-        messages.success(request, "Cadastro concluído. Você já pode usar a intranet.")
+        messages.success(request, "Cadastro concluído. Você já pode usar a Plataforma de Reembolsos.")
         next_url = request.POST.get("next") or request.GET.get("next") or reverse("intra:home")
         return redirect(next_url)
     return render(request, "intra/completar_cadastro.html", {"form": form})
@@ -2408,37 +2446,22 @@ def reembolso_marcar_pago(request, pk):
         sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
         sol.save()
         
-        # Enviar documento para assinatura no DocuSign
-        try:
-            # Gerar PDF da solicitação
-            pdf_bytes = gerar_pdf(sol)
-            
-            nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
-            email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
-            
-            # Enviar para DocuSign
-            if email_solicitante:
-                resposta_docusign = enviar_documento_para_assinatura(
-                    pdf_bytes=pdf_bytes,
-                    email_solicitante=email_solicitante,
-                    nome_solicitante=nome_solicitante,
-                    email_gestor=email_gestor,
-                    nome_gestor=nome_gestor
-                )
-                envelope_id = resposta_docusign.get('envelopeId')
-                status_envelope = resposta_docusign.get('status', 'sent')
-                # Salvar envelope_id e status no banco
-                sol.envelope_id_docusign = envelope_id
-                sol.status_docusign = status_envelope
-                sol.save()
-                logger.info(f"Documento enviado para DocuSign. Envelope ID: {envelope_id}, Status: {status_envelope}")
-                messages.success(request, "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.")
-            else:
-                logger.warning(f"Não foi possível enviar para DocuSign: email do solicitante não encontrado.")
-                messages.success(request, "Solicitação marcada como paga. Erro ao enviar para DocuSign: email do solicitante não encontrado.")
-        except Exception as e:
-            logger.error(f"Erro ao enviar documento para DocuSign: {e}")
-            messages.warning(request, f"Solicitação marcada como paga, mas houve erro ao enviar para DocuSign: {str(e)}")
+        tag, extra = _enviar_docusign_para_solicitacao(sol)
+        if tag == "ok":
+            messages.success(
+                request,
+                "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.",
+            )
+        elif tag == "skipped":
+            messages.info(
+                request,
+                "Solicitação marcada como paga. Já havia registro de envio ao DocuSign.",
+            )
+        else:
+            messages.warning(
+                request,
+                f"Solicitação marcada como paga, mas o envio ao DocuSign falhou: {extra}",
+            )
         
         # Redirecionar de volta para a página de origem ou ultimos_reembolsos
         next_url = request.GET.get('next') or request.META.get('HTTP_REFERER', '')
@@ -2447,6 +2470,69 @@ def reembolso_marcar_pago(request, pk):
         return redirect(next_url)
     
     # Se não for POST, redirecionar
+    return redirect("intra:ultimos_reembolsos")
+
+
+@login_required
+def reembolso_enviar_docusign(request, pk):
+    """Reenvia ou cria o envelope DocuSign para solicitação já paga e sem envelope (correção operacional)."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    if request.method != "POST":
+        return redirect("intra:ultimos_reembolsos")
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    if not sol.pago:
+        messages.error(
+            request,
+            "Só é possível enviar ao DocuSign depois que a solicitação estiver marcada como paga.",
+        )
+        return redirect("intra:ultimos_reembolsos")
+    tag, extra = _enviar_docusign_para_solicitacao(sol)
+    if tag == "ok":
+        messages.success(
+            request,
+            f"Documento da solicitação #{sol.pk} enviado para assinatura no DocuSign.",
+        )
+    elif tag == "skipped":
+        messages.info(
+            request,
+            "Esta solicitação já possui um envelope DocuSign registrado.",
+        )
+    else:
+        messages.error(request, f"Não foi possível enviar ao DocuSign: {extra}")
+    return redirect("intra:ultimos_reembolsos")
+
+
+@login_required
+def reembolso_reenviar_docusign(request, pk):
+    """Reenvia notificação DocuSign (envelope já existente, ainda em andamento). Gestor administrativo apenas."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    if request.method != "POST":
+        return redirect("intra:ultimos_reembolsos")
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    if not sol.pago or not sol.envelope_id_docusign:
+        messages.error(
+            request,
+            "Só é possível reenviar ao DocuSign quando a solicitação está paga e já possui envelope.",
+        )
+        return redirect("intra:ultimos_reembolsos")
+    st = (sol.status_docusign or "").lower()
+    if st in ("completed", "signed", "voided", "declined"):
+        messages.warning(
+            request,
+            "Este envelope não permite reenvio (já concluído, cancelado ou recusado no DocuSign).",
+        )
+        return redirect("intra:ultimos_reembolsos")
+    try:
+        reenviar_envelope_docusign(sol.envelope_id_docusign)
+        messages.success(
+            request,
+            f"Reenvio ao DocuSign acionado para a solicitação #{sol.pk}.",
+        )
+    except Exception as e:
+        logger.error("reembolso_reenviar_docusign pk=%s: %s", pk, e)
+        messages.error(request, f"Não foi possível reenviar ao DocuSign: {e}")
     return redirect("intra:ultimos_reembolsos")
 
 
@@ -2493,37 +2579,22 @@ def reembolso_programar_pagamento(request, pk):
             sol.data_pagamento_programada = None
             sol.save()
             
-            # Enviar documento para assinatura no DocuSign
-            try:
-                # Gerar PDF da solicitação
-                pdf_bytes = gerar_pdf(sol)
-                
-                nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
-                email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
-                
-                # Enviar para DocuSign
-                if email_solicitante:
-                    resposta_docusign = enviar_documento_para_assinatura(
-                        pdf_bytes=pdf_bytes,
-                        email_solicitante=email_solicitante,
-                        nome_solicitante=nome_solicitante,
-                        email_gestor=email_gestor,
-                        nome_gestor=nome_gestor
-                    )
-                    envelope_id = resposta_docusign.get('envelopeId')
-                    status_envelope = resposta_docusign.get('status', 'sent')
-                    # Salvar envelope_id e status no banco
-                    sol.envelope_id_docusign = envelope_id
-                    sol.status_docusign = status_envelope
-                    sol.save()
-                    logger.info(f"Documento enviado para DocuSign. Envelope ID: {envelope_id}, Status: {status_envelope}")
-                    messages.success(request, "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.")
-                else:
-                    logger.warning(f"Não foi possível enviar para DocuSign: email do solicitante não encontrado.")
-                    messages.success(request, "Solicitação marcada como paga. Erro ao enviar para DocuSign: email do solicitante não encontrado.")
-            except Exception as e:
-                logger.error(f"Erro ao enviar documento para DocuSign: {e}")
-                messages.warning(request, f"Solicitação marcada como paga, mas houve erro ao enviar para DocuSign: {str(e)}")
+            tag, extra = _enviar_docusign_para_solicitacao(sol)
+            if tag == "ok":
+                messages.success(
+                    request,
+                    "Solicitação marcada como paga. Documento enviado para assinatura no DocuSign.",
+                )
+            elif tag == "skipped":
+                messages.info(
+                    request,
+                    "Solicitação marcada como paga. Já havia registro de envio ao DocuSign.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Solicitação marcada como paga, mas o envio ao DocuSign falhou: {extra}",
+                )
         elif data_pagamento:
             # Programar data de pagamento
             try:
@@ -2545,33 +2616,34 @@ def reembolso_programar_pagamento(request, pk):
                     sol.data_pagamento_programada = None  # Limpar data programada após processar
                     sol.save()
                     
-                    # Enviar documento para assinatura no DocuSign
-                    try:
-                        pdf_bytes = gerar_pdf(sol)
-                        
-                        nome_solicitante, email_solicitante = _obter_dados_solicitante_para_assinatura(sol)
-                        email_gestor, nome_gestor = _obter_dados_gestor_para_assinatura(sol)
-                        
-                        if email_solicitante:
-                            resposta_docusign = enviar_documento_para_assinatura(
-                                pdf_bytes=pdf_bytes,
-                                email_solicitante=email_solicitante,
-                                nome_solicitante=nome_solicitante,
-                                email_gestor=email_gestor,
-                                nome_gestor=nome_gestor
-                            )
-                            envelope_id = resposta_docusign.get('envelopeId')
-                            status_envelope = resposta_docusign.get('status', 'sent')
-                            sol.envelope_id_docusign = envelope_id
-                            sol.status_docusign = status_envelope
-                            sol.save()
-                            logger.info(f"Pagamento programado processado imediatamente. Solicitação #{sol.pk} marcada como paga e enviada para DocuSign.")
-                            messages.success(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Como a data é hoje ou já passou, a solicitação foi marcada como paga e enviada para assinatura no DocuSign.")
-                        else:
-                            messages.success(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Solicitação marcada como paga, mas erro ao enviar para DocuSign: email do solicitante não encontrado.")
-                    except Exception as e:
-                        logger.error(f"Erro ao enviar documento para DocuSign ao processar pagamento programado imediatamente (Solicitação #{sol.pk}): {e}")
-                        messages.warning(request, f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. Solicitação marcada como paga, mas houve erro ao enviar para DocuSign.")
+                    tag, extra = _enviar_docusign_para_solicitacao(sol)
+                    if tag == "ok":
+                        logger.info(
+                            "Pagamento programado imediato: solicitação #%s enviada ao DocuSign.",
+                            sol.pk,
+                        )
+                        messages.success(
+                            request,
+                            f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. "
+                            "Como a data é hoje ou já passou, a solicitação foi marcada como paga e enviada para assinatura no DocuSign.",
+                        )
+                    elif tag == "skipped":
+                        messages.info(
+                            request,
+                            f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. "
+                            "Solicitação marcada como paga; já havia envio ao DocuSign registrado.",
+                        )
+                    else:
+                        logger.error(
+                            "DocuSign falhou (pagamento imediato, solicitação #%s): %s",
+                            sol.pk,
+                            extra,
+                        )
+                        messages.warning(
+                            request,
+                            f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')}. "
+                            f"Solicitação marcada como paga, mas o envio ao DocuSign falhou: {extra}",
+                        )
                 else:
                     # Data futura - programar e definir status como PAGAMENTO_AGENDADO
                     sol.status = SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO
@@ -2755,7 +2827,7 @@ def dashboard_gestor(request):
             pago=False,
             concluido=False
         )
-    )
+    ) & _q_excluir_solicitacao_ja_concluida()
     
     # Rejeitados: status_gestor_admin=REJEITADO
     filtros_rejeitados = filtros_comuns & Q(
@@ -2776,7 +2848,11 @@ def dashboard_gestor(request):
                                SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
                                SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS]:
             # Mostrar apenas em processo com esse status específico
-            filtros_em_processo = filtros_comuns & Q(status=status_filtro, concluido=False)
+            filtros_em_processo = (
+                filtros_comuns
+                & Q(status=status_filtro, concluido=False)
+                & _q_excluir_solicitacao_ja_concluida()
+            )
             filtros_concluidos = Q(pk__in=[])
             filtros_rejeitados = Q(pk__in=[])
     
@@ -3102,9 +3178,12 @@ def dashboard_gestor(request):
             Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
         )),
         valor_em_processo=Sum('valor_total', filter=(
-            (Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False) &
-             ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)) |
-            Q(status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, pago=False, concluido=False)
+            (
+                (Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False) &
+                 ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)) |
+                Q(status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO, pago=False, concluido=False)
+            )
+            & _q_excluir_solicitacao_ja_concluida()
         )),
         valor_rejeitado=Sum('valor_total', filter=Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO))
     ).order_by('mes')
@@ -3796,7 +3875,7 @@ def dashboard_solicitacoes_json(request):
                 pago=False,
                 concluido=False
             )
-        )
+        ) & _q_excluir_solicitacao_ja_concluida()
         queryset = SolicitacaoReembolso.objects.select_related("user").prefetch_related(
             "user__perfil_solicitante"
         ).filter(filtros).order_by('-criado_em')
@@ -4425,17 +4504,19 @@ def ultimos_reembolsos(request):
     # Inclui também solicitações com pagamento agendado (STATUS_PAGAMENTO_AGENDADO)
     # NÃO inclui: aguardando_gestor (status_gestor = PENDENTE) e rejeitado_gestor (status_gestor = REJEITADO)
     filtros_em_processo = (
-        Q(
-            status_gestor=SolicitacaoReembolso.STATUS_APROVADO,  # Apenas aprovadas pelo gestor
-            concluido=False
-        ) & ~Q(
-            status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+        (
+            Q(
+                status_gestor=SolicitacaoReembolso.STATUS_APROVADO,  # Apenas aprovadas pelo gestor
+                concluido=False,
+            )
+            & ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
         )
-    ) | Q(
-        status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
-        pago=False,
-        concluido=False
-    )
+        | Q(
+            status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+            pago=False,
+            concluido=False,
+        )
+    ) & _q_excluir_solicitacao_ja_concluida()
     
     filtros_rejeitados = Q(
         status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
@@ -4528,7 +4609,11 @@ def ultimos_reembolsos(request):
             # Substituir o filtro base para garantir que mostra APENAS o status selecionado
             # O filtro base de em-processo inclui várias condições, mas quando há filtro de status,
             # devemos mostrar APENAS o status selecionado
-            filtros_base_em_processo = Q(status=status_filtro, concluido=False) & ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+            filtros_base_em_processo = (
+                Q(status=status_filtro, concluido=False)
+                & ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+                & _q_excluir_solicitacao_ja_concluida()
+            )
             # Reaplicar filtros comuns que já foram aplicados
             if id_filtro:
                 try:
@@ -4652,6 +4737,12 @@ def ultimos_reembolsos(request):
         sol.status_descritivo = _get_status_descritivo(sol)
         # Pode marcar como pago se tem pagamento agendado
         sol.pode_marcar_pago = (sol.status == SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO and not sol.pago)
+        ds = (sol.status_docusign or "").lower()
+        sol.pode_reenviar_docusign = bool(
+            sol.pago
+            and (sol.envelope_id_docusign or "").strip()
+            and ds not in ("completed", "signed", "voided", "declined")
+        )
         em_processo_com_data.append(sol)
     
     # Preparar dados para exibição - Rejeitados
@@ -4808,11 +4899,13 @@ def ultimos_reembolsos_gestor(request):
     
     # Construir filtros base para 3 categorias: Em Processo, Concluído, Rejeitado
     # Em Processo: tudo que não é concluído ou rejeitado pelo gestor
-    filtros_em_processo = Q(
-        aprovado_por_gestor=request.user,
-        concluido=False
-    ) & ~Q(
-        status_gestor=SolicitacaoReembolso.STATUS_REJEITADO
+    filtros_em_processo = (
+        Q(
+            aprovado_por_gestor=request.user,
+            concluido=False,
+        )
+        & ~Q(status_gestor=SolicitacaoReembolso.STATUS_REJEITADO)
+        & ~Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO)
     )
     
     filtros_rejeitados = Q(
@@ -4820,9 +4913,9 @@ def ultimos_reembolsos_gestor(request):
         aprovado_por_gestor=request.user
     )
     
-    filtros_concluidos = Q(
-        concluido=True,
-        aprovado_por_gestor=request.user
+    filtros_concluidos = (
+        Q(concluido=True, aprovado_por_gestor=request.user)
+        | Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO, aprovado_por_gestor=request.user)
     )
     
     # Aplicar filtros comuns
@@ -4906,7 +4999,11 @@ def ultimos_reembolsos_gestor(request):
             # Substituir o filtro base para garantir que mostra APENAS o status selecionado
             # O filtro base de em-processo inclui várias condições, mas quando há filtro de status,
             # devemos mostrar APENAS o status selecionado
-            filtros_base_em_processo = Q(status=status_filtro, aprovado_por_gestor=request.user, concluido=False) & ~Q(status_gestor=SolicitacaoReembolso.STATUS_REJEITADO)
+            filtros_base_em_processo = (
+                Q(status=status_filtro, aprovado_por_gestor=request.user, concluido=False)
+                & ~Q(status_gestor=SolicitacaoReembolso.STATUS_REJEITADO)
+                & ~Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO)
+            )
             # Reaplicar filtros comuns que já foram aplicados
             if id_filtro:
                 try:

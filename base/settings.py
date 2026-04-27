@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+
 import dj_database_url
 
 
@@ -27,7 +29,13 @@ SECRET_KEY = ""
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
+
+# POST em HTTPS (Render, etc.): informe a URL pública com esquema, separada por vírgula se houver mais de uma.
+# Ex.: DJANGO_CSRF_TRUSTED_ORIGINS=https://sua-app.onrender.com
+_origins = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").strip()
+if _origins:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _origins.split(",") if o.strip()]
 
 
 # Application definition

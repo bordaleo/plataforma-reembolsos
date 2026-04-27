@@ -13,6 +13,11 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Marcadores únicos no PDF (também desenhados em branco na folha de rosto) para o DocuSign
+# posicionar as assinaturas sem colidir quando nomes são iguais ou muito parecidos.
+DOCUSIGN_ANCHOR_SOLICITANTE = "[[SIG_SOL]]"
+DOCUSIGN_ANCHOR_GESTOR = "[[SIG_GEST]]"
+
 # ==============================
 # CREDENCIAIS DOCUSIGN
 # ==============================
@@ -146,56 +151,60 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
             "Content-Type": "application/json"
         }
 
-        # Construir lista de signatários
-        # Usando anchor strings com o texto completo que aparece no PDF
-        # O PDF contém "Assinatura - {nome_solicitante}" e "Assinatura - {nome_gestor}"
-        # O campo será posicionado acima da linha de assinatura (offset negativo em Y)
-        
-        # Texto completo que aparece no PDF para o solicitante
-        anchor_texto_solicitante = f"Assinatura - {nome_solicitante}"
-        
-        signers = [
-            {
-                "email": email_solicitante,
-                "name": nome_solicitante,
-                "recipientId": "1",
-                "routingOrder": "1",
-                "tabs": {
-                    "signHereTabs": [
-                        {
-                            "anchorString": anchor_texto_solicitante,
-                            "anchorYOffset": "-15",  # Posicionar acima do texto (na linha)
-                            "anchorXOffset": "0",
-                            "anchorUnits": "pixels",
-                            "optional": "false"
-                        }
-                    ]
-                }
+        def _tab_anchor(anchor_str):
+            return {
+                "anchorString": anchor_str,
+                "anchorYOffset": "-15",
+                "anchorXOffset": "0",
+                "anchorUnits": "pixels",
+                "optional": "false",
             }
-        ]
 
-        # Adicionar gestor como segundo signatário se fornecido
-        if email_gestor and nome_gestor:
-            # Texto completo que aparece no PDF para o gestor
-            anchor_texto_gestor = f"Assinatura - {nome_gestor}"
-            
-            signers.append({
-                "email": email_gestor,
-                "name": nome_gestor,
-                "recipientId": "2",
-                "routingOrder": "2",
-                "tabs": {
-                    "signHereTabs": [
-                        {
-                            "anchorString": anchor_texto_gestor,
-                            "anchorYOffset": "-15",  # Posicionar acima do texto (na linha)
-                            "anchorXOffset": "0",
-                            "anchorUnits": "pixels",
-                            "optional": "false"
-                        }
-                    ]
+        es = (email_solicitante or "").strip().lower()
+        eg = (email_gestor or "").strip().lower() if email_gestor else ""
+        segundo_signatario = bool(eg and nome_gestor)
+
+        tab_solicitante = _tab_anchor(DOCUSIGN_ANCHOR_SOLICITANTE)
+        tab_gestor = _tab_anchor(DOCUSIGN_ANCHOR_GESTOR)
+
+        if segundo_signatario and eg == es:
+            # Mesmo e-mail: um destinatário com duas assinaturas em âncoras distintas (evita duplicar envelope/recipient).
+            signers = [
+                {
+                    "email": email_solicitante,
+                    "name": nome_solicitante,
+                    "recipientId": "1",
+                    "routingOrder": "1",
+                    "tabs": {"signHereTabs": [tab_solicitante, tab_gestor]},
                 }
-            })
+            ]
+        elif segundo_signatario:
+            signers = [
+                {
+                    "email": email_solicitante,
+                    "name": nome_solicitante,
+                    "recipientId": "1",
+                    "routingOrder": "1",
+                    "tabs": {"signHereTabs": [tab_solicitante]},
+                },
+                {
+                    "email": email_gestor,
+                    "name": nome_gestor,
+                    "recipientId": "2",
+                    "routingOrder": "2",
+                    "tabs": {"signHereTabs": [tab_gestor]},
+                },
+            ]
+        else:
+            signers = [
+                {
+                    "email": email_solicitante,
+                    "name": nome_solicitante,
+                    "recipientId": "1",
+                    "routingOrder": "1",
+                    "tabs": {"signHereTabs": [tab_solicitante]},
+                }
+            ]
 
         body = {
             "emailSubject": "Documento para assinatura - Solicitação de Reembolso",
@@ -263,6 +272,33 @@ def consultar_status_envelope(envelope_id):
         raise
 
 
+def reenviar_envelope_docusign(envelope_id):
+    """
+    Reenvia notificação de assinatura (resend envelope) aos signatários pendentes.
+    Não funciona para envelope concluído, cancelado ou recusado.
+    Ver: PUT .../envelopes/{id}?resend_envelope=true
+    """
+    token = gerar_token()
+    url = (
+        f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}"
+        "?resend_envelope=true"
+    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    response = requests.put(url, headers=headers, json={})
+    if response.status_code not in (200, 201, 204):
+        try:
+            err = response.json()
+        except Exception:
+            err = response.text
+        logger.error(f"Erro ao reenviar envelope DocuSign {envelope_id}: {err}")
+        raise Exception(f"Erro ao reenviar no DocuSign: {err}")
+    logger.info(f"Envelope DocuSign reenviado (notificação): {envelope_id}")
+    return response.json() if response.text else {}
+
+
 def baixar_pdf_assinado(envelope_id):
     """
     Baixa o PDF assinado de um envelope no DocuSign.
@@ -276,19 +312,20 @@ def baixar_pdf_assinado(envelope_id):
     try:
         token = gerar_token()
 
-        url = f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}/documents/combined"
-
+        base = (
+            f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}"
+            "/documents/combined"
+        )
         headers = {
             "Authorization": f"Bearer {token}",
-            "Accept": "application/pdf"
+            "Accept": "application/pdf",
         }
-
-        response = requests.get(url, headers=headers)
-        
+        response = requests.get(f"{base}?certificate=true", headers=headers)
+        if response.status_code not in [200, 201]:
+            response = requests.get(base, headers=headers)
         if response.status_code not in [200, 201]:
             logger.error(f"Erro ao baixar PDF DocuSign: {response.text}")
             raise Exception(f"Erro ao baixar PDF: {response.text}")
-
         return response.content
 
     except Exception as e:

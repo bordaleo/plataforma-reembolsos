@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from storages.backends.s3boto3 import S3Boto3Storage
 
 
@@ -256,6 +257,16 @@ class SolicitacaoReembolso(models.Model):
 
     def __str__(self):
         return f"Reembolso {self.pk} - {self.valor_total}"
+
+    def save(self, *args, **kwargs):
+        # Evita inconsistência (ex.: status Concluído no admin sem marcar concluido),
+        # que fazia o mesmo pedido aparecer em "Em processo" e em "Concluídos".
+        if self.status == self.STATUS_CONCLUIDO and not self.concluido:
+            self.concluido = True
+        # Data de conclusão oficial: se concluído sem data, usa a do pagamento (quando houver), senão agora.
+        if self.concluido and self.status == self.STATUS_CONCLUIDO and not self.concluido_em:
+            self.concluido_em = self.pago_em or timezone.now()
+        super().save(*args, **kwargs)
 
 
 class RegraUsuario(models.Model):

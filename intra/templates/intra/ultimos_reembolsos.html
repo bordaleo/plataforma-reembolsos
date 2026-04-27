@@ -1,6 +1,6 @@
 {% extends "intra/base.html" %}
 {% load static %}
-{% block title %}Últimos Reembolsos - Intranet Parceiros{% endblock %}
+{% block title %}Últimos Reembolsos - Plataforma de Reembolsos Parceiros{% endblock %}
 {% block extra_css %}
 <style>
     .page-intro {
@@ -411,6 +411,110 @@
         padding: 2rem;
         overflow-y: auto;
         max-height: calc(90vh - 80px);
+    }
+    /* Confirmação POST (DocuSign): overlay centralizado, acima dos outros modais */
+    #modal-confirmacao-post.modal-overlay {
+        z-index: 1050;
+        padding: 1rem;
+    }
+    #modal-confirmacao-post .modal-confirm-box {
+        max-width: 460px;
+        width: 100%;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        animation: modal-confirm-pop 0.22s ease-out;
+    }
+    @keyframes modal-confirm-pop {
+        from {
+            opacity: 0;
+            transform: scale(0.96) translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+    #modal-confirmacao-post .modal-body-confirm {
+        padding: 1.5rem 1.75rem 1.75rem;
+        max-height: none;
+        overflow: visible;
+    }
+    #modal-confirmacao-post .modal-confirm-texto {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1rem;
+        line-height: 1.55;
+    }
+    #modal-confirmacao-post .modal-confirm-id {
+        display: inline-block;
+        margin-top: 0.85rem;
+        padding: 0.4rem 0.75rem;
+        background: #f1f2f6;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #57606f;
+        letter-spacing: 0.02em;
+    }
+    #modal-confirmacao-post .modal-confirm-enviando {
+        display: none;
+        margin: 1.15rem 0 0;
+        padding: 0.85rem 1rem;
+        border-radius: 8px;
+        background: #ebf4fb;
+        border: 1px solid rgba(49, 130, 206, 0.35);
+        border-left: 4px solid #3182ce;
+        color: #2c5282;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.45;
+        text-align: center;
+    }
+    #modal-confirmacao-post .modal-confirm-enviando.visivel {
+        display: block;
+    }
+    #modal-confirmacao-post .modal-confirm-actions {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    #modal-confirmacao-post .modal-btn-cancelar {
+        padding: 0.65rem 1.35rem;
+        border-radius: 8px;
+        border: 2px solid #3182ce;
+        background: #fff;
+        color: #3182ce;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    #modal-confirmacao-post .modal-btn-cancelar:hover {
+        background: #ebf4fb;
+        border-color: #2c5aa0;
+        color: #2c5aa0;
+    }
+    #modal-confirmacao-post .modal-btn-confirmar {
+        padding: 0.65rem 1.4rem;
+        border-radius: 8px;
+        border: none;
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%);
+        box-shadow: 0 2px 10px rgba(49, 130, 206, 0.35);
+        transition: transform 0.15s, box-shadow 0.2s;
+    }
+    #modal-confirmacao-post .modal-btn-confirmar:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(49, 130, 206, 0.45);
+    }
+    #modal-confirmacao-post .modal-header-accent-site {
+        background: linear-gradient(135deg, #3182ce 0%, #2c5aa0 100%);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.15);
     }
     .detalhe-solicitacao {
         display: grid;
@@ -1096,6 +1200,26 @@
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
                     </td>
                     <td class="acoes">
+                        {% if s.pago and not s.envelope_id_docusign %}
+                            <button type="button" class="btn-marcar-pago js-modal-confirm-post" style="background: #5c4d7d; border-color: #5c4d7d; margin-bottom: 6px;"
+                                data-post-url="{% url 'intra:reembolso_enviar_docusign' s.pk %}"
+                                data-accent="enviar"
+                                data-titulo="Enviar ao DocuSign"
+                                data-texto="O PDF desta solicitação será enviado ao DocuSign para assinatura eletrônica. Os signatários receberão a notificação por e-mail."
+                                data-btn-confirmar="Enviar ao DocuSign"
+                                data-solicitacao-id="{{ s.pk }}">Enviar DocuSign</button>
+                            <br>
+                        {% endif %}
+                        {% if s.pode_reenviar_docusign %}
+                            <button type="button" class="btn-marcar-pago js-modal-confirm-post" style="background: #6c5ce7; border-color: #6c5ce7; margin-bottom: 6px;"
+                                data-post-url="{% url 'intra:reembolso_reenviar_docusign' s.pk %}"
+                                data-accent="reenviar"
+                                data-titulo="Reenviar DocuSign"
+                                data-texto="Será solicitado ao DocuSign o reenvio da notificação de assinatura para quem ainda não concluiu no envelope atual."
+                                data-btn-confirmar="Reenviar DocuSign"
+                                data-solicitacao-id="{{ s.pk }}">Reenviar DocuSign</button>
+                            <br>
+                        {% endif %}
                         {% if s.status_descritivo == 'aguardando_pagamento' %}
                             <form method="post" action="{% url 'intra:reembolso_marcar_pago' s.pk %}" style="display: inline-block;" onsubmit="return confirm('Tem certeza que deseja marcar esta solicitação como paga?');">
                                 {% csrf_token %}
@@ -1146,6 +1270,24 @@
                 <div class="reembolso-card-mobile-actions">
                     <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">PDF</a>
+                    {% if s.pago and not s.envelope_id_docusign %}
+                        <button type="button" class="btn-marcar-pago js-modal-confirm-post" style="width: 100%; background: #5c4d7d; border-color: #5c4d7d;"
+                            data-post-url="{% url 'intra:reembolso_enviar_docusign' s.pk %}"
+                            data-accent="enviar"
+                            data-titulo="Enviar ao DocuSign"
+                            data-texto="O PDF desta solicitação será enviado ao DocuSign para assinatura eletrônica. Os signatários receberão a notificação por e-mail."
+                            data-btn-confirmar="Enviar ao DocuSign"
+                            data-solicitacao-id="{{ s.pk }}">Enviar DocuSign</button>
+                    {% endif %}
+                    {% if s.pode_reenviar_docusign %}
+                        <button type="button" class="btn-marcar-pago js-modal-confirm-post" style="width: 100%; background: #6c5ce7; border-color: #6c5ce7;"
+                            data-post-url="{% url 'intra:reembolso_reenviar_docusign' s.pk %}"
+                            data-accent="reenviar"
+                            data-titulo="Reenviar DocuSign"
+                            data-texto="Será solicitado ao DocuSign o reenvio da notificação de assinatura para quem ainda não concluiu no envelope atual."
+                            data-btn-confirmar="Reenviar DocuSign"
+                            data-solicitacao-id="{{ s.pk }}">Reenviar DocuSign</button>
+                    {% endif %}
                     {% if s.status_descritivo == 'aguardando_pagamento' %}
                         <form method="post" action="{% url 'intra:reembolso_marcar_pago' s.pk %}" style="display: inline-block; width: 100%;" onsubmit="return confirm('Tem certeza que deseja marcar esta solicitação como paga?');">
                             {% csrf_token %}
@@ -1531,6 +1673,28 @@
         <div class="modal-body" id="erro-validacao-content" style="text-align: center; padding: 2rem;">
             <p style="color: #2c3e50; font-size: 1.1rem; margin: 0;"></p>
         </div>
+    </div>
+</div>
+
+<!-- Modal confirmação POST (DocuSign: enviar / reenviar) -->
+<div id="modal-confirmacao-post" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-confirmacao-post-titulo">
+    <div class="modal-box modal-confirm-box">
+        <div class="modal-header modal-header-accent-site" id="modal-confirmacao-post-header">
+            <h2 id="modal-confirmacao-post-titulo">Confirmar</h2>
+            <button type="button" class="modal-fechar" id="modal-confirmacao-post-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body modal-body-confirm" style="text-align: center;">
+            <p class="modal-confirm-texto" id="modal-confirmacao-post-texto" style="text-align: center;"></p>
+            <span class="modal-confirm-id" id="modal-confirmacao-post-id" hidden></span>
+            <p class="modal-confirm-enviando" id="modal-confirmacao-post-enviando" aria-live="polite"></p>
+            <div class="modal-confirm-actions" id="modal-confirmacao-post-actions">
+                <button type="button" class="modal-btn-cancelar" id="modal-confirmacao-post-cancelar">Cancelar</button>
+                <button type="button" class="modal-btn-confirmar" id="modal-confirmacao-post-confirmar">Confirmar</button>
+            </div>
+        </div>
+        <form id="form-modal-confirmacao-post" method="post" action="" style="display: none;">
+            {% csrf_token %}
+        </form>
     </div>
 </div>
 
@@ -2305,6 +2469,117 @@
         });
     });
     
+    // Modal confirmação POST (DocuSign)
+    var modalConfirmPost = document.getElementById('modal-confirmacao-post');
+    var formConfirmPost = document.getElementById('form-modal-confirmacao-post');
+    var tituloConfirmPost = document.getElementById('modal-confirmacao-post-titulo');
+    var textoConfirmPost = document.getElementById('modal-confirmacao-post-texto');
+    var idBadgeConfirmPost = document.getElementById('modal-confirmacao-post-id');
+    var btnConfirmarPost = document.getElementById('modal-confirmacao-post-confirmar');
+    var btnFecharConfirmPost = document.getElementById('modal-confirmacao-post-fechar');
+    var btnCancelarConfirmPost = document.getElementById('modal-confirmacao-post-cancelar');
+    var elEnviandoConfirmPost = document.getElementById('modal-confirmacao-post-enviando');
+    var elAcoesConfirmPost = document.getElementById('modal-confirmacao-post-actions');
+    var confirmPostSending = false;
+
+    function resetModalConfirmPostUi() {
+        confirmPostSending = false;
+        if (elEnviandoConfirmPost) {
+            elEnviandoConfirmPost.classList.remove('visivel');
+            elEnviandoConfirmPost.textContent = '';
+        }
+        if (elAcoesConfirmPost) elAcoesConfirmPost.style.display = '';
+        if (btnFecharConfirmPost) btnFecharConfirmPost.disabled = false;
+        if (btnCancelarConfirmPost) btnCancelarConfirmPost.disabled = false;
+        if (btnConfirmarPost) btnConfirmarPost.disabled = false;
+    }
+
+    function fecharModalConfirmPost() {
+        if (!modalConfirmPost || confirmPostSending) return;
+        modalConfirmPost.classList.remove('aberto');
+        modalConfirmPost.setAttribute('aria-hidden', 'true');
+        document.removeEventListener('keydown', onKeydownModalConfirmPost);
+        resetModalConfirmPostUi();
+    }
+
+    function onKeydownModalConfirmPost(e) {
+        if (e.key === 'Escape' && !confirmPostSending) {
+            e.preventDefault();
+            fecharModalConfirmPost();
+        }
+    }
+
+    function abrirModalConfirmPost(btn) {
+        if (!modalConfirmPost || !formConfirmPost || !tituloConfirmPost || !textoConfirmPost) return;
+        resetModalConfirmPostUi();
+        var url = btn.getAttribute('data-post-url');
+        var titulo = btn.getAttribute('data-titulo') || 'Confirmar';
+        var texto = btn.getAttribute('data-texto') || '';
+        var labelOk = btn.getAttribute('data-btn-confirmar') || 'Confirmar';
+        var accent = btn.getAttribute('data-accent') === 'enviar' ? 'enviar' : 'reenviar';
+        var sid = btn.getAttribute('data-solicitacao-id');
+
+        formConfirmPost.action = url || '';
+        tituloConfirmPost.textContent = titulo;
+        textoConfirmPost.textContent = texto;
+        if (btnConfirmarPost) btnConfirmarPost.textContent = labelOk;
+        modalConfirmPost.setAttribute('data-docusign-accent', accent);
+
+        if (idBadgeConfirmPost) {
+            if (sid) {
+                idBadgeConfirmPost.textContent = 'Solicitação #' + sid;
+                idBadgeConfirmPost.hidden = false;
+            } else {
+                idBadgeConfirmPost.textContent = '';
+                idBadgeConfirmPost.hidden = true;
+            }
+        }
+
+        modalConfirmPost.classList.add('aberto');
+        modalConfirmPost.setAttribute('aria-hidden', 'false');
+        document.addEventListener('keydown', onKeydownModalConfirmPost);
+        if (btnCancelarConfirmPost) btnCancelarConfirmPost.focus();
+    }
+
+    document.querySelectorAll('.js-modal-confirm-post').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            abrirModalConfirmPost(this);
+        });
+    });
+
+    if (btnFecharConfirmPost && modalConfirmPost) {
+        btnFecharConfirmPost.addEventListener('click', fecharModalConfirmPost);
+    }
+    if (btnCancelarConfirmPost && modalConfirmPost) {
+        btnCancelarConfirmPost.addEventListener('click', fecharModalConfirmPost);
+    }
+    if (modalConfirmPost) {
+        modalConfirmPost.addEventListener('click', function(e) {
+            if (e.target === modalConfirmPost && !confirmPostSending) fecharModalConfirmPost();
+        });
+    }
+    if (btnConfirmarPost && formConfirmPost) {
+        btnConfirmarPost.addEventListener('click', function() {
+            if (confirmPostSending) return;
+            var accent = modalConfirmPost.getAttribute('data-docusign-accent') || 'reenviar';
+            var msg = accent === 'enviar'
+                ? 'Enviando ao DocuSign, aguarde…'
+                : 'Reenviando ao DocuSign, aguarde…';
+            confirmPostSending = true;
+            if (elEnviandoConfirmPost) {
+                elEnviandoConfirmPost.textContent = msg;
+                elEnviandoConfirmPost.classList.add('visivel');
+            }
+            if (elAcoesConfirmPost) elAcoesConfirmPost.style.display = 'none';
+            if (btnFecharConfirmPost) btnFecharConfirmPost.disabled = true;
+            if (btnCancelarConfirmPost) btnCancelarConfirmPost.disabled = true;
+            btnConfirmarPost.disabled = true;
+            window.setTimeout(function() {
+                formConfirmPost.submit();
+            }, 400);
+        });
+    }
+
     // Modal Programar Pagamento
     var modalProgramarPagamento = document.getElementById('modal-programar-pagamento');
     var formProgramarPagamento = document.getElementById('form-programar-pagamento');

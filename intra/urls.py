@@ -16,6 +16,16 @@ urlpatterns = [
     path("dashboard/solicitacoes/", views.dashboard_solicitacoes_json, name="dashboard_solicitacoes_json"),
     path("reembolso/<int:pk>/decidir/", views.reembolso_decidir, name="reembolso_decidir"),
     path("reembolso/<int:pk>/marcar-pago/", views.reembolso_marcar_pago, name="reembolso_marcar_pago"),
+    path(
+        "reembolso/<int:pk>/enviar-docusign/",
+        views.reembolso_enviar_docusign,
+        name="reembolso_enviar_docusign",
+    ),
+    path(
+        "reembolso/<int:pk>/reenviar-docusign/",
+        views.reembolso_reenviar_docusign,
+        name="reembolso_reenviar_docusign",
+    ),
     path("reembolso/<int:pk>/programar-pagamento/", views.reembolso_programar_pagamento, name="reembolso_programar_pagamento"),
     path("reembolso/<int:pk>/concluir/", views.reembolso_concluir, name="reembolso_concluir"),
     path("reembolso/<int:pk>/pdf/", views.reembolso_pdf, name="reembolso_pdf"),

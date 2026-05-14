@@ -22,38 +22,38 @@ DOCUSIGN_ANCHOR_GESTOR = "[[SIG_GEST]]"
 # CREDENCIAIS DOCUSIGN
 # ==============================
 
-CLIENT_ID = "51e88a4b-559f-4e0f-ab4f-1a77fd475acb"
-USER_ID = "dd7ef85a-5ccc-49c6-8b23-7cbca9b76248"
-ACCOUNT_ID = "1e600e61-9ddc-42f7-ae9a-7c8adffdfae1"
-BASE_URI = "https://demo.docusign.net"
+CLIENT_ID = "5d4ad290-183c-4562-b70d-c4d9b2e74d5b"
+USER_ID = "50e2ce4d-7c27-49bd-a0d2-3850ebb47a02"
+ACCOUNT_ID = "778b8142-54f1-49e1-a1ae-2f0542b95192"
+BASE_URI = "https://na2.docusign.net"
 
 # A chave privada pode ser lida de um arquivo ou variável de ambiente
 PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-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
+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
 -----END RSA PRIVATE KEY-----"""
 
 
@@ -92,7 +92,7 @@ def gerar_token():
         payload = {
             "iss": CLIENT_ID,
             "sub": USER_ID,
-            "aud": "account-d.docusign.com",
+            "aud": "account.docusign.com",
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
             "scope": "signature impersonation"
@@ -100,7 +100,7 @@ def gerar_token():
 
         jwt_token = jwt.encode(payload, private_key, algorithm="RS256")
 
-        url = "https://account-d.docusign.com/oauth/token"
+        url = "https://account.docusign.com/oauth/token"
 
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",

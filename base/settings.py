@@ -163,6 +163,26 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# DocuSign (JWT Grant) — valores padrão alinhados ao ambiente de integração;
+# em produção prefira variáveis de ambiente (sem commitar segredos).
+DOCUSIGN_INTEGRATION_KEY = os.environ.get(
+    "DOCUSIGN_INTEGRATION_KEY", "015b552b-112b-49ec-97ba-fe2a2a1020bd"
+)
+DOCUSIGN_USER_ID = os.environ.get(
+    "DOCUSIGN_USER_ID", "51c7f2e2-9712-47bb-8fef-8380fedbf148"
+)
+DOCUSIGN_ACCOUNT_ID = os.environ.get(
+    "DOCUSIGN_ACCOUNT_ID", "a5e17233-7937-4398-90e9-86b3ba8375a5"
+)
+DOCUSIGN_BASE_URI = os.environ.get(
+    "DOCUSIGN_BASE_URI", "https://na3.docusign.net"
+).rstrip("/")
+DOCUSIGN_AUTH_SERVER = os.environ.get(
+    "DOCUSIGN_AUTH_SERVER", "account.docusign.com"
+)
+# PEM completo (opcional); senão usa arquivo private.key na raiz do projeto ou env DOCUSIGN_PRIVATE_KEY.
+DOCUSIGN_PRIVATE_KEY = os.environ.get("DOCUSIGN_PRIVATE_KEY", "")
+
 # Cache configuration
 # Usando cache em memória para melhor performance
 CACHES = {

@@ -7,7 +7,6 @@ import requests
 import jwt
 import time
 import os
-import tempfile
 import logging
 from django.conf import settings
 
@@ -18,66 +17,46 @@ logger = logging.getLogger(__name__)
 DOCUSIGN_ANCHOR_SOLICITANTE = "[[SIG_SOL]]"
 DOCUSIGN_ANCHOR_GESTOR = "[[SIG_GEST]]"
 
-# ==============================
-# CREDENCIAIS DOCUSIGN
-# ==============================
+def _docusign_auth_server():
+    return getattr(settings, "DOCUSIGN_AUTH_SERVER", "account.docusign.com").strip()
 
-CLIENT_ID = "5d4ad290-183c-4562-b70d-c4d9b2e74d5b"
-USER_ID = "50e2ce4d-7c27-49bd-a0d2-3850ebb47a02"
-ACCOUNT_ID = "778b8142-54f1-49e1-a1ae-2f0542b95192"
-BASE_URI = "https://na2.docusign.net"
 
-# A chave privada pode ser lida de um arquivo ou variável de ambiente
-PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAyXF/syTWni8byG1rURaLd3QJJOIfHf+e8aNW0yDKayL6VUxt
-OamzZiXsOxVbwEeqGd+8ASzSehjm6NZIARwySQrKwy8qMi/TEc84ytUjHUsD3vRZ
-wyqKUZMaDTLcsZRCNYjQmz6fd6o8/Fqg5j9iJ1snBL5j+EQNfucSDcXqHPQcfBvI
-UXFv4Je/QDTRvVSFNdwOHZZcvo1x4Qk40qdrNA0f7lpBS7sFTA0SG7GN+pXSBN1W
-FsgYIF2EUhKlhU9uMGbwoA6DJFGEStv/uwmn9ClMDmSWDB0S0StE/z4bdTb+CXT9
-HcujV6BqDxb1iVxaIYaBvqDa+SzPAnFM6Xdz+QIDAQABAoIBAE16ySonNiEbb200
-oL1MlZH5YHb+Pge0xPad44xLJW/1wSFDxxMRsX3NgkHrYiHfro5LHq25Bq+Nmmrd
-2E4NAU5Ux04xeuJYwK8t6+Mf/WSL8M41X70QRKlBkhiXgokOxDSBDfNYL8+/+7r4
-RMCqil8m0Sgi7qKT0jkIOUpw4C4ICu4aA0KIQIL8m1HRVIZ+IAEs3W6NwUcBtGLn
-7ly8zjWei+8exRKK0p6Rw4fME+v0wjRhMIRv7dpGJtpwHBB4MF87Zw+21tbmxvkw
-r76D30nQD2dWTMcSn8k21s3aN73BSFvr5yv/G8R7lQhEwIWhkm3HsFzc0n8BM2i5
-nf82OD0CgYEA+MRggC1vpG4N+7njjOsBkM2LYjOThSiliZhbat1Zd+fs+8HqzH19
-YFNEeUQT2Ysmo1Jp+EmzAc24DFfNsZ0/d3HESQ214hSp/FKoRlENf322v3BzFNEj
-JB1OqC5ZPSbpUJjnq/BVprQH1SWnDiaGfvbiaRG7VhbtfRb20NncqLMCgYEAz0zh
-v6uQGU9ywe0HGMRc+9QSFaxp4r060PMXg8CakS1DpAeaV7x6q21O/9PfWwCDxE1n
-z15G4PD6GLgnng1+lWf6L3Tf8NvXxeFazgx7wkbx2fXYhSWS3yfQynhNxdxiZPcL
-R6cBA3UzRXGCGF/RcAxyP+65rCDCkh24L0DozqMCgYAZi8EFKKVQU2ToNryhWfi9
-L/5iRT2e7P+i05x/qt9nKs/xQoakHTbkz2g2s8D+FAYRu4LaVmclhkSiL9oVpTpB
-P9OSVPAamVijarGRFv212+kKW7fVqWxcZw4Ow0Oyve4zsqAHzhRdnBs5zjYLg/VH
-0H6Ln6CHRK96qwMJi3XXdQKBgBXjgFLEwsppYSyo4n7y/P56Pg6bzfJrGLLHeEwp
-IikCJopDY0CwXiOLvzO0I3lwbHll0vhKdCF8UGwbxdMiiaMs/3XTWXINRJNYYEYx
-ez/gTdk95Ebq2L9HbPx0B4JE6v7ONxqxv6Gl1mwWuC3qsCqspcOqaWCLdQAIs1IK
-AIsRAoGBANpLIxx1JzfN+kRaQeFYBKWtrl+uFVk+KNZxDvidTzHD5sjtLAjGf3B5
-58lOzLazQZt0kdKSCOvMVmF+TaPZdrmr8NxoJl2a4ZeuRn3W7X7ZQ4Ros7qTvsSM
-xY5ocdUJAVkaoiDF+oHsq3jZBp1xTqqi0+zPDdbjHcYBkYc6S8mI
------END RSA PRIVATE KEY-----"""
+def _docusign_base_uri():
+    return getattr(settings, "DOCUSIGN_BASE_URI", "https://na3.docusign.net").rstrip("/")
+
+
+def _docusign_account_id():
+    return getattr(settings, "DOCUSIGN_ACCOUNT_ID", "").strip()
 
 
 def _obter_private_key():
     """
-    Obtém a chave privada de um arquivo ou da constante.
-    Prioridade: arquivo private.key > variável de ambiente > constante.
+    Obtém o PEM da chave privada RSA.
+    Prioridade: variável de ambiente DOCUSIGN_PRIVATE_KEY > settings.DOCUSIGN_PRIVATE_KEY
+    > arquivo private.key na raiz do projeto.
     """
-    # Tentar ler de arquivo primeiro
+    env_key = os.environ.get("DOCUSIGN_PRIVATE_KEY")
+    if env_key and env_key.strip():
+        return env_key.strip()
+
+    cfg_key = getattr(settings, "DOCUSIGN_PRIVATE_KEY", "") or ""
+    if isinstance(cfg_key, str) and cfg_key.strip():
+        return cfg_key.strip()
+
     private_key_file = os.path.join(settings.BASE_DIR, "private.key")
     if os.path.exists(private_key_file):
         try:
-            with open(private_key_file, 'r') as f:
-                return f.read()
-        except Exception as e:
-            logger.warning(f"Erro ao ler arquivo private.key: {e}")
-    
-    # Tentar variável de ambiente
-    env_key = os.environ.get('DOCUSIGN_PRIVATE_KEY')
-    if env_key:
-        return env_key
-    
-    # Usar constante como fallback
-    return PRIVATE_KEY
+            with open(private_key_file, "r", encoding="utf-8") as f:
+                pem = f.read().strip()
+                if pem:
+                    return pem
+        except OSError as e:
+            logger.warning("Erro ao ler arquivo private.key: %s", e)
+
+    raise RuntimeError(
+        "Chave privada DocuSign não configurada. Defina DOCUSIGN_PRIVATE_KEY, "
+        "settings.DOCUSIGN_PRIVATE_KEY ou o arquivo private.key na raiz do projeto."
+    )
 
 
 # ==============================
@@ -89,25 +68,30 @@ def gerar_token():
     try:
         private_key = _obter_private_key()
 
+        auth_server = _docusign_auth_server()
         payload = {
-            "iss": CLIENT_ID,
-            "sub": USER_ID,
-            "aud": "account.docusign.com",
+            "iss": settings.DOCUSIGN_INTEGRATION_KEY,
+            "sub": settings.DOCUSIGN_USER_ID,
+            "aud": auth_server,
             "iat": int(time.time()),
             "exp": int(time.time()) + 3600,
-            "scope": "signature impersonation"
+            "scope": "signature impersonation",
         }
 
         jwt_token = jwt.encode(payload, private_key, algorithm="RS256")
 
-        url = "https://account.docusign.com/oauth/token"
+        url = f"https://{auth_server}/oauth/token"
 
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-            "assertion": jwt_token
+            "assertion": jwt_token,
         }
 
-        response = requests.post(url, data=data)
+        response = requests.post(
+            url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data=data,
+        )
         resposta = response.json()
 
         if "access_token" not in resposta:
@@ -144,7 +128,10 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
         # Converter PDF para base64
         pdf_base64 = base64.b64encode(pdf_bytes).decode()
 
-        url = f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes"
+        url = (
+            f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
+            f"{_docusign_account_id()}/envelopes"
+        )
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -250,7 +237,10 @@ def consultar_status_envelope(envelope_id):
     try:
         token = gerar_token()
 
-        url = f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}"
+        url = (
+            f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
+            f"{_docusign_account_id()}/envelopes/{envelope_id}"
+        )
 
         headers = {
             "Authorization": f"Bearer {token}",
@@ -280,7 +270,8 @@ def reenviar_envelope_docusign(envelope_id):
     """
     token = gerar_token()
     url = (
-        f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}"
+        f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
+        f"{_docusign_account_id()}/envelopes/{envelope_id}"
         "?resend_envelope=true"
     )
     headers = {
@@ -313,8 +304,8 @@ def baixar_pdf_assinado(envelope_id):
         token = gerar_token()
 
         base = (
-            f"{BASE_URI}/restapi/v2.1/accounts/{ACCOUNT_ID}/envelopes/{envelope_id}"
-            "/documents/combined"
+            f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
+            f"{_docusign_account_id()}/envelopes/{envelope_id}/documents/combined"
         )
         headers = {
             "Authorization": f"Bearer {token}",

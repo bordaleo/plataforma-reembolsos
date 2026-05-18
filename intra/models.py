@@ -1,7 +1,25 @@
+import os
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 from storages.backends.s3boto3 import S3Boto3Storage
+
+ANEXO_REEMBOLSO_UPLOAD_PREFIX = "reembolsos/anexos/"
+ANEXO_REEMBOLSO_MAX_PATH = 480  # margem para sufixo de unicidade do storage
+
+
+def anexo_reembolso_upload_to(instance, filename):
+    """Gera caminho de upload com nome seguro e limitado ao max_length do campo."""
+    filename = get_valid_filename(os.path.basename(filename))
+    name, ext = os.path.splitext(filename)
+    max_filename_len = ANEXO_REEMBOLSO_MAX_PATH - len(ANEXO_REEMBOLSO_UPLOAD_PREFIX) - 12
+    full = f"{name}{ext}"
+    if len(full) > max_filename_len:
+        name = name[: max_filename_len - len(ext)]
+        full = f"{name}{ext}"
+    return f"{ANEXO_REEMBOLSO_UPLOAD_PREFIX}{full}"
 
 
 class MediaStorage(S3Boto3Storage):
@@ -314,7 +332,14 @@ class ItemReembolso(models.Model):
     descricao = models.TextField(max_length=300)  # ou CharField(max_length=300)
     valor = models.DecimalField("Valor", max_digits=12, decimal_places=2, default=0)
     km = models.DecimalField("KM (deslocamento)", max_digits=10, decimal_places=2, null=True, blank=True)
-    anexo = models.FileField("Anexo", upload_to="reembolsos/anexos/", storage=MediaStorage(), blank=True, null=True)
+    anexo = models.FileField(
+        "Anexo",
+        upload_to=anexo_reembolso_upload_to,
+        storage=MediaStorage(),
+        max_length=500,
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         verbose_name = "Item de reembolso"

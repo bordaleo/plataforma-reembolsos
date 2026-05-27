@@ -1401,11 +1401,11 @@ TIPOS_DESPESA = [
     ("DESLOCAMENTO", "Deslocamento"),
     ("LOCOMACAO", "Locomoção"),
     ("PEDAGIO", "Pedágio"),
+    ("ESTACIONAMENTO", "Estacionamento"),
     ("REFEICAO", "Refeição"),
     ("PASSAGENS", "Passagens de Ônibus"),
-    ("OUTROS_MATERIAIS", "Outros Materiais"),
+    ("OUTROS_MATERIAIS", "Outros"),
 ]
-
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -3984,11 +3984,12 @@ def reembolso(request):
     
     # Buscar todos os registros de CentroCusto para Código no Orçamento
     codigos = CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact='').exclude(DESCRICAO__isnull=True).exclude(DESCRICAO__exact='').order_by("CODIGO")
+    codigos_visiveis = [c for c in codigos if (c.CODIGO or "").strip() != "2.5"]
     
     # Preparar dados para JSON organizados por PROGRAMA (para filtro dinâmico)
     # Estrutura: { "PROGRAMA1": [{"codigo": "...", "descricao": "..."}, ...], ... }
     codigos_por_programa = {}
-    for c in codigos:
+    for c in codigos_visiveis:
         programa = c.PROGRAMA or ""
         if programa not in codigos_por_programa:
             codigos_por_programa[programa] = []
@@ -3996,9 +3997,10 @@ def reembolso(request):
             "codigo": c.CODIGO,
             "descricao": c.DESCRICAO
         })
-    
+
     # Também manter a lista completa para compatibilidade
-    codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""} for c in codigos]
+    codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""} for c in codigos_visiveis]
+    codigos_context = codigos_visiveis
     
     # Buscar perfil do solicitante para pré-preencher dados de pagamento
     perfil = None
@@ -4051,7 +4053,7 @@ def reembolso(request):
     
     context = {
         "programas": programas,
-        "codigos": codigos,
+        "codigos": codigos_context,
         "tipos_despesa": TIPOS_DESPESA,
         "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
         "codigos_despesa_json": json.dumps(codigos_json),

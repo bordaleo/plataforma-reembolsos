@@ -25,8 +25,9 @@ except ImportError:
 ROTULOS_TIPO = {
     "REFEICAO": "REFEIÇÃO",
     "LOCOMACAO": "LOCOMOÇÃO",
-    "PASSAGENS": "PASSAGENS",
+    "PASSAGENS": "PASSAGENS DE ÔNIBUS",
     "PEDAGIO": "PEDÁGIO",
+    "ESTACIONAMENTO": "ESTACIONAMENTO",
     "DESLOCAMENTO": "DESLOCAMENTO KM",
     "OUTROS_MATERIAIS": "OUTROS",
 }
@@ -137,6 +138,16 @@ def _quebrar_texto(canvas_obj, texto, x, y, largura_max, fonte="Helvetica", tama
         canvas_obj.drawString(x, y_atual, linha)
         y_atual -= 3.5 * mm  # Espaçamento entre linhas
     
+    return y_atual
+
+
+def _desenhar_linhas_pdf(canvas_obj, linhas, x, y, fonte="Helvetica", tamanho=7, entre_linhas=3.5 * mm):
+    """Desenha linhas ja calculadas e retorna a posicao Y final."""
+    y_atual = y
+    canvas_obj.setFont(fonte, tamanho)
+    for linha in linhas:
+        canvas_obj.drawString(x, y_atual, linha)
+        y_atual -= entre_linhas
     return y_atual
 
 
@@ -354,20 +365,17 @@ def _gerar_folha_rosto(solicitacao):
     c.drawString(margin_left, y, "Nota de débito para Reembolso de Despesas")
     y -= 6 * mm
     
-    # Definir colunas da tabela com mais espaçamento entre campos (sem GESTÃO APE)
+    # Definir colunas dentro da largura util do A4. Textos longos quebram linha.
     col_programa = margin_left
-    col_cod = margin_left + 45 * mm     # Mais espaço
-    col_data = margin_left + 62 * mm    # Mais espaço
-    col_classif = margin_left + 77 * mm # Mais espaço
-    col_desc = margin_left + 97 * mm   # Mais espaço
-    col_km = margin_left + 132 * mm     # Mais espaço
-    col_valor = margin_left + 145 * mm # Mais espaço
-    
-    # Largura máxima da tabela para não sobrepor orientações
-    table_right = margin_left + 95 * mm
+    col_cod = margin_left + 23 * mm
+    col_data = margin_left + 65 * mm
+    col_classif = margin_left + 81 * mm
+    col_desc = margin_left + 108 * mm
+    col_km = margin_left + 151 * mm
+    col_valor = margin_left + 160 * mm
     
     # Cabeçalho da tabela
-    c.setFont("Helvetica-Bold", 7)  # Fonte menor para cabeçalhos
+    c.setFont("Helvetica-Bold", 6)
     c.drawString(col_programa, y, "Programa:")
     c.drawString(col_cod, y, "CÓD. DESP.")
     c.drawString(col_data, y, "DATA")
@@ -378,7 +386,7 @@ def _gerar_folha_rosto(solicitacao):
     y -= 5 * mm
     
     # Linha separadora (até a coluna VALOR)
-    c.line(margin_left, y, col_valor + 20 * mm, y)
+    c.line(margin_left, y, col_valor + 10 * mm, y)
     y -= 3 * mm
     
     # Dados da tabela
@@ -387,21 +395,47 @@ def _gerar_folha_rosto(solicitacao):
     
     # Buscar descrições dos códigos de despesa
     from intra.models import CentroCusto
+    codigos_descricoes = {}
+    for centro_custo in CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact=''):
+        codigo = (centro_custo.CODIGO or "").strip()
+        if not codigo or codigo in codigos_descricoes:
+            continue
+        if centro_custo.DESCRICAO:
+            codigos_descricoes[codigo] = centro_custo.DESCRICAO
+    codigos_descricoes.setdefault("2.5", "DESPESAS NÃO ORÇADAS")
     
     y_table_bottom = y
     
     if itens:
-        c.setFont("Helvetica", 7)  # Fonte menor para dados
+        fonte_tabela = "Helvetica"
+        tamanho_tabela = 5.2
+        entre_linhas_tabela = 3 * mm
+        c.setFont(fonte_tabela, tamanho_tabela)
         y_min_tabela = 125 * mm
         idx = 0
         while idx < len(itens):
             item = itens[idx]
-            # Pre-check: calcular linhas da descricao para saber se cabe
-            largura_desc_pre = col_km - col_desc - 3 * mm
-            desc_pre = (item.descricao or "-").strip()
-            linhas_pre = _linhas_quebra_pdf(c, desc_pre, largura_desc_pre) if desc_pre != "-" else []
-            n_linhas = max(1, len(linhas_pre))
-            y_previsto = y - max(4 * mm, n_linhas * 3.5 * mm)
+            programa = solicitacao.centro_custo or "-"
+            cod_desp = item.cod_despesa or "-"
+            cod_descricao = codigos_descricoes.get(cod_desp)
+            if cod_desp == "2.5":
+                cod_descricao = "DESPESAS NÃO ORÇADAS"
+            cod_label = f"{cod_desp} - {cod_descricao}" if cod_descricao else cod_desp
+            tipo_label = ROTULOS_TIPO.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
+            descricao_item = (item.descricao or "-").strip()
+
+            largura_programa = col_cod - col_programa - 3 * mm
+            largura_cod = col_data - col_cod - 3 * mm
+            largura_classif = col_desc - col_classif - 3 * mm
+            largura_desc = col_km - col_desc - 3 * mm
+
+            linhas_programa = _linhas_quebra_pdf(c, programa, largura_programa, fonte_tabela, tamanho_tabela) or ["-"]
+            linhas_cod = _linhas_quebra_pdf(c, cod_label, largura_cod, fonte_tabela, tamanho_tabela) or ["-"]
+            linhas_classif = _linhas_quebra_pdf(c, tipo_label, largura_classif, fonte_tabela, tamanho_tabela) or ["-"]
+            linhas_desc = _linhas_quebra_pdf(c, descricao_item, largura_desc, fonte_tabela, tamanho_tabela) or ["-"]
+            n_linhas = max(len(linhas_programa), len(linhas_cod), len(linhas_classif), len(linhas_desc), 1)
+            altura_linha = max(4 * mm, n_linhas * entre_linhas_tabela)
+            y_previsto = y - altura_linha
             # Se nao couber, criar nova pagina e refazer este item
             if y_previsto < y_min_tabela:
                 c.showPage()
@@ -409,7 +443,7 @@ def _gerar_folha_rosto(solicitacao):
                 c.setFont("Helvetica-Bold", 8)
                 c.drawString(margin_left, y, "Reembolso - itens (continuacao)")
                 y -= 6 * mm
-                c.setFont("Helvetica-Bold", 7)
+                c.setFont("Helvetica-Bold", 6)
                 c.drawString(col_programa, y, "Programa:")
                 c.drawString(col_cod, y, "COD. DESP.")
                 c.drawString(col_data, y, "DATA")
@@ -418,63 +452,30 @@ def _gerar_folha_rosto(solicitacao):
                 c.drawString(col_km, y, "km")
                 c.drawString(col_valor, y, "VALOR")
                 y -= 5 * mm
-                c.line(margin_left, y, col_valor + 20 * mm, y)
+                c.line(margin_left, y, col_valor + 10 * mm, y)
                 y -= 3 * mm
-                c.setFont("Helvetica", 7)
+                c.setFont(fonte_tabela, tamanho_tabela)
                 y_min_tabela = 35 * mm
                 continue
-            # Programa (centro de custo) - mostrar em todos os itens
-            programa = solicitacao.centro_custo or "-"
-            # Calcular largura disponível até a próxima coluna
-            largura_disponivel = col_cod - col_programa - 5 * mm
-            # Tentar mostrar completo, se não couber usar "..." no final
-            if c.stringWidth(programa, "Helvetica", 7) > largura_disponivel:
-                # Reduzir até caber
-                while len(programa) > 0 and c.stringWidth(programa + "...", "Helvetica", 7) > largura_disponivel:
-                    programa = programa[:-1]
-                programa = programa + "..."
-            c.drawString(col_programa, y, programa)
-            
-            # Código de despesa (apenas o código, sem descrição na tabela)
-            cod_desp = item.cod_despesa or "-"
-            if len(cod_desp) > 10:
-                cod_desp = cod_desp[:10]
-            c.drawString(col_cod, y, cod_desp)
-            
+
+            _desenhar_linhas_pdf(c, linhas_programa, col_programa, y, fonte_tabela, tamanho_tabela, entre_linhas_tabela)
+            _desenhar_linhas_pdf(c, linhas_cod, col_cod, y, fonte_tabela, tamanho_tabela, entre_linhas_tabela)
+
             # Data da despesa ou data da solicitação
             data_item = item.data_despesa.strftime("%d/%m/%Y") if item.data_despesa else data_str
             c.drawString(col_data, y, data_item)
-            
-            # Classificação (tipo de despesa) - mostrar completo, adaptar ao espaço disponível
-            tipo_label = ROTULOS_TIPO.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
-            largura_classif = col_desc - col_classif - 3 * mm
-            if c.stringWidth(tipo_label, "Helvetica", 7) > largura_classif:
-                # Reduzir até caber
-                tipo_original = tipo_label
-                while len(tipo_label) > 0 and c.stringWidth(tipo_label + "...", "Helvetica", 7) > largura_classif:
-                    tipo_label = tipo_label[:-1]
-                tipo_label = tipo_label + "..."
-            c.drawString(col_classif, y, tipo_label)
-            
-            # Descrição do item - quebrar em múltiplas linhas se necessário
-            descricao_item = (item.descricao or "-").strip()
-            largura_desc = col_km - col_desc - 3 * mm
-            y_desc_final = _quebrar_texto(c, descricao_item, col_desc, y, largura_desc, "Helvetica", 7)
-            
+            _desenhar_linhas_pdf(c, linhas_classif, col_classif, y, fonte_tabela, tamanho_tabela, entre_linhas_tabela)
+            _desenhar_linhas_pdf(c, linhas_desc, col_desc, y, fonte_tabela, tamanho_tabela, entre_linhas_tabela)
+
             # KM - alinhar com a primeira linha da descrição
             km_str = _formatar_valor(item.km) if item.km is not None else "-"
             c.drawString(col_km, y, km_str)
-            
+
             # Valor - alinhar com a primeira linha da descrição
             val_str = _formatar_valor(item.valor)
             c.drawString(col_valor, y, val_str)
-            
-            # Se a descrição ocupou mais de uma linha, usar o Y final (mais baixo)
-            # Caso contrário, usar o espaçamento padrão
-            if y_desc_final < y - 4 * mm:
-                y = y_desc_final
-            else:
-                y -= 4 * mm
+
+            y -= altura_linha
             y_table_bottom = y
             idx += 1
     else:

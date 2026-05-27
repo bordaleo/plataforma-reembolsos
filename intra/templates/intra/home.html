@@ -17,10 +17,16 @@
         margin-bottom: 2rem;
         position: relative;
     }
-    .tour-button {
+    .tour-actions {
         position: absolute;
         top: 1rem;
         right: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+    .tour-button {
         background: rgba(255, 255, 255, 0.15);
         border: 2px solid rgba(255, 255, 255, 0.3);
         color: #ffffff;
@@ -35,17 +41,39 @@
         align-items: center;
         gap: 0.5rem;
     }
+    .tour-doc-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 20px;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.3s;
+        backdrop-filter: blur(10px);
+    }
     .tour-button:hover {
         background: rgba(255, 255, 255, 0.25);
         border-color: rgba(255, 255, 255, 0.5);
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
+    .tour-doc-button:hover {
+        background: rgba(255, 255, 255, 0.22);
+        border-color: rgba(255, 255, 255, 0.6);
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
     @media (max-width: 768px) {
-        .tour-button {
+        .tour-actions {
             position: static;
             margin-top: 1rem;
-            display: inline-block;
+            align-items: center;
         }
     }
     .welcome-logo {
@@ -199,9 +227,17 @@
 {% block content %}
 <div class="home-container">
     <div class="welcome-hero" id="welcome-hero">
-        <button class="tour-button" id="iniciar-tour-btn" onclick="iniciarTour()">
-            🎯 Iniciar Tour
-        </button>
+        <div class="tour-actions">
+            <button class="tour-button" id="iniciar-tour-btn" onclick="iniciarTour()">
+                🎯 Iniciar Tour
+            </button>
+            <a href="{% static 'pdfs/Manual de Solicitação - Reembolsos Parceiros 22.05.26.pdf' %}" target="_blank" rel="noopener" class="tour-doc-button">
+                📘 Manual de Solicitação
+            </a>
+            <a href="{% static 'pdfs/Politica de Reembolso e Procedimento 25.05.26 v2.pdf' %}" target="_blank" rel="noopener" class="tour-doc-button">
+                📄 Política de Reembolso
+            </a>
+        </div>
         <div class="welcome-logo">
             <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
         </div>
@@ -266,7 +302,7 @@
         {% if is_gestor_admin %}
             Como gestor administrativo, você tem acesso completo a todas as funcionalidades do sistema. Use o Dashboard para acompanhar métricas e estatísticas importantes.
         {% elif is_gestor_simples %}
-            Como gestor, você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar.
+            Você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar.
         {% else %}
             Mantenha seus dados bancários atualizados e certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso.
         {% endif %}
@@ -280,11 +316,19 @@
             {% if is_gestor_admin %}
                 Olá! Você é um Gestor Administrativo. Este tour vai te mostrar as principais funcionalidades disponíveis para você no sistema. Clique em 'Próximo' para começar!
             {% elif is_gestor_simples %}
-                Olá! Você é um Gestor. Este tour vai te mostrar como usar o sistema para aprovar reembolsos e criar suas próprias solicitações. Vamos começar!
+                Olá! Este tour vai te mostrar como usar o sistema para aprovar reembolsos e criar suas próprias solicitações. Vamos começar!
             {% else %}
                 Olá! Este tour vai te ajudar a entender como solicitar reembolsos e acompanhar suas solicitações. Vamos começar!
             {% endif %}
         </p>
+        <div class="tour-manual-links">
+            <a href="{% static 'pdfs/Manual de Solicitação - Reembolsos Parceiros 22.05.26.pdf' %}" target="_blank" rel="noopener" class="tour-manual-link">
+                Manual de Solicitação
+            </a>
+            <a href="{% static 'pdfs/Politica de Reembolso e Procedimento 25.05.26 v2.pdf' %}" target="_blank" rel="noopener" class="tour-manual-link">
+                Política de Reembolso
+            </a>
+        </div>
     </div>
 </div>
 
@@ -525,7 +569,12 @@ function iniciarTour() {
     };
     botaoProximo.onclick = avancarDoPrimeiroStep;
     botaoProximo.addEventListener('click', avancarDoPrimeiroStep, true);
-    welcomeBox.appendChild(botaoProximo);
+    const linksManuais = welcomeBox.querySelector('.tour-manual-links');
+    if (linksManuais) {
+        welcomeBox.insertBefore(botaoProximo, linksManuais);
+    } else {
+        welcomeBox.appendChild(botaoProximo);
+    }
     
     // Permitir fechar com ESC também no primeiro step
     function fecharComEsc(e) {
@@ -626,6 +675,36 @@ function iniciarTour() {
 #tour-welcome-box button:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.tour-manual-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.tour-manual-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+    border: 1px solid #34495e;
+    border-radius: 6px;
+    color: #34495e;
+    background: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.tour-manual-link:hover {
+    background: #34495e;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
 }
 
 /* Destacar elementos durante o tour */

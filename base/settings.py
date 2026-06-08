@@ -234,7 +234,7 @@ LOGGING = {
     },
     'loggers': {
         'intra': {
-            'handlers': ['console'],
+            'handlers': ['console'], 
             'level': 'DEBUG',
             'propagate': False,
         },

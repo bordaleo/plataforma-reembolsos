@@ -1,5 +1,5 @@
 {% extends "intra/base.html" %}
-{% block title %}Reembolso - Plataforma de Reembolsos Parceiros{% endblock %}
+{% block title %}Reembolso - Plataforma de Reembolsos{% endblock %}
 {% block extra_css %}
 <style>
     .card-header {
@@ -714,8 +714,6 @@
             <div class="form-group">
                 <label for="nome_gestor">E-mail do Gestor(a)/Aprovador(a)<span style="color: #e74c3c;">*</span></label>
                 <input type="email" name="nome_gestor" id="nome_gestor" required class="form-control"
-                       pattern="^[A-Za-z0-9._%+-]+@parceirosedu\.org\.br$"
-                       title="Informe um e-mail no domínio @parceirosedu.org.br"
                        value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
                        placeholder="Digite o e-mail do gestor/aprovador">
             </div>
@@ -975,17 +973,17 @@
     // Inicialmente desabilitar campos
     toggleCamposDespesa(false);
 
-    // Validação de domínio do aprovador (@parceirosedu.org.br)
-    function emailParceirosValido(valor) {
-        var re = /^[A-Za-z0-9._%+-]+@parceirosedu\.org\.br$/i;
+    // Validação básica do e-mail do aprovador.
+    function emailAprovadorValido(valor) {
+        var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
         return re.test((valor || '').trim());
     }
 
     function atualizarValidadeAprovador() {
         if (!aprovadorInput) return;
         var valor = (aprovadorInput.value || '').trim();
-        if (valor && !emailParceirosValido(valor)) {
-            aprovadorInput.setCustomValidity('Use um e-mail @parceirosedu.org.br');
+        if (valor && !emailAprovadorValido(valor)) {
+            aprovadorInput.setCustomValidity('Informe um e-mail válido.');
         } else if (valor && emailUsuarioLogado && valor.toLowerCase() === emailUsuarioLogado.toLowerCase()) {
             aprovadorInput.setCustomValidity('Você não pode usar seu próprio e-mail como aprovador.');
         } else {
@@ -1001,7 +999,7 @@
             emailUsuarioLogado &&
             aprovadorValor.toLowerCase() === emailUsuarioLogado.toLowerCase()
         );
-        var aprovadorOk = !!(aprovadorInput && emailParceirosValido(aprovadorValor) && naoEhProprioEmail);
+        var aprovadorOk = !!(aprovadorInput && emailAprovadorValido(aprovadorValor) && naoEhProprioEmail);
         return ccOk && aprovadorOk;
     }
 

@@ -290,44 +290,10 @@ def _gerar_folha_rosto(solicitacao):
         except Exception:
             return (solic.nome_gestor or "-")
     
-    # --- Logo no canto superior direito (mais para cima) ---
-    logo_paths = [
-        os.path.join(settings.BASE_DIR, 'intra', 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
-        os.path.join(settings.BASE_DIR, 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
-        os.path.join('intra', 'static', 'admin', 'img', 'logos', 'PE_Logo_Original_vertical.png'),
-    ]
-    logo_path = None
-    for path in logo_paths:
-        if os.path.exists(path):
-            logo_path = path
-            break
-    
-    logo_width = 0
-    logo_height = 0
-    if logo_path:
-        try:
-            logo = ImageReader(logo_path)
-            logo_width = 40 * mm
-            logo_height = 50 * mm
-            logo_x = margin_right - logo_width + 10 * mm  # Mais para direita
-            logo_y = height - logo_height + 5 * mm  # Mantém a posição vertical
-            c.drawImage(logo, logo_x, logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True)
-        except Exception:
-            pass
-    
-    # --- Cabeçalho (Associação) no canto esquerdo ---
+    # --- Cabeçalho neutro ---
     y_header = height - 15 * mm  # Mais para cima também
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(margin_left, y_header, "A ASSOCIAÇÃO PARCEIROS DA EDUCAÇÃO")
-    y_header -= 5 * mm
-    c.setFont("Helvetica", 9)
-    c.drawString(margin_left, y_header, "CNPJ: 06.878.967/0001-57")
-    y_header -= 4 * mm
-    c.drawString(margin_left, y_header, "Av. Paulista, 967 - 3º Andar")
-    y_header -= 4 * mm
-    c.drawString(margin_left, y_header, "Bela Vista, São Paulo - SP")
-    y_header -= 4 * mm
-    c.drawString(margin_left, y_header, "CEP: 01311-100")
+    c.drawString(margin_left, y_header, "PLATAFORMA DE REEMBOLSOS")
     
     # --- Título centralizado abaixo do cabeçalho ---
     y_title = y_header - 8 * mm

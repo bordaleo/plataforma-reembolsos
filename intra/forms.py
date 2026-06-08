@@ -24,16 +24,6 @@ class EsqueceuAcessoForm(forms.Form):
         widget=forms.EmailInput(attrs={"placeholder": "seu@email.com", "autofocus": True}),
     )
 
-    DOMINIO_PERMITIDO = "@parceirosedu.org.br"
-
-    def clean_email(self):
-        email = self.cleaned_data.get("email", "").strip().lower()
-        if email and not email.endswith(self.DOMINIO_PERMITIDO.lower()):
-            raise forms.ValidationError(
-                "Sistema de uso interno da Parceiros da Educação."
-            )
-        return email
-
 
 class CompletarCadastroForm(forms.ModelForm):
     BANCOS_CHOICES = [

@@ -24,10 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ""
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-local-development-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = ["*"]
 
@@ -94,7 +94,9 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-DATABASES["default"] = dj_database_url.parse("")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL:
+    DATABASES["default"] = dj_database_url.parse(DATABASE_URL)
 
 
 # Password validation
@@ -134,26 +136,27 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# AWS S3 Configuration
-AWS_ACCESS_KEY_ID = ""
-AWS_SECRET_ACCESS_KEY = ""
-AWS_STORAGE_BUCKET_NAME = "intranet-parceiros"
-AWS_S3_REGION_NAME = "us-east-2"
-AWS_S3_CUSTOM_DOMAIN = (
-    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-)
-AWS_S3_OBJECT_PARAMETERS = {
-    "CacheControl": "max-age=86400",
-}
-# ACL desabilitado (bucket não permite ACLs)
-AWS_DEFAULT_ACL = None
-AWS_QUERYSTRING_AUTH = False
-# Permitir sobrescrever arquivos com mesmo nome
-AWS_S3_FILE_OVERWRITE = False
+# Media storage. Configure AWS_* environment variables to use S3 in production.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-# Use S3 for media files storage
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-2")
+
+if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME:
+    AWS_S3_CUSTOM_DOMAIN = (
+        f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    )
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
 
 # WhiteNoise: evita CompressedManifestStaticFilesStorage no deploy (manifest costuma dar 404 no Render)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
@@ -163,24 +166,17 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DocuSign (JWT Grant) — valores padrão alinhados ao ambiente de integração;
-# em produção prefira variáveis de ambiente (sem commitar segredos).
-DOCUSIGN_INTEGRATION_KEY = os.environ.get(
-    "DOCUSIGN_INTEGRATION_KEY", "015b552b-112b-49ec-97ba-fe2a2a1020bd"
-)
-DOCUSIGN_USER_ID = os.environ.get(
-    "DOCUSIGN_USER_ID", "51c7f2e2-9712-47bb-8fef-8380fedbf148"
-)
-DOCUSIGN_ACCOUNT_ID = os.environ.get(
-    "DOCUSIGN_ACCOUNT_ID", "a5e17233-7937-4398-90e9-86b3ba8375a5"
-)
+# DocuSign (JWT Grant). Configure via environment variables.
+DOCUSIGN_INTEGRATION_KEY = os.environ.get("DOCUSIGN_INTEGRATION_KEY", "")
+DOCUSIGN_USER_ID = os.environ.get("DOCUSIGN_USER_ID", "")
+DOCUSIGN_ACCOUNT_ID = os.environ.get("DOCUSIGN_ACCOUNT_ID", "")
 DOCUSIGN_BASE_URI = os.environ.get(
     "DOCUSIGN_BASE_URI", "https://na3.docusign.net"
 ).rstrip("/")
 DOCUSIGN_AUTH_SERVER = os.environ.get(
     "DOCUSIGN_AUTH_SERVER", "account.docusign.com"
 )
-# PEM completo (opcional); senão usa arquivo private.key na raiz do projeto ou env DOCUSIGN_PRIVATE_KEY.
+# PEM completo via variável de ambiente.
 DOCUSIGN_PRIVATE_KEY = os.environ.get("DOCUSIGN_PRIVATE_KEY", "")
 
 # Cache configuration
@@ -205,12 +201,12 @@ AUTHENTICATION_BACKENDS = [
 
 # E-mail (SMTP)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "reembolsos@parceirosedu.org.br"
-EMAIL_HOST_PASSWORD = ""
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # Logging configuration for debug
 LOGGING = {

@@ -1,6 +1,6 @@
 """
 Script de teste DocuSign (token JWT + chamada REST).
-Credenciais: base.settings (DOCUSIGN_*) e chave PEM (env / settings / private.key).
+Credenciais: variáveis de ambiente DOCUSIGN_*.
 """
 import os
 import sys

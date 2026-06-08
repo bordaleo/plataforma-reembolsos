@@ -1,6 +1,6 @@
 {% extends "intra/base.html" %}
 {% load static %}
-{% block title %}Início - Plataforma de Reembolsos Parceiros da Educação{% endblock %}
+{% block title %}Início - Plataforma de Reembolsos{% endblock %}
 {% block extra_css %}
 <style>
     .home-container {
@@ -231,18 +231,12 @@
             <button class="tour-button" id="iniciar-tour-btn" onclick="iniciarTour()">
                 🎯 Iniciar Tour
             </button>
-            <a href="{% static 'pdfs/Manual de Solicitação - Reembolsos Parceiros 22.05.26.pdf' %}" target="_blank" rel="noopener" class="tour-doc-button">
-                📘 Manual de Solicitação
-            </a>
             <a href="{% static 'pdfs/Politica de Reembolso e Procedimento 25.05.26 v2.pdf' %}" target="_blank" rel="noopener" class="tour-doc-button">
                 📄 Política de Reembolso
             </a>
         </div>
-        <div class="welcome-logo">
-            <img src="{% static 'admin/img/logos/PE_Logo_Original_vertical.png' %}" alt="Parceiros da Educação">
-        </div>
         <h1>Olá, {{ user_display_name }}! 👋</h1>
-        <p class="welcome-subtitle">Bem-vindo à Plataforma de Reembolsos - Parceiros da Educação</p>
+        <p class="welcome-subtitle">Bem-vindo à Plataforma de Reembolsos</p>
     </div>
 
     <div class="quick-actions" id="quick-actions">
@@ -322,9 +316,6 @@
             {% endif %}
         </p>
         <div class="tour-manual-links">
-            <a href="{% static 'pdfs/Manual de Solicitação - Reembolsos Parceiros 22.05.26.pdf' %}" target="_blank" rel="noopener" class="tour-manual-link">
-                Manual de Solicitação
-            </a>
             <a href="{% static 'pdfs/Politica de Reembolso e Procedimento 25.05.26 v2.pdf' %}" target="_blank" rel="noopener" class="tour-manual-link">
                 Política de Reembolso
             </a>

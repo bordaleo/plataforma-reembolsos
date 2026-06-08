@@ -33,7 +33,6 @@ def _obter_private_key():
     """
     Obtém o PEM da chave privada RSA.
     Prioridade: variável de ambiente DOCUSIGN_PRIVATE_KEY > settings.DOCUSIGN_PRIVATE_KEY
-    > arquivo private.key na raiz do projeto.
     """
     env_key = os.environ.get("DOCUSIGN_PRIVATE_KEY")
     if env_key and env_key.strip():
@@ -43,19 +42,9 @@ def _obter_private_key():
     if isinstance(cfg_key, str) and cfg_key.strip():
         return cfg_key.strip()
 
-    private_key_file = os.path.join(settings.BASE_DIR, "private.key")
-    if os.path.exists(private_key_file):
-        try:
-            with open(private_key_file, "r", encoding="utf-8") as f:
-                pem = f.read().strip()
-                if pem:
-                    return pem
-        except OSError as e:
-            logger.warning("Erro ao ler arquivo private.key: %s", e)
-
     raise RuntimeError(
         "Chave privada DocuSign não configurada. Defina DOCUSIGN_PRIVATE_KEY, "
-        "settings.DOCUSIGN_PRIVATE_KEY ou o arquivo private.key na raiz do projeto."
+        "ou settings.DOCUSIGN_PRIVATE_KEY."
     )
 
 

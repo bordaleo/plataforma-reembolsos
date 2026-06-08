@@ -491,7 +491,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
         valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada pelo Gestor - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Aprovada pelo Gestor - Plataforma de Reembolsos"
             message = (
                 f"Olá {nome_solicitante},\n\n"
                 f"{'='*60}\n"
@@ -542,7 +542,7 @@ def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada pelo Gestor - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor - Plataforma de Reembolsos"
             motivo = solicitacao.motivo_rejeicao_gestor or "Não informado"
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -795,7 +795,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
             return
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos"
             message = (
                 f"Olá {nome_solicitante},\n\n"
                 f"{'='*60}\n"
@@ -846,7 +846,7 @@ def _enviar_email_aprovacao_final(solicitacao, aprovado=True):
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada pelo Gestor Administrativo - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada pelo Gestor Administrativo - Plataforma de Reembolsos"
             motivo = solicitacao.motivo_rejeicao_gestor_admin or "Não informado"
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -934,7 +934,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
         valor_formatado = f"R$ {solicitacao.valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
         if aprovado:
-            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Aprovada - Plataforma de Reembolsos"
             # Versão texto plano
             message = (
                 f"Olá {nome_solicitante},\n\n"
@@ -988,7 +988,7 @@ def _enviar_email_aprovacao_rejeicao(solicitacao, aprovado=True):
             </html>
             """
         else:
-            subject = "Solicitação de Reembolso Rejeitada - Plataforma de Reembolsos Parceiros"
+            subject = "Solicitação de Reembolso Rejeitada - Plataforma de Reembolsos"
             motivo = solicitacao.motivo_rejeicao or "Não informado"
             # Versão texto plano
             message = (
@@ -1086,7 +1086,7 @@ def _enviar_email_nova_solicitacao_gestor(solicitacao, request=None, email_gesto
         else:
             aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
         
-        subject = "Nova Solicitação de Reembolso Aguardando sua Aprovação - Plataforma de Reembolsos Parceiros"
+        subject = "Nova Solicitação de Reembolso Aguardando sua Aprovação - Plataforma de Reembolsos"
         
         message = (
             f"Olá,\n\n"
@@ -1246,7 +1246,7 @@ def _enviar_email_nova_solicitacao(solicitacao, request=None):
         else:
             aprovar_url = "http://127.0.0.1:8000/aprovar-reembolsos/"
         
-        subject = "Nova Solicitação de Reembolso Aguardando Aprovação - Plataforma de Reembolsos Parceiros"
+        subject = "Nova Solicitação de Reembolso Aguardando Aprovação - Plataforma de Reembolsos"
         
         # Versão texto plano
         message = (
@@ -1461,10 +1461,10 @@ def esqueceu_acesso_view(request):
             )
             PerfilSolicitante.objects.get_or_create(user=user)
             send_mail(
-                subject="Acesso à Plataforma de Reembolsos Parceiros - Senha de acesso",
+                subject="Acesso à Plataforma de Reembolsos - Senha de acesso",
                 message=(
                     f"Olá,\n\n"
-                    f"Seu acesso à Plataforma de Reembolsos Parceiros foi criado.\n\n"
+                    f"Seu acesso à Plataforma de Reembolsos foi criado.\n\n"
                     f"E-mail: {email}\n"
                     f"Senha: {nova_senha}\n\n"
                     f"Faça login em: {login_url}\n\n"
@@ -1480,10 +1480,10 @@ def esqueceu_acesso_view(request):
             user.set_password(nova_senha)
             user.save(update_fields=["password"])
             send_mail(
-                subject="Plataforma de Reembolsos Parceiros - Nova senha de acesso",
+                subject="Plataforma de Reembolsos - Nova senha de acesso",
                 message=(
                     f"Olá,\n\n"
-                    f"Você já estava cadastrado na Plataforma de Reembolsos Parceiros. "
+                    f"Você já estava cadastrado na Plataforma de Reembolsos. "
                     f"Sua senha foi alterada conforme solicitado.\n\n"
                     f"E-mail: {email}\n"
                     f"Nova senha: {nova_senha}\n\n"
@@ -4186,6 +4186,9 @@ def reembolso(request):
                     return False
                 numeros = re.sub(r'\D', '', valor)
                 return len(numeros) == 11 or len(numeros) == 14
+
+            # Flag para indicar se há erro de validação
+            erro_validacao = False
             
             # Capturar nome do gestor
             nome_gestor = request.POST.get("nome_gestor", "").strip()
@@ -4195,10 +4198,6 @@ def reembolso(request):
                 except ValidationError:
                     messages.error(request, "Informe um e-mail válido no campo do Gestor(a)/Aprovador(a).")
                     erro_validacao = True
-                else:
-                    if not nome_gestor.lower().endswith("@parceirosedu.org.br"):
-                        messages.error(request, "O e-mail do Gestor(a)/Aprovador(a) deve ser do domínio @parceirosedu.org.br.")
-                        erro_validacao = True
             
             # Validar CPF/CNPJ
             import re
@@ -4207,9 +4206,6 @@ def reembolso(request):
                     return False
                 numeros = re.sub(r'\D', '', valor)
                 return len(numeros) == 11 or len(numeros) == 14
-            
-            # Flag para indicar se há erro de validação
-            erro_validacao = False
             
             if forma_pagamento == "PIX" and pix_cpf:
                 if not validar_cpf_cnpj(pix_cpf):

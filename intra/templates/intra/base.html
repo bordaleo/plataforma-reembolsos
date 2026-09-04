@@ -965,7 +965,13 @@
                         
                         // Detectar tipo de formulário por classe ou ID
                         if (form.id === 'form-reembolso') {
-                            message = 'Enviando solicitação de reembolso...';
+                            var acaoEl = form.querySelector('#acao-reembolso');
+                            var acaoVal = acaoEl ? acaoEl.value : '';
+                            if (acaoVal === 'rascunho' || window.reembolsoSalvandoRascunho) {
+                                message = 'Salvando rascunho...';
+                            } else {
+                                message = 'Enviando solicitação de reembolso...';
+                            }
                         } else if (form.id === 'form-rejeitar') {
                             message = 'Rejeitando solicitação...';
                         } else if (form.classList.contains('search-form')) {

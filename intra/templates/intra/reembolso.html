@@ -476,8 +476,12 @@
         background: #fff;
         padding-top: 1rem;
         z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
-    .card-submit .btn-primary {
+    .card-submit .btn-primary,
+    .card-submit .btn-salvar-rascunho {
         width: 100%;
         padding: 1.5rem 2rem;
         font-size: 1.2rem;
@@ -486,11 +490,31 @@
         border-radius: 10px;
         margin: 0;
         letter-spacing: 0.5px;
+        transition: all 0.3s;
+        cursor: pointer;
+        box-sizing: border-box;
+    }
+    .card-submit .btn-primary {
         background: #34495e;
         color: #ffffff;
         box-shadow: 0 4px 12px rgba(52, 73, 94, 0.2);
-        transition: all 0.3s;
         border: none;
+    }
+    .card-submit .btn-salvar-rascunho {
+        background: #ffffff;
+        color: #3182ce;
+        border: 2px solid #3182ce;
+        box-shadow: 0 4px 12px rgba(49, 130, 206, 0.15);
+    }
+    .card-submit .btn-salvar-rascunho:hover:not(:disabled) {
+        background: #ebf8ff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(49, 130, 206, 0.2);
+    }
+    .card-submit .btn-salvar-rascunho:disabled {
+        opacity: 0.75;
+        cursor: wait;
+        transform: none;
     }
     .card-submit .btn-primary:hover {
         background: #2c3e50;
@@ -672,9 +696,9 @@
 </style>
 {% endblock %}
 {% block content %}
-<h1 class="page-title">{% if solicitacao_editar %}Editar Solicitação de Reembolso{% else %}Solicitação de Reembolso{% endif %}</h1>
+<h1 class="page-title">{% if eh_rascunho %}Continuar Rascunho{% elif solicitacao_editar %}Editar Solicitação de Reembolso{% else %}Solicitação de Reembolso{% endif %}</h1>
 
-{% if solicitacao_editar %}
+{% if solicitacao_editar and not eh_rascunho %}
 <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #e53e3e;">
     <div style="padding: 1rem 1.5rem;">
         <h3 style="margin: 0 0 0.75rem; font-size: 1.1rem; font-weight: 700; color: #e53e3e;">Motivo da Rejeição</h3>
@@ -689,10 +713,20 @@
         </p>
     </div>
 </div>
+{% elif eh_rascunho %}
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #3182ce;">
+    <div style="padding: 1rem 1.5rem;">
+        <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700; color: #3182ce;">Rascunho em andamento</h3>
+        <p style="margin: 0; color: #2c3e50; font-size: 0.95rem; line-height: 1.6;">
+            Você está editando o rascunho <strong>#{{ solicitacao_editar.pk }}</strong>. Use <strong>Salvar rascunho</strong> para continuar depois ou <strong>Enviar solicitação</strong> quando estiver pronto.
+        </p>
+    </div>
+</div>
 {% endif %}
 
 <form method="post" action="" enctype="multipart/form-data" id="form-reembolso">
     {% csrf_token %}
+    <input type="hidden" name="acao" id="acao-reembolso" value="">
     {% if solicitacao_editar %}
     <input type="hidden" name="editar_id" value="{{ solicitacao_editar.pk }}">
     {% endif %}
@@ -891,7 +925,10 @@
     </div>
 
     <div class="card card-submit">
-        <button type="submit" class="btn btn-primary" style="margin: 0;">{% if solicitacao_editar %}Reenviar Solicitação{% else %}Enviar Solicitação{% endif %}</button>
+        <button type="submit" class="btn-salvar-rascunho" id="btn-salvar-rascunho" data-acao="rascunho" formnovalidate>Salvar rascunho</button>
+        <button type="submit" class="btn btn-primary" id="btn-enviar-solicitacao" data-acao="enviar" style="margin: 0;">
+            {% if eh_rascunho %}Enviar solicitação{% elif solicitacao_editar %}Reenviar solicitação{% else %}Enviar solicitação{% endif %}
+        </button>
     </div>
 </form>
 
@@ -2648,9 +2685,54 @@ document.addEventListener('DOMContentLoaded', function() {
             valoresIniciais = obterValoresIniciais();
         }, 500); // Aguardar 500ms para garantir que os campos foram preenchidos
         {% endif %}
+
+        function obterAcaoSubmit(submitter) {
+            var acaoEl = document.getElementById('acao-reembolso');
+            var acao = 'enviar';
+            if (submitter && submitter.getAttribute('data-acao')) {
+                acao = submitter.getAttribute('data-acao');
+            } else if (acaoEl && acaoEl.value) {
+                acao = acaoEl.value;
+            }
+            if (acaoEl) {
+                acaoEl.value = acao;
+            }
+            return acao;
+        }
+
+        ['btn-salvar-rascunho', 'btn-enviar-solicitacao'].forEach(function(btnId) {
+            var btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.addEventListener('mousedown', function() {
+                var acaoEl = document.getElementById('acao-reembolso');
+                if (acaoEl) {
+                    acaoEl.value = btn.getAttribute('data-acao') || 'enviar';
+                }
+            });
+        });
         
         // Usar capture phase e invalid event para interceptar antes da validação
         form.addEventListener('submit', function(e) {
+            var submitter = e.submitter;
+            var acao = obterAcaoSubmit(submitter);
+            var salvarRascunho = acao === 'rascunho';
+
+            if (salvarRascunho) {
+                form.querySelectorAll('[required]').forEach(function(el) {
+                    el.removeAttribute('required');
+                });
+                window.reembolsoEnviandoSolicitacao = false;
+                window.reembolsoSalvandoRascunho = true;
+                var btnRascunho = document.getElementById('btn-salvar-rascunho');
+                if (btnRascunho) {
+                    btnRascunho.disabled = true;
+                    btnRascunho.textContent = 'Salvando rascunho';
+                }
+                return true;
+            }
+
+            window.reembolsoEnviandoSolicitacao = true;
+
             // Manter "Outro" selecionado no front para não quebrar a edição.
             // A substituição pelo código digitado é feita no backend ao salvar.
             var selectsCod = form.querySelectorAll('select[name^="cod_despesa_"]');
@@ -2701,8 +2783,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 transfContaNumero.value = transfCarteiraDigital.value;
             }
             
-            // Se estiver editando, verificar se houve alterações
-            {% if solicitacao_editar %}
+            // Se estiver editando solicitação rejeitada, verificar se houve alterações
+            {% if solicitacao_editar and not eh_rascunho %}
             if (valoresIniciais) {
                 var valoresAtuais = obterValoresAtuais();
                 if (compararValores(valoresIniciais, valoresAtuais)) {

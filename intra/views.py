@@ -425,9 +425,12 @@ def _formatar_acao_historico(acao):
 def _get_status_descritivo(solicitacao):
     """
     Retorna o status descritivo da solicitação baseado nos status_gestor e status_gestor_admin.
-    Retorna: 'aguardando_gestor', 'aguardando_gestor_admin', 'aguardando_pagamento', 'pagamento_agendado', 
+    Retorna: 'rascunho', 'aguardando_gestor', 'aguardando_gestor_admin', 'aguardando_pagamento', 'pagamento_agendado', 
              'pago_aguardando_assinaturas', 'rejeitado', 'concluido'
     """
+    if solicitacao.status == SolicitacaoReembolso.STATUS_RASCUNHO:
+        return 'rascunho'
+
     # Se foi concluído (verificar status ou campo concluido)
     if solicitacao.status == SolicitacaoReembolso.STATUS_CONCLUIDO or solicitacao.concluido:
         return 'concluido'
@@ -1739,6 +1742,8 @@ def reembolso_pdf(request, pk):
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
     if sol.user_id != request.user.id and not _is_gestor_ou_gestor_admin(request.user):
         return HttpResponse("Não autorizado.", status=403)
+    if sol.status == SolicitacaoReembolso.STATUS_RASCUNHO:
+        return HttpResponse("Rascunhos não possuem PDF.", status=404)
     
     # Se houver envelope_id do DocuSign, tentar baixar o PDF assinado
     if sol.envelope_id_docusign:
@@ -2162,7 +2167,7 @@ def aprovar_reembolsos(request):
         # E que ainda não foram aprovadas/rejeitadas por ele
         solicitacoes = SolicitacaoReembolso.objects.select_related("user").filter(
             status_gestor=SolicitacaoReembolso.STATUS_PENDENTE
-        )
+        ).exclude(status=SolicitacaoReembolso.STATUS_RASCUNHO)
         # Buscar nome completo do usuário logado
         partes_nome = []
         if request.user.first_name:
@@ -2192,7 +2197,7 @@ def aprovar_reembolsos(request):
                 pago=False,
                 data_pagamento_programada__isnull=True  # Sem data programada (aguardando pagamento)
             )
-        )
+        ).exclude(status=SolicitacaoReembolso.STATUS_RASCUNHO)
     
     # Aplicar filtro de busca se fornecido
     if busca:
@@ -3960,25 +3965,183 @@ def dashboard_solicitacoes_json(request):
     })
 
 
+
+def _coletar_indices_itens_post(request):
+    indices = set()
+    for key in list(request.POST.keys()) + list(request.FILES.keys()):
+        for prefix in ("valor_", "tipo_despesa_", "descricao_", "data_despesa_", "cod_despesa_", "anexo_"):
+            if key.startswith(prefix):
+                suffix = key[len(prefix):]
+                if suffix.isdigit():
+                    indices.add(suffix)
+    return sorted(indices, key=lambda x: int(x))
+
+
+def _parse_valor_reembolso(valor_texto):
+    valor_texto = str(valor_texto or "").strip()
+    if not valor_texto:
+        return 0
+    if "," in valor_texto:
+        valor_limpo = valor_texto.replace(".", "").replace(",", ".")
+    else:
+        valor_limpo = valor_texto
+    return float(valor_limpo)
+
+
+def _parse_item_reembolso_post(request, idx, rascunho=False):
+    tipo = request.POST.get(f"tipo_despesa_{idx}", "").strip()
+    cod_despesa = request.POST.get(f"cod_despesa_{idx}", "").strip()
+    if cod_despesa == "Outro":
+        cod_despesa_outro = request.POST.get(f"cod_despesa_outro_{idx}", "").strip()
+        if cod_despesa_outro:
+            cod_despesa = cod_despesa_outro[:50]
+    desc = request.POST.get(f"descricao_{idx}", "").strip()
+    data_despesa_str = request.POST.get(f"data_despesa_{idx}", "").strip()
+    valor_texto = request.POST.get(f"valor_{idx}", "").strip()
+    data_despesa = None
+    if data_despesa_str:
+        from datetime import datetime
+        try:
+            data_despesa = datetime.strptime(data_despesa_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            pass
+
+    if rascunho:
+        tem_dados = any([tipo, cod_despesa, desc, data_despesa_str, valor_texto]) or f"anexo_{idx}" in request.FILES
+        if not tem_dados:
+            return None
+        try:
+            valor = _parse_valor_reembolso(valor_texto)
+        except (ValueError, TypeError):
+            valor = 0
+        return {
+            "idx": idx,
+            "tipo_despesa": tipo,
+            "cod_despesa": cod_despesa,
+            "data_despesa": data_despesa,
+            "descricao": desc,
+            "valor": valor,
+        }
+
+    if not valor_texto:
+        return None
+    try:
+        valor = _parse_valor_reembolso(valor_texto)
+    except (ValueError, TypeError):
+        return None
+    if not tipo:
+        return None
+    return {
+        "idx": idx,
+        "tipo_despesa": tipo,
+        "cod_despesa": cod_despesa,
+        "data_despesa": data_despesa,
+        "descricao": desc,
+        "valor": valor,
+    }
+
+
+def _parse_itens_reembolso_post(request, rascunho=False):
+    itens_dados = []
+    valor_total = 0
+    for idx in _coletar_indices_itens_post(request):
+        item = _parse_item_reembolso_post(request, idx, rascunho=rascunho)
+        if item:
+            valor_total += item["valor"]
+            itens_dados.append(item)
+    return itens_dados, valor_total
+
+
+def _capturar_dados_pagamento_post(request):
+    forma_pagamento = request.POST.get("forma_pagamento", "").strip()
+    pix_chave = request.POST.get("pix_chave", "").strip()
+    pix_banco = request.POST.get("pix_banco", "").strip()
+    if pix_banco == "Outro":
+        pix_banco_outro = request.POST.get("pix_banco_outro", "").strip()
+        if pix_banco_outro:
+            pix_banco = pix_banco_outro
+    pix_cpf = request.POST.get("pix_cpf", "").strip()
+    transf_banco = request.POST.get("transf_banco", "").strip()
+    if transf_banco == "Outro":
+        transf_banco_outro = request.POST.get("transf_banco_outro", "").strip()
+        if transf_banco_outro:
+            transf_banco = transf_banco_outro
+    transf_agencia = request.POST.get("transf_agencia", "").strip()
+    transf_conta_tipo = request.POST.get("transf_conta_tipo", "").strip()
+    transf_conta_numero = request.POST.get("transf_conta_numero", "").strip()
+    transf_cpf = request.POST.get("transf_cpf", "").strip()
+    nome_gestor = request.POST.get("nome_gestor", "").strip()
+    return {
+        "forma_pagamento": forma_pagamento,
+        "pix_chave": pix_chave,
+        "pix_banco": pix_banco,
+        "pix_cpf": pix_cpf,
+        "transf_banco": transf_banco,
+        "transf_agencia": transf_agencia,
+        "transf_conta_tipo": transf_conta_tipo,
+        "transf_conta_numero": transf_conta_numero,
+        "transf_cpf": transf_cpf,
+        "nome_gestor": nome_gestor,
+    }
+
+
+def _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento):
+    sol.forma_pagamento = dados_pagamento["forma_pagamento"] or None
+    sol.pix_chave = dados_pagamento["pix_chave"] or None
+    sol.pix_banco = dados_pagamento["pix_banco"] or None
+    sol.pix_cpf = dados_pagamento["pix_cpf"] or None
+    sol.transf_banco = dados_pagamento["transf_banco"] or None
+    sol.transf_agencia = dados_pagamento["transf_agencia"] or None
+    sol.transf_conta_tipo = dados_pagamento["transf_conta_tipo"] or None
+    sol.transf_conta_numero = dados_pagamento["transf_conta_numero"] or None
+    sol.transf_cpf = dados_pagamento["transf_cpf"] or None
+    sol.nome_gestor = dados_pagamento["nome_gestor"] or None
+
+
+def _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=None, exigir_descricao=False):
+    sol.itens.all().delete()
+    for item in itens_dados:
+        if exigir_descricao and not (item.get("descricao") or "").strip():
+            return "O campo 'Descrição' é obrigatório para todos os itens de despesa."
+        anexo = None
+        anexo_key = f"anexo_{item['idx']}"
+        if anexo_key in request.FILES:
+            anexo = request.FILES[anexo_key]
+        elif anexos_existentes:
+            try:
+                item_idx = int(item["idx"])
+                if item_idx in anexos_existentes:
+                    anexo = anexos_existentes[item_idx]
+            except (ValueError, KeyError):
+                anexo = None
+        ItemReembolso.objects.create(
+            solicitacao=sol,
+            tipo_despesa=item.get("tipo_despesa") or "",
+            cod_despesa=item.get("cod_despesa") or "",
+            data_despesa=item.get("data_despesa"),
+            descricao=item.get("descricao") or "",
+            valor=item.get("valor") or 0,
+            anexo=anexo,
+        )
+    return None
+
+
+def _pode_editar_solicitacao_reembolso(solicitacao):
+    if solicitacao.status == SolicitacaoReembolso.STATUS_RASCUNHO:
+        return True
+    return (
+        solicitacao.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO
+        or solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO
+    )
+
+
 @login_required
 def reembolso(request):
     """Página de solicitação de reembolso com formulário."""
-    # Debug: Verificar configuração S3 no início
     if request.method == 'POST':
-        print(f"[DEBUG S3] Verificando configuração S3...")
-        print(f"[DEBUG S3] DEFAULT_FILE_STORAGE: {settings.DEFAULT_FILE_STORAGE}")
-        print(f"[DEBUG S3] AWS_STORAGE_BUCKET_NAME: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
-        print(f"[DEBUG S3] AWS_S3_REGION_NAME: {getattr(settings, 'AWS_S3_REGION_NAME', 'NÃO CONFIGURADO')}")
-        print(f"[DEBUG S3] MEDIA_URL: {getattr(settings, 'MEDIA_URL', 'NÃO CONFIGURADO')}")
-        try:
-            from storages.backends.s3boto3 import S3Boto3Storage
-            storage = S3Boto3Storage()
-            print(f"[DEBUG S3] Storage instanciado: {storage}")
-            print(f"[DEBUG S3] Bucket name do storage: {storage.bucket_name}")
-        except Exception as e:
-            print(f"[DEBUG S3] ERRO ao instanciar storage: {str(e)}")
-            import traceback
-            print(f"[DEBUG S3] Traceback: {traceback.format_exc()}")
+        print(f"[DEBUG STORAGE] DEFAULT_FILE_STORAGE: {getattr(settings, 'DEFAULT_FILE_STORAGE', None)}")
+        print(f"[DEBUG STORAGE] MEDIA_URL: {getattr(settings, 'MEDIA_URL', None)}")
+        print(f"[DEBUG STORAGE] AWS_STORAGE_BUCKET_NAME: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '') or '(local)'}")
     # Buscar valores únicos de PROGRAMA para Centro de Custo
     programas = CentroCusto.objects.exclude(PROGRAMA__isnull=True).exclude(PROGRAMA__exact='').values_list("PROGRAMA", flat=True).distinct().order_by("PROGRAMA")
     
@@ -4009,17 +4172,18 @@ def reembolso(request):
     except PerfilSolicitante.DoesNotExist:
         pass
     
-    # Verificar se é edição de uma solicitação rejeitada
+    # Verificar se é edição de uma solicitação rejeitada ou rascunho
     solicitacao_editar = None
+    eh_rascunho = False
     editar_id = request.GET.get("editar", "").strip()
     abrir_modal_sem_alteracoes = request.GET.get("sem_alteracoes", "").strip() == "1"
     if editar_id:
         try:
             solicitacao_editar = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
-            # Verificar se pode editar (deve estar rejeitada)
-            if solicitacao_editar.status_gestor != SolicitacaoReembolso.STATUS_REJEITADO and solicitacao_editar.status_gestor_admin != SolicitacaoReembolso.STATUS_REJEITADO:
+            if not _pode_editar_solicitacao_reembolso(solicitacao_editar):
                 messages.error(request, "Esta solicitação não pode ser editada.")
                 return redirect("intra:meus_reembolsos")
+            eh_rascunho = solicitacao_editar.status == SolicitacaoReembolso.STATUS_RASCUNHO
         except (SolicitacaoReembolso.DoesNotExist, ValueError):
             messages.error(request, "Solicitação não encontrada.")
             return redirect("intra:meus_reembolsos")
@@ -4060,10 +4224,63 @@ def reembolso(request):
         "codigos_por_programa_json": json.dumps(codigos_por_programa),
         "perfil": perfil,
         "solicitacao_editar": solicitacao_editar,
+        "eh_rascunho": eh_rascunho,
         "abrir_modal_sem_alteracoes": abrir_modal_sem_alteracoes,
         "bancos_choices": BANCOS_CHOICES,
     }
     if request.method == "POST":
+        acao = request.POST.get("acao", "enviar")
+        salvar_rascunho = acao == "rascunho"
+
+        if salvar_rascunho:
+            centro_custo = request.POST.get("centro_custo", "").strip()
+            itens_dados, valor_total = _parse_itens_reembolso_post(request, rascunho=True)
+            dados_pagamento = _capturar_dados_pagamento_post(request)
+            editar_id = request.POST.get("editar_id", "").strip()
+            sol = None
+            anexos_existentes = {}
+            if editar_id:
+                try:
+                    sol = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
+                    if not _pode_editar_solicitacao_reembolso(sol):
+                        messages.error(request, "Esta solicitação não pode ser editada.")
+                        return redirect("intra:meus_reembolsos")
+                    for idx, item_antigo in enumerate(sol.itens.all()):
+                        if item_antigo.anexo:
+                            anexos_existentes[idx] = item_antigo.anexo
+                except (SolicitacaoReembolso.DoesNotExist, ValueError):
+                    messages.error(request, "Solicitação não encontrada.")
+                    return redirect("intra:reembolso")
+
+            if sol:
+                sol.centro_custo = centro_custo
+                sol.cod_despesa = ""
+                sol.valor_total = valor_total
+                _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento)
+                sol.status = SolicitacaoReembolso.STATUS_RASCUNHO
+                sol.status_gestor = SolicitacaoReembolso.STATUS_RASCUNHO
+                sol.status_gestor_admin = SolicitacaoReembolso.STATUS_RASCUNHO
+                sol.save()
+            else:
+                sol = SolicitacaoReembolso.objects.create(
+                    user=request.user,
+                    centro_custo=centro_custo,
+                    cod_despesa="",
+                    valor_total=valor_total,
+                    status=SolicitacaoReembolso.STATUS_RASCUNHO,
+                    status_gestor=SolicitacaoReembolso.STATUS_RASCUNHO,
+                    status_gestor_admin=SolicitacaoReembolso.STATUS_RASCUNHO,
+                )
+                _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento)
+                sol.save()
+
+            _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=anexos_existentes)
+            messages.success(
+                request,
+                f"Rascunho #{sol.pk} salvo! Você pode continuar depois em Meus Reembolsos, clicando em Continuar.",
+            )
+            return redirect("intra:meus_reembolsos")
+
         centro_custo = request.POST.get("centro_custo", "").strip()
         valor_total = 0
         itens_dados = []
@@ -4105,18 +4322,20 @@ def reembolso(request):
                     })
                 except (ValueError, TypeError):
                     pass
+        eh_rascunho_envio = False
         if centro_custo:
-            # Verificar se é edição de uma solicitação rejeitada
+            # Verificar se é edição de uma solicitação rejeitada ou rascunho
             editar_id = request.POST.get("editar_id", "").strip()
             sol = None
             reenvio_direto_gestor_admin = False
+            eh_rascunho_envio = False
             if editar_id:
                 try:
                     sol = SolicitacaoReembolso.objects.get(pk=int(editar_id), user=request.user)
-                    # Verificar se pode editar (deve estar rejeitada)
-                    if sol.status_gestor != SolicitacaoReembolso.STATUS_REJEITADO and sol.status_gestor_admin != SolicitacaoReembolso.STATUS_REJEITADO:
+                    if not _pode_editar_solicitacao_reembolso(sol):
                         messages.error(request, "Esta solicitação não pode ser editada.")
                         return redirect("intra:reembolso")
+                    eh_rascunho_envio = sol.status == SolicitacaoReembolso.STATUS_RASCUNHO
                     # Guardar valores antigos para histórico
                     valores_antigos = {
                         'centro_custo': sol.centro_custo,
@@ -4130,9 +4349,13 @@ def reembolso(request):
                     for idx, item_antigo in enumerate(itens_antigos):
                         if item_antigo.anexo:
                             anexos_existentes[idx] = item_antigo.anexo
+                    if eh_rascunho_envio:
+                        sol.status = SolicitacaoReembolso.STATUS_PENDENTE
+                        sol.status_gestor = SolicitacaoReembolso.STATUS_PENDENTE
+                        sol.status_gestor_admin = SolicitacaoReembolso.STATUS_PENDENTE
                     # Se a rejeição foi do gestor administrativo, mantém a aprovação do gestor
                     # e reenviará direto para o segundo nível.
-                    if sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
+                    elif sol.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO:
                         reenvio_direto_gestor_admin = True
                         sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
                     else:
@@ -4317,7 +4540,7 @@ def reembolso(request):
                 if any(k.startswith("anexo_") for k in request.FILES.keys()):
                     houve_alteracao = True
 
-                if not houve_alteracao:
+                if not eh_rascunho_envio and not houve_alteracao:
                     messages.warning(request, "Nenhuma alteração detectada. Faça alguma mudança antes de reenviar a solicitação.")
                     return redirect(f"{reverse('intra:reembolso')}?editar={sol.pk}&sem_alteracoes=1")
                 
@@ -4338,18 +4561,19 @@ def reembolso(request):
                 sol.itens.all().delete()
                 sol.save()
                 
-                # Registrar no histórico
-                descricao_historico = "Solicitação editada e reenviada após rejeição."
-                if motivo_rejeicao_anterior:
-                    descricao_historico += " " + motivo_rejeicao_anterior
-                if alteracoes:
-                    descricao_historico += " Alterações realizadas: " + "; ".join(alteracoes)
-                HistoricoReembolso.objects.create(
-                    solicitacao=sol,
-                    acao="Solicitação editada",
-                    descricao=descricao_historico,
-                    usuario=request.user
-                )
+                # Registrar no histórico (apenas reenvio após rejeição)
+                if not eh_rascunho_envio:
+                    descricao_historico = "Solicitação editada e reenviada após rejeição."
+                    if motivo_rejeicao_anterior:
+                        descricao_historico += " " + motivo_rejeicao_anterior
+                    if alteracoes:
+                        descricao_historico += " Alterações realizadas: " + "; ".join(alteracoes)
+                    HistoricoReembolso.objects.create(
+                        solicitacao=sol,
+                        acao="Solicitação editada",
+                        descricao=descricao_historico,
+                        usuario=request.user
+                    )
             else:
                 # Criar nova solicitação
                 sol = SolicitacaoReembolso.objects.create(
@@ -4380,12 +4604,13 @@ def reembolso(request):
                     anexo_key = f"anexo_{item['idx']}"
                     if anexo_key in request.FILES:
                         anexo = request.FILES[anexo_key]
-                        print(f"[DEBUG S3] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
-                        print(f"[DEBUG S3] Storage configurado: {settings.DEFAULT_FILE_STORAGE}")
-                        print(f"[DEBUG S3] Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
-                        logger.info(f"[DEBUG S3] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
-                        logger.info(f"[DEBUG S3] Storage configurado: {settings.DEFAULT_FILE_STORAGE}")
-                        logger.info(f"[DEBUG S3] Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'NÃO CONFIGURADO')}")
+                        print(f"[DEBUG STORAGE] Arquivo recebido: {anexo_key}, nome: {anexo.name}, tamanho: {anexo.size}")
+                        logger.info(
+                            "[DEBUG STORAGE] Arquivo recebido: %s, nome: %s, tamanho: %s",
+                            anexo_key,
+                            anexo.name,
+                            anexo.size,
+                        )
                     # Se não houver novo anexo e estiver editando, manter anexo existente
                     elif editar_id and 'anexos_existentes' in locals():
                         try:
@@ -4397,13 +4622,6 @@ def reembolso(request):
                                 anexo = anexo_existente
                         except (ValueError, KeyError):
                             anexo = None
-                    
-                    # Debug antes de salvar
-                    if anexo:
-                        print(f"[DEBUG S3] Antes de salvar - Verificando storage do campo anexo")
-                        field = ItemReembolso._meta.get_field('anexo')
-                        print(f"[DEBUG S3] Storage do campo: {field.storage}")
-                        print(f"[DEBUG S3] Tipo do storage: {type(field.storage)}")
                     
                     item_obj = ItemReembolso.objects.create(
                         solicitacao=sol,
@@ -4471,7 +4689,10 @@ def reembolso(request):
             # Verificar se foi edição
             editar_id_final = request.POST.get("editar_id", "").strip()
             if editar_id_final:
-                messages.success(request, f"Solicitação de reembolso editada e reenviada com sucesso! ID da solicitação: #{sol.pk}")
+                if eh_rascunho_envio:
+                    messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")
+                else:
+                    messages.success(request, f"Solicitação de reembolso editada e reenviada com sucesso! ID da solicitação: #{sol.pk}")
                 return redirect("intra:meus_reembolsos")
             else:
                 messages.success(request, f"Solicitação de reembolso enviada com sucesso! ID da solicitação: #{sol.pk}")

@@ -189,6 +189,16 @@
         min-width: 200px;
         text-align: center;
     }
+    .status-rascunho {
+        color: #2b6cb0;
+        font-weight: 600;
+        padding: 0.5rem 1.5rem;
+        background: #bee3f8;
+        border-radius: 4px;
+        display: inline-block;
+        min-width: 200px;
+        text-align: center;
+    }
     .status-concluido {
         color: #1e8449;
         font-weight: 600;
@@ -557,6 +567,10 @@
                                 </small>
                             {% endif %}
                         {% endif %}
+                        {% if s.status_descritivo == 'rascunho' %}
+                            <span class="status-rascunho">Rascunho</span>
+                            <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar" style="margin-top: 0.5rem;">Continuar</a>
+                        {% endif %}
                         {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
                             <span class="status-rejeitado">Rejeitado</span>
                             <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar" style="margin-top: 0.5rem;">Editar</a>
@@ -565,7 +579,9 @@
                     </div>
                 </td>
                 <td class="acoes">
+                    {% if s.status_descritivo != 'rascunho' %}
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -615,6 +631,9 @@
                         {% endif %}
                     {% endif %}
                     {% if s.status_descritivo == 'assinado_todas_partes' %}<span class="status-assinado">✓ Assinado por todas as partes</span>{% endif %}
+                    {% if s.status_descritivo == 'rascunho' %}
+                        <span class="status-rascunho">Rascunho</span>
+                    {% endif %}
                     {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
                         <span class="status-rejeitado">Rejeitado</span>
                     {% endif %}
@@ -623,7 +642,12 @@
             </div>
             <div class="reembolso-card-mobile-actions">
                 <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                {% if s.status_descritivo != 'rascunho' %}
                 <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">PDF</a>
+                {% endif %}
+                {% if s.status_descritivo == 'rascunho' %}
+                    <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar">Continuar</a>
+                {% endif %}
                 {% if s.status_descritivo == 'rejeitado_gestor' or s.status_descritivo == 'rejeitado_gestor_admin' %}
                     <a href="{% url 'intra:reembolso' %}?editar={{ s.pk }}" class="btn-editar">Editar</a>
                 {% endif %}
@@ -928,6 +952,9 @@
                         statusBg = '#c6f6d5';
                         statusColor = '#38a169';
                         statusIcon = '✓';
+                    } else if (data.status_descritivo === 'rascunho') {
+                        statusLabel = 'Rascunho — solicitação não enviada';
+                        statusClass = 'status-rascunho';
                     } else if (data.status_descritivo === 'rejeitado' || data.status_descritivo === 'rejeitado_gestor' || data.status_descritivo === 'rejeitado_gestor_admin') {
                         statusLabel = 'Rejeitado';
                         statusBg = '#fed7d7';

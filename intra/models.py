@@ -2,9 +2,10 @@ import os
 
 from django.db import models
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.utils import timezone
+from django.utils.deconstruct import deconstructible
 from django.utils.text import get_valid_filename
-from storages.backends.s3boto3 import S3Boto3Storage
 
 ANEXO_REEMBOLSO_UPLOAD_PREFIX = "reembolsos/anexos/"
 ANEXO_REEMBOLSO_MAX_PATH = 480  # margem para sufixo de unicidade do storage
@@ -22,9 +23,27 @@ def anexo_reembolso_upload_to(instance, filename):
     return f"{ANEXO_REEMBOLSO_UPLOAD_PREFIX}{full}"
 
 
-class MediaStorage(S3Boto3Storage):
-    """Storage customizado para arquivos de mídia no S3."""
-    location = ''
+def _aws_configurado():
+    return bool(
+        getattr(settings, "AWS_ACCESS_KEY_ID", "")
+        and getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+        and getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
+    )
+
+
+def get_media_storage():
+    """Local em desenvolvimento; S3 quando AWS_* estiver configurado."""
+    if _aws_configurado():
+        from storages.backends.s3boto3 import S3Boto3Storage
+
+        return S3Boto3Storage(location="", file_overwrite=False)
+    return FileSystemStorage()
+
+
+@deconstructible
+class MediaStorage(FileSystemStorage):
+    """Storage local de anexos (compatível com migrações antigas)."""
+
     file_overwrite = False
 
 
@@ -110,6 +129,7 @@ class SolicitacaoReembolso(models.Model):
     """Solicitação de reembolso enviada pelo usuário."""
 
     STATUS_PENDENTE = "PENDENTE"
+    STATUS_RASCUNHO = "RASCUNHO"
     STATUS_APROVADO = "APROVADO"
     STATUS_REJEITADO = "REJEITADO"
     STATUS_AGUARDANDO_PAGAMENTO = "AGUARDANDO_PAGAMENTO"
@@ -119,6 +139,7 @@ class SolicitacaoReembolso(models.Model):
     STATUS_CONCLUIDO = "CONCLUIDO"
     STATUS_CHOICES = [
         (STATUS_PENDENTE, "Pendente"),
+        (STATUS_RASCUNHO, "Rascunho"),
         (STATUS_APROVADO, "Aprovado"),
         (STATUS_REJEITADO, "Rejeitado"),
         (STATUS_AGUARDANDO_PAGAMENTO, "Aprovado - Aguardando pagamento"),
@@ -133,7 +154,7 @@ class SolicitacaoReembolso(models.Model):
         on_delete=models.CASCADE,
         related_name="solicitacoes_reembolso",
     )
-    centro_custo = models.CharField("Centro de custo", max_length=50)
+    centro_custo = models.CharField("Centro de custo", max_length=50, blank=True)
     cod_despesa = models.CharField("Código no orçamento", max_length=50)
     valor_total = models.DecimalField(
         "Valor total",
@@ -335,7 +356,7 @@ class ItemReembolso(models.Model):
     anexo = models.FileField(
         "Anexo",
         upload_to=anexo_reembolso_upload_to,
-        storage=MediaStorage(),
+        storage=get_media_storage,
         max_length=500,
         blank=True,
         null=True,

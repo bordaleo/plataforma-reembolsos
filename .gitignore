@@ -11,7 +11,10 @@ __pycache__/
 
 # Envs/IDE
 .env
+.env.*
+!.env.example
 *.key
+*.pem
 .venv/
 env/
 venv/

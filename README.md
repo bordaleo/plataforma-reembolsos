@@ -1,92 +1,145 @@
-Sistema web para gestão do ciclo completo de solicitações de reembolso corporativo: desde o envio pelo colaborador até a aprovação em dois níveis, assinatura eletrônica e confirmação de pagamento.
+# Plataforma de Reembolsos
 
-Desenvolvido com Django, com fluxo de aprovação configurável, geração de PDF, assinatura digital via DocuSign e armazenamento de anexos em Amazon S3.
+Sistema web desenvolvido para digitalizar o processo de solicitação, aprovação e acompanhamento de reembolsos corporativos.
 
-✨ Funcionalidades
-Solicitação de reembolso — colaborador registra despesas com centro de custo, código orçamentário, valor e anexos (comprovantes).
-Fluxo de aprovação em dois níveis — cada solicitação passa pela aprovação do gestor direto e, em seguida, do gestor administrativo, com motivo de rejeição registrado em cada etapa.
-Assinatura eletrônica (DocuSign) — envio automático do documento de reembolso para assinatura das partes via integração JWT (RS256) com a API do DocuSign, incluindo reenvio de envelope quando necessário.
-Geração de PDF — comprovante de reembolso gerado dinamicamente (ReportLab / pypdf) para cada solicitação.
-Dados de pagamento — cadastro de dados bancários do solicitante (PIX ou transferência) usados para agendar e confirmar o pagamento.
-Dashboard gerencial — visão consolidada das solicitações para gestores, com exportação de gráficos para PowerPoint (.pptx).
-Cadastro e recuperação de acesso — login próprio, primeiro acesso com completar cadastro, e fluxo de redefinição de senha por e-mail.
-Anexos em nuvem — upload de comprovantes com armazenamento local em desenvolvimento e Amazon S3 em produção (fallback automático conforme variáveis de ambiente).
-🧱 Stack técnica
-Camada	Tecnologia
-Backend	Django 5.x
-Banco de dados	PostgreSQL (produção) / SQLite (desenvolvimento)
-Armazenamento de arquivos	Amazon S3 (django-storages + boto3)
-Geração de PDF	ReportLab, pypdf
-Exportação de relatórios	python-pptx
-Assinatura eletrônica	DocuSign REST API (JWT Grant, RS256)
-Servidor de aplicação	Gunicorn + WhiteNoise
-Deploy	Render (via Procfile)
-🗂 Estrutura do projeto
+A solução centraliza o fluxo de despesas, permitindo solicitações, aprovações em dois níveis, assinatura eletrônica, geração de documentos e acompanhamento dos pagamentos.
+
+## Sobre o projeto
+
+O projeto surgiu a partir da necessidade de substituir um processo que dependia de controles manuais e troca de documentos por uma solução centralizada e rastreável.
+
+Atuei na construção técnica da plataforma, desde o entendimento dos requisitos e regras do processo até o desenvolvimento, integrações e disponibilização da aplicação.
+
+## Funcionalidades
+
+* Solicitação de reembolsos com despesas, centro de custo, código orçamentário e comprovantes
+* Fluxo de aprovação em dois níveis
+* Registro de motivos de rejeição
+* Assinatura eletrônica integrada ao DocuSign
+* Geração automática de documentos em PDF
+* Cadastro de dados para pagamento via PIX ou transferência
+* Dashboard gerencial para acompanhamento das solicitações
+* Exportação de relatórios
+* Upload e armazenamento de anexos em Amazon S3
+* Autenticação, recuperação de senha e controle de acesso
+
+## Stack
+
+**Backend**
+
+* Python
+* Django 5
+* PostgreSQL
+* Gunicorn
+
+**Integrações e serviços**
+
+* DocuSign REST API
+* Amazon S3
+* Boto3
+
+**Documentos e relatórios**
+
+* ReportLab
+* pypdf
+* python-pptx
+
+**Deploy**
+
+* Render
+* WhiteNoise
+
+## Arquitetura
+
+A aplicação foi estruturada em Django, separando as configurações do projeto da aplicação principal e mantendo integrações e responsabilidades específicas organizadas em módulos.
+
+```text
 plataforma-reembolsos/
-├── base/                  # Configurações do projeto Django (settings, urls raiz, wsgi)
-├── intra/                 # App principal: models, views, forms, integração DocuSign
-│   ├── docusign_integration.py
-│   ├── pdf_reembolso.py
-│   ├── models.py
-│   ├── views.py
-│   └── templates/intra/
-├── api_docu.py            # Script utilitário para testar a autenticação JWT com o DocuSign
-├── manage.py
+├── base/                       # Configurações e URLs do projeto
+├── intra/                      # Aplicação principal
+│   ├── models.py               # Modelos e dados
+│   ├── views.py                # Regras e fluxos da aplicação
+│   ├── forms.py                # Formulários e validações
+│   ├── docusign_integration.py # Integração com DocuSign
+│   ├── pdf_reembolso.py        # Geração de documentos
+│   └── templates/              # Interface
+├── api_docu.py                 # Utilitário de autenticação DocuSign
 ├── requirements.txt
 ├── Procfile
 └── .env.example
-⚙️ Como rodar localmente
-Pré-requisitos
-Python 3.11+
-PostgreSQL (opcional em dev — o projeto também roda com SQLite)
-Passos
-bash
-# 1. Clonar o repositório
+```
+
+## Decisões técnicas
+
+### Integração com DocuSign
+
+A assinatura eletrônica foi implementada utilizando a API do DocuSign com autenticação JWT e assinatura RS256.
+
+As credenciais e a chave privada são mantidas em variáveis de ambiente, evitando o armazenamento de informações sensíveis no código.
+
+### Armazenamento de arquivos
+
+Os comprovantes utilizam armazenamento local durante o desenvolvimento e Amazon S3 em produção, com configuração baseada em variáveis de ambiente.
+
+### Geração de documentos
+
+Os documentos de reembolso são gerados dinamicamente em PDF, permitindo padronizar os registros utilizados durante o processo de aprovação e assinatura.
+
+## Principais desafios
+
+* Transformar um processo manual em um fluxo digital estruturado
+* Implementar um processo de aprovação com diferentes níveis de acesso
+* Integrar assinatura eletrônica ao fluxo da aplicação
+* Gerenciar documentos e anexos em diferentes ambientes
+* Manter informações sensíveis fora do código-fonte
+* Disponibilizar a aplicação em ambiente de produção
+
+## Segurança
+
+* Configurações sensíveis armazenadas em variáveis de ambiente
+* Credenciais da integração com DocuSign não versionadas
+* Chaves privadas mantidas fora do código-fonte
+* Separação das configurações de desenvolvimento e produção
+
+## Execução local
+
+### Pré-requisitos
+
+* Python 3.11+
+* PostgreSQL (opcional para desenvolvimento)
+* Credenciais das integrações necessárias
+
+### Instalação
+
+```bash
 git clone https://github.com/bordaleo/plataforma-reembolsos.git
 cd plataforma-reembolsos
 
-# 2. Criar e ativar um ambiente virtual
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+venv\Scripts\activate
 
-# 3. Instalar dependências
 pip install -r requirements.txt
+```
 
-# 4. Configurar variáveis de ambiente
-cp .env.example .env
-# edite o .env com suas credenciais (banco de dados, AWS, e-mail, DocuSign)
+Configure o arquivo `.env` a partir do `.env.example` e execute:
 
-# 5. Aplicar migrações
+```bash
 python manage.py migrate
-
-# 6. Criar um superusuário (acesso administrativo)
 python manage.py createsuperuser
-
-# 7. Rodar o servidor de desenvolvimento
 python manage.py runserver
+```
 
-O projeto estará disponível em http://127.0.0.1:8000/.
+A aplicação estará disponível em:
 
-Variáveis de ambiente
+```text
+http://127.0.0.1:8000/
+```
 
-Veja .env.example para a lista completa. Os principais grupos de configuração são:
+## Resultado
 
-Django: DJANGO_SECRET_KEY, DJANGO_DEBUG, DJANGO_CSRF_TRUSTED_ORIGINS, DATABASE_URL
-AWS S3 (opcional em dev — sem essas variáveis, o storage cai para o sistema de arquivos local): AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME, AWS_S3_REGION_NAME
-E-mail (recuperação de senha): EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL
-DocuSign: DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_USER_ID, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_BASE_URI, DOCUSIGN_AUTH_SERVER, DOCUSIGN_PRIVATE_KEY
+A plataforma transforma o processo de reembolso em um fluxo digital centralizado, com maior organização, rastreabilidade e controle das etapas de solicitação, aprovação, assinatura e pagamento.
 
-Nunca commite o arquivo .env com valores reais — apenas .env.example, sem segredos.
+---
 
-🚀 Deploy
-
-O projeto está configurado para rodar em serviços como o Render, usando Gunicorn como servidor WSGI e WhiteNoise para servir arquivos estáticos:
-
-web: gunicorn base.wsgi
-🔒 Segurança
-Configurações sensíveis ficam fora do código-fonte, via variáveis de ambiente.
-Autenticação com DocuSign via JWT assinado (RS256) usando chave privada configurada em ambiente, não versionada.
-Recomenda-se nunca versionar o banco de dados local (db.sqlite3) — ele deve conter apenas dados de desenvolvimento e estar listado no .gitignore.
-📄 Licença
-
-Projeto pessoal/acadêmico, desenvolvido por Leonardo Borda.
+**Projeto desenvolvido por Leonardo Borda**
+Python • Django • PostgreSQL • APIs • Integrações • Desenvolvimento Web

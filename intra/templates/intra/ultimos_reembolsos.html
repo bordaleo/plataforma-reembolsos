@@ -206,6 +206,26 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
     }
+    .btn-modificar-admin {
+        display: inline-block;
+        padding: 0.5rem 0.9rem;
+        background: #2c5282;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        margin-bottom: 6px;
+        transition: all 0.2s;
+    }
+    .btn-modificar-admin:hover {
+        background: #2a4365;
+        color: white;
+        text-decoration: none;
+    }
     .section-title {
         font-size: 1.5rem;
         font-weight: 700;
@@ -923,7 +943,8 @@
         .reembolso-card-mobile-actions .btn-pdf,
         .reembolso-card-mobile-actions .btn-concluir,
         .reembolso-card-mobile-actions .btn-marcar-pago,
-        .reembolso-card-mobile-actions .btn-editar-programar {
+        .reembolso-card-mobile-actions .btn-editar-programar,
+        .reembolso-card-mobile-actions .btn-modificar-admin {
             width: 100%;
             padding: 0.75rem 1rem;
         }
@@ -1228,6 +1249,9 @@
                         {% elif s.status_descritivo == 'pagamento_agendado' %}
                             <button type="button" class="btn-editar-programar" data-pk="{{ s.pk }}" data-data-pagamento="{% if s.data_pagamento_programada %}{{ s.data_pagamento_programada|date:'Y-m-d' }}{% endif %}">Editar</button>
                         {% endif %}
+                        <div style="margin-top: 6px;">
+                            <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1296,6 +1320,7 @@
                     {% elif s.status_descritivo == 'pagamento_agendado' %}
                         <button type="button" class="btn-editar-programar" data-pk="{{ s.pk }}" data-data-pagamento="{% if s.data_pagamento_programada %}{{ s.data_pagamento_programada|date:'Y-m-d' }}{% endif %}" style="width: 100%;">Editar</button>
                     {% endif %}
+                    <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
                 </div>
             </div>
             {% endfor %}
@@ -1366,6 +1391,7 @@
                     <th class="valor">Valor total</th>
                     <th style="text-align: center;">Status</th>
                     <th style="text-align: center;">Status do contrato</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -1384,6 +1410,9 @@
                     <td style="text-align: center;"><span class="status-rejeitado">Rejeitado</span></td>
                     <td class="acoes">
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    </td>
+                    <td class="acoes">
+                        <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1422,6 +1451,7 @@
                 <div class="reembolso-card-mobile-actions">
                     <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">PDF</a>
+                    <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
                 </div>
             </div>
             {% endfor %}
@@ -1480,6 +1510,7 @@
                     <th class="valor">Valor total</th>
                     <th style="text-align: center;">Status</th>
                     <th style="text-align: center;">Status do contrato</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -1498,6 +1529,9 @@
                     <td style="text-align: center;"><span class="status-concluido">Concluído</span></td>
                     <td class="acoes">
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    </td>
+                    <td class="acoes">
+                        <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1536,6 +1570,7 @@
                 <div class="reembolso-card-mobile-actions">
                     <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">PDF</a>
+                    <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
                 </div>
             </div>
             {% endfor %}

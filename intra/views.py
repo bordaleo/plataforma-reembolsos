@@ -24,11 +24,21 @@ import time
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.core.cache import cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 # Configurar logger para debug
 logger = logging.getLogger(__name__)
 
-from .forms import LoginForm, EsqueceuAcessoForm, CompletarCadastroForm, EditarPagamentoForm, TrocarSenhaForm
+from .forms import (
+    LoginForm,
+    EsqueceuAcessoForm,
+    CompletarCadastroForm,
+    EditarPagamentoForm,
+    EditarDadosAcessoForm,
+    AdminEditarAcessoForm,
+    AdminAlterarSenhaForm,
+    TrocarSenhaForm,
+)
 from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso
 from .pdf_reembolso import gerar_pdf
 from .docusign_integration import (
@@ -1618,6 +1628,20 @@ def meu_perfil(request):
             else:
                 messages.error(request, "Erro ao alterar senha. Verifique os campos e tente novamente.")
     
+
+    # Processar formulário de editar dados de acesso (tipo PF/PJ)
+    acesso_form = EditarDadosAcessoForm(
+        request.POST if request.method == 'POST' and 'editar_acesso' in request.POST else None,
+        instance=perfil,
+    )
+    if request.method == 'POST' and 'editar_acesso' in request.POST:
+        if acesso_form.is_valid():
+            acesso_form.save()
+            messages.success(request, "Dados de acesso atualizados com sucesso!")
+            return redirect("intra:meu_perfil")
+    else:
+        acesso_form = EditarDadosAcessoForm(instance=perfil)
+    
     # Processar formulário de editar pagamento
     if request.method == 'POST' and 'editar_pagamento' in request.POST:
         form = EditarPagamentoForm(request.POST, instance=perfil)
@@ -1674,8 +1698,151 @@ def meu_perfil(request):
     return render(request, "intra/meu_perfil.html", {
         "perfil": perfil,
         "form": form,
+        "acesso_form": acesso_form,
         "senha_form": senha_form
     })
+
+
+
+@login_required
+def gestao_cadastros(request):
+    """Lista todos os cadastros para o gestor administrativo gerenciar."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    q = (request.GET.get("q") or "").strip()
+    tipo = (request.GET.get("tipo") or "").strip()
+
+    usuarios = (
+        User.objects.select_related("perfil_solicitante")
+        .prefetch_related("regras_usuario")
+        .order_by("email")
+    )
+
+    if q:
+        usuarios = usuarios.filter(
+            Q(email__icontains=q)
+            | Q(perfil_solicitante__nome_solicitante__icontains=q)
+            | Q(perfil_solicitante__cnpj__icontains=q)
+        )
+
+    if tipo == "PJ":
+        usuarios = usuarios.filter(perfil_solicitante__tipo_pessoa="PJ")
+    elif tipo == "PF":
+        usuarios = usuarios.filter(
+            Q(perfil_solicitante__tipo_pessoa="PF")
+            | Q(perfil_solicitante__tipo_pessoa="")
+            | Q(perfil_solicitante__isnull=True)
+        )
+
+    page_number = request.GET.get("page", 1)
+    try:
+        page_number = int(page_number)
+    except (ValueError, TypeError):
+        page_number = 1
+
+    paginator = Paginator(usuarios, 20)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except (EmptyPage, InvalidPage):
+        page_obj = paginator.get_page(1)
+
+    return render(request, "intra/gestao_cadastros.html", {
+        "page_obj": page_obj,
+        "q": q,
+        "tipo": tipo,
+        "total": paginator.count,
+    })
+
+
+@login_required
+def gestao_cadastro_editar(request, user_id):
+    """Permite ao gestor administrativo editar o perfil completo de um usuário."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    usuario = get_object_or_404(User, pk=user_id)
+    perfil, _ = PerfilSolicitante.objects.get_or_create(user=usuario)
+
+    # Cadastros antigos sem tipo são tratados como Pessoa Física
+    if not (perfil.tipo_pessoa or "").strip():
+        perfil.tipo_pessoa = "PF"
+        perfil.save(update_fields=["tipo_pessoa"])
+
+    # Alterar senha (admin)
+    if request.method == "POST" and "alterar_senha" in request.POST:
+        senha_form = AdminAlterarSenhaForm(user=usuario, data=request.POST)
+        if senha_form.is_valid():
+            usuario.set_password(senha_form.cleaned_data["nova_senha"])
+            usuario.save()
+            messages.success(request, "Senha alterada com sucesso.")
+            return redirect("intra:gestao_cadastro_editar", user_id=usuario.pk)
+        for field_errors in senha_form.errors.values():
+            for error in field_errors:
+                messages.error(request, error)
+    else:
+        senha_form = AdminAlterarSenhaForm(user=usuario)
+
+    # Editar dados de acesso (e-mail, tipo, nome/CNPJ)
+    if request.method == "POST" and "editar_acesso" in request.POST:
+        acesso_form = AdminEditarAcessoForm(request.POST, instance=perfil, usuario=usuario)
+        if acesso_form.is_valid():
+            acesso_form.save()
+            messages.success(request, "Dados de acesso atualizados com sucesso.")
+            return redirect("intra:gestao_cadastro_editar", user_id=usuario.pk)
+        for field_errors in acesso_form.errors.values():
+            for error in field_errors:
+                messages.error(request, error)
+    else:
+        acesso_form = AdminEditarAcessoForm(instance=perfil, usuario=usuario)
+
+    # Editar pagamento
+    if request.method == "POST" and "editar_pagamento" in request.POST:
+        form = EditarPagamentoForm(request.POST, instance=perfil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Dados de pagamento atualizados com sucesso.")
+            return redirect("intra:gestao_cadastro_editar", user_id=usuario.pk)
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                messages.error(request, error)
+    else:
+        form = EditarPagamentoForm(instance=perfil)
+
+    # Solicitações do usuário (em processo, rejeitadas, concluídas)
+    solicitacoes = list(
+        SolicitacaoReembolso.objects.filter(user=usuario)
+        .prefetch_related("itens")
+        .order_by("-criado_em")
+    )
+    solicitacoes_em_processo = []
+    solicitacoes_rejeitadas = []
+    solicitacoes_concluidas = []
+
+    for sol in solicitacoes:
+        sol.criado_em_brasilia = localtime(sol.criado_em)
+        sol.status_descritivo = _get_status_descritivo(sol)
+        status = sol.status_descritivo
+        if status in ("rejeitado_gestor", "rejeitado_gestor_admin"):
+            solicitacoes_rejeitadas.append(sol)
+        elif status == "concluido":
+            solicitacoes_concluidas.append(sol)
+        elif status != "rascunho":
+            solicitacoes_em_processo.append(sol)
+
+    return render(request, "intra/gestao_cadastro_editar.html", {
+        "usuario": usuario,
+        "perfil": perfil,
+        "acesso_form": acesso_form,
+        "form": form,
+        "senha_form": senha_form,
+        "solicitacoes_em_processo": solicitacoes_em_processo,
+        "solicitacoes_rejeitadas": solicitacoes_rejeitadas,
+        "solicitacoes_concluidas": solicitacoes_concluidas,
+    })
+
 
 
 @login_required
@@ -2220,6 +2387,19 @@ def aprovar_reembolsos(request):
     solicitacoes = solicitacoes.select_related("user").prefetch_related(
         "user__perfil_solicitante"
     ).order_by('-criado_em')
+
+    # IDs que o usuário pode aprovar agora (para seleção em lote / aprovar todos)
+    if is_gestor_simples:
+        ids_aprovaveis = list(
+            solicitacoes.filter(status_gestor=SolicitacaoReembolso.STATUS_PENDENTE).values_list("pk", flat=True)
+        )
+    else:
+        ids_aprovaveis = list(
+            solicitacoes.filter(
+                status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+                status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE,
+            ).values_list("pk", flat=True)
+        )
     
     # Paginação - 5 por página
     paginator = Paginator(solicitacoes, 5)
@@ -2280,8 +2460,250 @@ def aprovar_reembolsos(request):
             "busca": busca,
             "is_gestor_simples": is_gestor_simples,
             "is_gestor_admin": is_gestor_admin,
+            "ids_aprovaveis": ids_aprovaveis,
+            "total_aprovaveis": len(ids_aprovaveis),
         },
     )
+
+
+@login_required
+def reembolso_decidir_lote(request):
+    """Aprova ou rejeita várias solicitações de uma vez (selecionadas ou todas pendentes)."""
+    is_gestor_simples = _is_gestor_simples(request.user)
+    is_gestor_admin = _is_gestor(request.user)
+
+    if not is_gestor_simples and not is_gestor_admin:
+        return HttpResponse("Acesso restrito a Gestores ou Gestores Administrativos.", status=403)
+
+    if request.method != "POST":
+        return redirect("intra:aprovar_reembolsos")
+
+    acao = (request.POST.get("acao") or "aprovar").strip().lower()
+    if acao not in ("aprovar", "rejeitar"):
+        messages.error(request, "Ação inválida.")
+        return redirect("intra:aprovar_reembolsos")
+
+    aprovar_todos = request.POST.get("aprovar_todos") == "1"
+    ids_raw = request.POST.getlist("ids")
+    if not ids_raw and request.POST.get("ids_csv"):
+        ids_raw = [x.strip() for x in request.POST.get("ids_csv", "").split(",") if x.strip()]
+
+    # Query base das solicitações que este usuário pode decidir
+    if is_gestor_simples:
+        solicitacoes_qs = SolicitacaoReembolso.objects.filter(
+            status_gestor=SolicitacaoReembolso.STATUS_PENDENTE
+        ).exclude(status=SolicitacaoReembolso.STATUS_RASCUNHO)
+
+        partes_nome = []
+        if request.user.first_name:
+            partes_nome.append(request.user.first_name.strip())
+        if request.user.last_name:
+            partes_nome.append(request.user.last_name.strip())
+        nome_completo_usuario = " ".join(partes_nome).strip()
+
+        filtros_gestor = Q()
+        if nome_completo_usuario:
+            filtros_gestor |= Q(nome_gestor__iexact=nome_completo_usuario)
+        if request.user.email:
+            filtros_gestor |= Q(nome_gestor__iexact=request.user.email)
+        solicitacoes_qs = solicitacoes_qs.filter(filtros_gestor)
+    else:
+        solicitacoes_qs = SolicitacaoReembolso.objects.filter(
+            status_gestor=SolicitacaoReembolso.STATUS_APROVADO,
+            status_gestor_admin=SolicitacaoReembolso.STATUS_PENDENTE,
+        )
+
+    if not aprovar_todos or acao == "rejeitar":
+        # Rejeição em lote sempre exige IDs explícitos (motivo por solicitação)
+        if acao == "rejeitar":
+            aprovar_todos = False
+        try:
+            ids = [int(i) for i in ids_raw]
+        except (TypeError, ValueError):
+            messages.error(request, "Seleção inválida.")
+            return redirect("intra:aprovar_reembolsos")
+        if not ids:
+            messages.warning(
+                request,
+                "Selecione ao menos uma solicitação para " + ("rejeitar." if acao == "rejeitar" else "aprovar."),
+            )
+            return redirect("intra:aprovar_reembolsos")
+        solicitacoes_qs = solicitacoes_qs.filter(pk__in=ids)
+
+    solicitacoes = list(solicitacoes_qs.select_related("user"))
+    if not solicitacoes:
+        messages.warning(request, "Nenhuma solicitação pendente encontrada.")
+        return redirect("intra:aprovar_reembolsos")
+
+    processadas = 0
+    erros = 0
+
+    if acao == "rejeitar":
+        motivos_faltando = []
+        for sol in solicitacoes:
+            motivo = (request.POST.get(f"motivo_{sol.pk}") or request.POST.get(f"motivo[{sol.pk}]") or "").strip()
+            if not motivo:
+                motivos_faltando.append(sol.pk)
+        if motivos_faltando:
+            ids_txt = ", ".join(f"#{pk}" for pk in motivos_faltando)
+            messages.error(
+                request,
+                f"Informe o motivo da rejeição para cada solicitação. Faltando: {ids_txt}.",
+            )
+            return redirect("intra:aprovar_reembolsos")
+
+        for sol in solicitacoes:
+            try:
+                motivo = (request.POST.get(f"motivo_{sol.pk}") or request.POST.get(f"motivo[{sol.pk}]") or "").strip()[:500]
+                if is_gestor_simples:
+                    sol.status_gestor = SolicitacaoReembolso.STATUS_REJEITADO
+                    sol.status = SolicitacaoReembolso.STATUS_REJEITADO
+                    sol.aprovado_por_gestor = request.user
+                    sol.aprovado_em_gestor = timezone.now()
+                    sol.motivo_rejeicao_gestor = motivo
+                    sol.save()
+                    HistoricoReembolso.objects.create(
+                        solicitacao=sol,
+                        acao="Rejeitada pelo gestor",
+                        descricao=f"Rejeitada pelo gestor (lote). Motivo: {motivo}",
+                        usuario=request.user,
+                    )
+                    _enviar_email_aprovacao_gestor(sol, aprovado=False)
+                else:
+                    sol.status_gestor_admin = SolicitacaoReembolso.STATUS_REJEITADO
+                    sol.status = SolicitacaoReembolso.STATUS_REJEITADO
+                    sol.aprovado_por_gestor_admin = request.user
+                    sol.aprovado_em_gestor_admin = timezone.now()
+                    sol.motivo_rejeicao_gestor_admin = motivo
+                    sol.save()
+                    HistoricoReembolso.objects.create(
+                        solicitacao=sol,
+                        acao="Rejeitada pelo gestor administrativo",
+                        descricao=f"Rejeitada pelo gestor administrativo (lote). Motivo: {motivo}",
+                        usuario=request.user,
+                    )
+                    _enviar_email_aprovacao_final(sol, aprovado=False)
+                processadas += 1
+            except Exception:
+                logger.exception("Erro ao rejeitar solicitação #%s em lote", sol.pk)
+                erros += 1
+
+        if processadas:
+            label = "solicitação rejeitada" if processadas == 1 else "solicitações rejeitadas"
+            messages.success(request, f"{processadas} {label}.")
+        if erros:
+            messages.warning(request, f"{erros} solicitação(ões) não puderam ser processadas.")
+        return redirect("intra:aprovar_reembolsos")
+
+    # --- Aprovar ---
+    if is_gestor_simples:
+        for sol in solicitacoes:
+            try:
+                sol.status_gestor = SolicitacaoReembolso.STATUS_APROVADO
+                sol.aprovado_por_gestor = request.user
+                sol.aprovado_em_gestor = timezone.now()
+                sol.motivo_rejeicao_gestor = ""
+                sol.save()
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Aprovada pelo gestor",
+                    descricao=f"Solicitação aprovada pelo gestor (aprovação em lote). Valor total: R$ {sol.valor_total:.2f}",
+                    usuario=request.user,
+                )
+                _enviar_email_aprovacao_gestor(sol, aprovado=True)
+                _enviar_email_nova_solicitacao_gestor_admin(sol, request)
+                processadas += 1
+            except Exception:
+                logger.exception("Erro ao aprovar solicitação #%s em lote", sol.pk)
+                erros += 1
+        if processadas:
+            label = "solicitação aprovada" if processadas == 1 else "solicitações aprovadas"
+            messages.success(
+                request,
+                f"{processadas} {label} pelo gestor. Aguardando aprovação do gestor administrativo.",
+            )
+    else:
+        # Gestor admin: aprovar + opcionalmente programar pagamento / marcar pago
+        data_pagamento = (request.POST.get("data_pagamento") or "").strip()
+        marcar_como_pago = request.POST.get("marcar_como_pago", "") == "on"
+
+        if not marcar_como_pago and not data_pagamento:
+            messages.error(request, "Informe uma data de pagamento ou marque como pago imediatamente.")
+            return redirect("intra:aprovar_reembolsos")
+
+        from datetime import date as date_cls
+
+        data_obj = None
+        if data_pagamento and not marcar_como_pago:
+            try:
+                data_obj = datetime.strptime(data_pagamento, "%Y-%m-%d").date()
+            except ValueError:
+                messages.error(request, "Data de pagamento inválida.")
+                return redirect("intra:aprovar_reembolsos")
+
+        hoje = date_cls.today()
+
+        for sol in solicitacoes:
+            try:
+                sol.status_gestor_admin = SolicitacaoReembolso.STATUS_APROVADO
+                sol.aprovado_por_gestor_admin = request.user
+                sol.aprovado_em_gestor_admin = timezone.now()
+                sol.motivo_rejeicao_gestor_admin = ""
+                HistoricoReembolso.objects.create(
+                    solicitacao=sol,
+                    acao="Aprovada pelo gestor administrativo",
+                    descricao=(
+                        f"Solicitação aprovada pelo gestor administrativo (aprovação em lote). "
+                        f"Valor total: R$ {sol.valor_total:.2f}."
+                    ),
+                    usuario=request.user,
+                )
+                _enviar_email_aprovacao_final(sol, aprovado=True)
+
+                if marcar_como_pago or (data_obj and data_obj <= hoje):
+                    sol.pago = True
+                    sol.pago_em = timezone.now()
+                    sol.status = SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+                    sol.data_pagamento_programada = None
+                    sol.save()
+                    tag, extra = _enviar_docusign_para_solicitacao(sol)
+                    if tag not in ("ok", "skipped"):
+                        logger.error(
+                            "DocuSign falhou (lote, solicitação #%s): %s",
+                            sol.pk,
+                            extra,
+                        )
+                else:
+                    sol.data_pagamento_programada = data_obj
+                    sol.status = SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO
+                    sol.pago = False
+                    sol.save()
+                    HistoricoReembolso.objects.create(
+                        solicitacao=sol,
+                        usuario=request.user,
+                        acao="PROGRAMACAO_PAGAMENTO",
+                        descricao=f"Data de pagamento programada para {data_obj.strftime('%d/%m/%Y')} (aprovação em lote)",
+                    )
+                processadas += 1
+            except Exception:
+                logger.exception("Erro ao aprovar solicitação #%s em lote (admin)", sol.pk)
+                erros += 1
+
+        if processadas:
+            label = "solicitação aprovada" if processadas == 1 else "solicitações aprovadas"
+            if marcar_como_pago or (data_obj and data_obj <= hoje):
+                marcada = "marcada como paga" if processadas == 1 else "marcadas como pagas"
+                messages.success(request, f"{processadas} {label} e {marcada}.")
+            else:
+                messages.success(
+                    request,
+                    f"{processadas} {label} com pagamento programado para {data_obj.strftime('%d/%m/%Y')}.",
+                )
+
+    if erros:
+        messages.warning(request, f"{erros} solicitação(ões) não puderam ser processadas.")
+
+    return redirect("intra:aprovar_reembolsos")
 
 
 @login_required
@@ -4098,11 +4520,27 @@ def _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento):
     sol.nome_gestor = dados_pagamento["nome_gestor"] or None
 
 
-def _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=None, exigir_descricao=False):
+def _item_tem_anexo_obrigatorio(item, request, anexos_existentes=None):
+    """True se o item não exige anexo ou já tem arquivo novo/existente."""
+    if (item.get("tipo_despesa") or "") == "PASSAGENS":
+        return True
+    if f"anexo_{item['idx']}" in request.FILES:
+        return True
+    if anexos_existentes:
+        try:
+            return int(item["idx"]) in anexos_existentes
+        except (TypeError, ValueError, KeyError):
+            return False
+    return False
+
+
+def _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=None, exigir_descricao=False, exigir_anexo=False):
     sol.itens.all().delete()
     for item in itens_dados:
         if exigir_descricao and not (item.get("descricao") or "").strip():
             return "O campo 'Descrição' é obrigatório para todos os itens de despesa."
+        if exigir_anexo and not _item_tem_anexo_obrigatorio(item, request, anexos_existentes):
+            return "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus)."
         anexo = None
         anexo_key = f"anexo_{item['idx']}"
         if anexo_key in request.FILES:
@@ -4133,6 +4571,288 @@ def _pode_editar_solicitacao_reembolso(solicitacao):
         solicitacao.status_gestor == SolicitacaoReembolso.STATUS_REJEITADO
         or solicitacao.status_gestor_admin == SolicitacaoReembolso.STATUS_REJEITADO
     )
+
+
+
+BANCOS_CHOICES_REEMBOLSO = [
+    ("", "Selecione..."),
+    ("Banco do Brasil", "Banco do Brasil"),
+    ("Bradesco", "Bradesco"),
+    ("Itaú", "Itaú"),
+    ("Santander", "Santander"),
+    ("Caixa Econômica Federal", "Caixa Econômica Federal"),
+    ("Banco Inter", "Banco Inter"),
+    ("Nubank", "Nubank"),
+    ("Banco Original", "Banco Original"),
+    ("Banrisul", "Banrisul"),
+    ("Banco Safra", "Banco Safra"),
+    ("BTG Pactual", "BTG Pactual"),
+    ("Banco Pan", "Banco Pan"),
+    ("Banco Votorantim", "Banco Votorantim"),
+    ("Banco C6", "Banco C6"),
+    ("Banco Next", "Banco Next"),
+    ("Banco Neon", "Banco Neon"),
+    ("Banco Digio", "Banco Digio"),
+    ("Banco Will", "Banco Will"),
+    ("Banco Sofisa", "Banco Sofisa"),
+    ("Banco Rendimento", "Banco Rendimento"),
+    ("Carteira Digital", "Carteira Digital"),
+    ("Outro", "Outro"),
+]
+
+
+def _safe_next_url(next_url, default_name="intra:aprovar_reembolsos"):
+    """Aceita apenas paths relativos internos (evita open redirect)."""
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    return reverse(default_name)
+
+
+def _build_contexto_formulario_reembolso(
+    request,
+    solicitacao_editar=None,
+    eh_rascunho=False,
+    eh_edicao_admin=False,
+    next_url=None,
+    dados_post=None,
+    abrir_modal_sem_alteracoes=False,
+):
+    programas = (
+        CentroCusto.objects.exclude(PROGRAMA__isnull=True)
+        .exclude(PROGRAMA__exact="")
+        .values_list("PROGRAMA", flat=True)
+        .distinct()
+        .order_by("PROGRAMA")
+    )
+    codigos = (
+        CentroCusto.objects.exclude(CODIGO__isnull=True)
+        .exclude(CODIGO__exact="")
+        .exclude(DESCRICAO__isnull=True)
+        .exclude(DESCRICAO__exact="")
+        .order_by("CODIGO")
+    )
+    codigos_visiveis = [c for c in codigos if (c.CODIGO or "").strip() != "2.5"]
+    codigos_por_programa = {}
+    for c in codigos_visiveis:
+        programa = c.PROGRAMA or ""
+        if programa not in codigos_por_programa:
+            codigos_por_programa[programa] = []
+        codigos_por_programa[programa].append({
+            "codigo": c.CODIGO,
+            "descricao": c.DESCRICAO,
+        })
+    codigos_json = [
+        {"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""}
+        for c in codigos_visiveis
+    ]
+
+    perfil = None
+    perfil_user = solicitacao_editar.user if (eh_edicao_admin and solicitacao_editar) else request.user
+    try:
+        perfil = PerfilSolicitante.objects.get(user=perfil_user)
+    except PerfilSolicitante.DoesNotExist:
+        pass
+
+    context = {
+        "programas": programas,
+        "codigos": codigos_visiveis,
+        "tipos_despesa": TIPOS_DESPESA,
+        "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
+        "codigos_despesa_json": json.dumps(codigos_json),
+        "codigos_por_programa_json": json.dumps(codigos_por_programa),
+        "perfil": perfil,
+        "solicitacao_editar": solicitacao_editar,
+        "eh_rascunho": eh_rascunho,
+        "eh_edicao_admin": eh_edicao_admin,
+        "next_url": next_url or "",
+        "abrir_modal_sem_alteracoes": abrir_modal_sem_alteracoes,
+        "bancos_choices": BANCOS_CHOICES_REEMBOLSO,
+    }
+    if dados_post is not None:
+        context["dados_post"] = dados_post
+    return context
+
+
+@login_required
+@ensure_csrf_cookie
+def reembolso_admin_editar(request, pk):
+    """Permite ao gestor administrativo modificar qualquer campo da solicitação."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+
+    sol = get_object_or_404(
+        SolicitacaoReembolso.objects.prefetch_related("itens"),
+        pk=pk,
+    )
+    if sol.status == SolicitacaoReembolso.STATUS_RASCUNHO:
+        messages.error(request, "Não é possível modificar um rascunho pelo painel administrativo.")
+        return redirect("intra:aprovar_reembolsos")
+
+    next_url = _safe_next_url(
+        request.POST.get("next") or request.GET.get("next") or "",
+        default_name="intra:ultimos_reembolsos",
+    )
+
+    if request.method == "POST":
+        centro_custo = request.POST.get("centro_custo", "").strip()
+        itens_dados, valor_total = _parse_itens_reembolso_post(request, rascunho=False)
+        dados_pagamento = _capturar_dados_pagamento_post(request)
+        nome_gestor = dados_pagamento.get("nome_gestor") or ""
+
+        erro_validacao = False
+        if not centro_custo:
+            messages.error(request, "Informe o centro de custo.")
+            erro_validacao = True
+        if not itens_dados:
+            messages.error(request, "Informe ao menos um item de despesa.")
+            erro_validacao = True
+        if nome_gestor:
+            try:
+                validate_email(nome_gestor)
+            except ValidationError:
+                messages.error(request, "Informe um e-mail válido no campo do Gestor(a)/Aprovador(a).")
+                erro_validacao = True
+
+        import re
+
+        def validar_cpf_cnpj(valor):
+            if not valor:
+                return True
+            numeros = re.sub(r"\D", "", valor)
+            return len(numeros) == 11 or len(numeros) == 14
+
+        forma_pagamento = dados_pagamento.get("forma_pagamento") or ""
+        if forma_pagamento == "PIX" and dados_pagamento.get("pix_cpf"):
+            if not validar_cpf_cnpj(dados_pagamento["pix_cpf"]):
+                messages.error(request, "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
+                erro_validacao = True
+        if forma_pagamento == "TRANSFERENCIA" and dados_pagamento.get("transf_cpf"):
+            if not validar_cpf_cnpj(dados_pagamento["transf_cpf"]):
+                messages.error(request, "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
+                erro_validacao = True
+
+        for item in itens_dados:
+            if not (item.get("descricao") or "").strip():
+                messages.error(request, "O campo 'Descrição' é obrigatório para todos os itens de despesa.")
+                erro_validacao = True
+                break
+
+        if erro_validacao:
+            itens_post = []
+            for item in itens_dados:
+                itens_post.append({
+                    "idx": item["idx"],
+                    "tipo_despesa": item.get("tipo_despesa") or "",
+                    "cod_despesa": item.get("cod_despesa") or "",
+                    "data_despesa": (
+                        item["data_despesa"].isoformat() if item.get("data_despesa") else ""
+                    ),
+                    "descricao": item.get("descricao") or "",
+                    "valor": item.get("valor") or "",
+                })
+            context = _build_contexto_formulario_reembolso(
+                request,
+                solicitacao_editar=sol,
+                eh_edicao_admin=True,
+                next_url=next_url,
+                dados_post={
+                    "centro_custo": request.POST.get("centro_custo", ""),
+                    "nome_gestor": nome_gestor,
+                    "forma_pagamento": forma_pagamento,
+                    "pix_chave": dados_pagamento.get("pix_chave") or "",
+                    "pix_banco": dados_pagamento.get("pix_banco") or "",
+                    "pix_cpf": dados_pagamento.get("pix_cpf") or "",
+                    "transf_banco": dados_pagamento.get("transf_banco") or "",
+                    "transf_agencia": dados_pagamento.get("transf_agencia") or "",
+                    "transf_conta_tipo": dados_pagamento.get("transf_conta_tipo") or "",
+                    "transf_conta_numero": dados_pagamento.get("transf_conta_numero") or "",
+                    "transf_cpf": dados_pagamento.get("transf_cpf") or "",
+                    "itens": itens_post,
+                },
+            )
+            return render(request, "intra/reembolso.html", context)
+
+        anexos_existentes = {}
+        for idx, item_antigo in enumerate(sol.itens.all()):
+            if item_antigo.anexo:
+                anexos_existentes[idx] = item_antigo.anexo
+
+        alteracoes = []
+        if sol.centro_custo != centro_custo:
+            alteracoes.append(f"Centro de custo: '{sol.centro_custo}' → '{centro_custo}'")
+        if float(sol.valor_total) != float(valor_total):
+            alteracoes.append(f"Valor total: R$ {sol.valor_total:.2f} → R$ {valor_total:.2f}")
+        if (sol.nome_gestor or "") != nome_gestor:
+            alteracoes.append(f"Gestor: '{sol.nome_gestor or '—'}' → '{nome_gestor or '—'}'")
+        if (sol.forma_pagamento or "") != forma_pagamento:
+            alteracoes.append(
+                f"Forma de pagamento: '{sol.forma_pagamento or '—'}' → '{forma_pagamento or '—'}'"
+            )
+        if sol.itens.count() != len(itens_dados):
+            alteracoes.append(f"Quantidade de itens: {sol.itens.count()} → {len(itens_dados)}")
+        if any(k.startswith("anexo_") for k in request.FILES.keys()):
+            alteracoes.append("Anexo(s) atualizado(s)")
+
+        sol.centro_custo = centro_custo
+        sol.cod_despesa = ""
+        sol.valor_total = valor_total
+        _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento)
+        sol.save()
+
+        erro_itens = _salvar_itens_reembolso(
+            sol,
+            itens_dados,
+            request,
+            anexos_existentes=anexos_existentes,
+            exigir_descricao=True,
+            exigir_anexo=True,
+        )
+        if erro_itens:
+            messages.error(request, erro_itens)
+            return redirect(reverse("intra:reembolso_admin_editar", args=[sol.pk]) + f"?next={next_url}")
+
+        descricao_historico = "Solicitação modificada pelo gestor administrativo."
+        if alteracoes:
+            descricao_historico += " Alterações: " + "; ".join(alteracoes)
+        HistoricoReembolso.objects.create(
+            solicitacao=sol,
+            acao="Modificada pelo gestor administrativo",
+            descricao=descricao_historico,
+            usuario=request.user,
+        )
+        messages.success(request, f"Solicitação #{sol.pk} modificada com sucesso.")
+        return redirect(next_url)
+
+    context = _build_contexto_formulario_reembolso(
+        request,
+        solicitacao_editar=sol,
+        eh_edicao_admin=True,
+        next_url=next_url,
+    )
+    return render(request, "intra/reembolso.html", context)
+
+
+@login_required
+def reembolso_admin_excluir(request, pk):
+    """Exclui permanentemente uma solicitação (apenas gestor administrativo)."""
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    if request.method != "POST":
+        return HttpResponse("Método não permitido.", status=405)
+
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    next_url = _safe_next_url(
+        request.POST.get("next") or "",
+        default_name="intra:ultimos_reembolsos",
+    )
+    sol_pk = sol.pk
+    solicitante = sol.user.email if sol.user_id else "—"
+    sol.delete()
+    messages.success(
+        request,
+        f"Solicitação #{sol_pk} ({solicitante}) excluída com sucesso.",
+    )
+    return redirect(next_url)
 
 
 @login_required
@@ -4225,6 +4945,7 @@ def reembolso(request):
         "perfil": perfil,
         "solicitacao_editar": solicitacao_editar,
         "eh_rascunho": eh_rascunho,
+        "eh_edicao_admin": False,
         "abrir_modal_sem_alteracoes": abrir_modal_sem_alteracoes,
         "bancos_choices": BANCOS_CHOICES,
     }
@@ -4439,6 +5160,16 @@ def reembolso(request):
                 if not validar_cpf_cnpj(transf_cpf):
                     messages.error(request, "CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos.")
                     erro_validacao = True
+
+            anexos_ref = anexos_existentes if "anexos_existentes" in locals() else {}
+            for item in itens_dados:
+                if not _item_tem_anexo_obrigatorio(item, request, anexos_ref):
+                    messages.error(
+                        request,
+                        "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus).",
+                    )
+                    erro_validacao = True
+                    break
             
             # Se houver erro de validação, renderizar o template com os dados do POST
             if erro_validacao:
@@ -4467,6 +5198,7 @@ def reembolso(request):
                     "codigos_por_programa_json": json.dumps(codigos_por_programa),
                     "perfil": perfil,
                     "solicitacao_editar": solicitacao_editar,
+                    "eh_edicao_admin": False,
                     "bancos_choices": BANCOS_CHOICES,
                     "dados_post": {
                         "centro_custo": request.POST.get("centro_custo", ""),
@@ -4598,8 +5330,7 @@ def reembolso(request):
                     if not item.get("descricao") or not item["descricao"].strip():
                         messages.error(request, "O campo 'Descrição' é obrigatório para todos os itens de despesa.")
                         return redirect("intra:reembolso")
-                    
-                    # Buscar anexo correspondente usando o índice original do formulário
+
                     anexo = None
                     anexo_key = f"anexo_{item['idx']}"
                     if anexo_key in request.FILES:
@@ -4616,12 +5347,19 @@ def reembolso(request):
                         try:
                             item_idx = int(item['idx'])
                             if item_idx in anexos_existentes:
-                                # Manter o anexo existente copiando a referência
                                 anexo_existente = anexos_existentes[item_idx]
-                                # Usar o arquivo existente diretamente (já está no bucket)
                                 anexo = anexo_existente
                         except (ValueError, KeyError):
                             anexo = None
+
+                    if item["tipo_despesa"] != "PASSAGENS" and not anexo:
+                        messages.error(
+                            request,
+                            "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus).",
+                        )
+                        if editar_id:
+                            return redirect(f"{reverse('intra:reembolso')}?editar={editar_id}")
+                        return redirect("intra:reembolso")
                     
                     item_obj = ItemReembolso.objects.create(
                         solicitacao=sol,

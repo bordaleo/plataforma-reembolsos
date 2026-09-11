@@ -36,8 +36,9 @@ class RegraUsuarioAdmin(admin.ModelAdmin):
 
 @admin.register(PerfilSolicitante)
 class PerfilSolicitanteAdmin(admin.ModelAdmin):
-    list_display = ("user", "nome_solicitante", "banco", "conta_tipo")
-    search_fields = ("nome_solicitante", "user__email")
+    list_display = ("user", "nome_solicitante", "tipo_pessoa", "cnpj", "banco", "conta_tipo")
+    list_filter = ("tipo_pessoa",)
+    search_fields = ("nome_solicitante", "cnpj", "user__email")
 
 
 @admin.register(SolicitacaoReembolso)

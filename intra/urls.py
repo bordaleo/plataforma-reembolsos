@@ -14,6 +14,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard_gestor, name="dashboard_gestor"),
     path("dashboard/export-pptx/", views.dashboard_export_pptx, name="dashboard_export_pptx"),
     path("dashboard/solicitacoes/", views.dashboard_solicitacoes_json, name="dashboard_solicitacoes_json"),
+    path("reembolso/decidir-lote/", views.reembolso_decidir_lote, name="reembolso_decidir_lote"),
     path("reembolso/<int:pk>/decidir/", views.reembolso_decidir, name="reembolso_decidir"),
     path("reembolso/<int:pk>/marcar-pago/", views.reembolso_marcar_pago, name="reembolso_marcar_pago"),
     path(
@@ -32,7 +33,23 @@ urlpatterns = [
     path("reembolso/<int:pk>/detalhe/", views.reembolso_detalhe_json, name="reembolso_detalhe_json"),
     path("reembolso/<int:pk>/detalhe-gestor/", views.reembolso_detalhe_gestor_json, name="reembolso_detalhe_gestor_json"),
     path("reembolso/<int:pk>/anexos/", views.reembolso_anexos_json, name="reembolso_anexos_json"),
+    path(
+        "reembolso/<int:pk>/editar-admin/",
+        views.reembolso_admin_editar,
+        name="reembolso_admin_editar",
+    ),
+    path(
+        "reembolso/<int:pk>/excluir-admin/",
+        views.reembolso_admin_excluir,
+        name="reembolso_admin_excluir",
+    ),
     path("meu-perfil/", views.meu_perfil, name="meu_perfil"),
+    path("gestao-cadastros/", views.gestao_cadastros, name="gestao_cadastros"),
+    path(
+        "gestao-cadastros/<int:user_id>/editar/",
+        views.gestao_cadastro_editar,
+        name="gestao_cadastro_editar",
+    ),
     path("completar-cadastro/", views.completar_cadastro_view, name="completar_cadastro"),
     path("buscar-gestores/", views.buscar_gestores_json, name="buscar_gestores"),
     path("login/", views.login_view, name="login"),

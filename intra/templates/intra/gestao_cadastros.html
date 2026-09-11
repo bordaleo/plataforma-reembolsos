@@ -1,0 +1,268 @@
+{% extends "intra/base.html" %}
+{% load static %}
+{% block title %}Gestão de Cadastros - Plataforma de Reembolsos{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro {
+        margin: 0 0 1.5rem;
+        color: #7f8c8d;
+        font-size: 1rem;
+    }
+    .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .filtros {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        align-items: end;
+    }
+    .filtros .form-group {
+        margin: 0;
+        flex: 1;
+        min-width: 180px;
+    }
+    .filtros label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 0.85rem;
+    }
+    .filtros input,
+    .filtros select {
+        width: 100%;
+        padding: 0.55rem 0.75rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    .filtros .btn {
+        padding: 0.6rem 1.1rem;
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .filtros .btn:hover {
+        background: #1a252f;
+    }
+    .filtros .btn-secondary {
+        background: #7f8c8d;
+    }
+    .resumo {
+        margin-bottom: 1rem;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+    .tabela-cadastros {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabela-cadastros th,
+    .tabela-cadastros td {
+        padding: 0.85rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #e1e8ed;
+        font-size: 0.9rem;
+    }
+    .tabela-cadastros th {
+        background: #f4f6f8;
+        color: #34495e;
+        font-weight: 700;
+    }
+    .tabela-cadastros tr:hover td {
+        background: #f8fafb;
+    }
+    .badge {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    .badge-pf {
+        background: #e8f4fd;
+        color: #1a6aa5;
+    }
+    .badge-pj {
+        background: #eef8ee;
+        color: #1f7a3a;
+    }
+    .badge-vazio {
+        background: #f0f0f0;
+        color: #7f8c8d;
+    }
+    .badge-ok {
+        background: #e8f8ef;
+        color: #1e7a45;
+    }
+    .badge-pendente {
+        background: #fff4e5;
+        color: #a65d00;
+    }
+    .btn-editar {
+        display: inline-block;
+        padding: 0.4rem 0.75rem;
+        background: #2c3e50;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .btn-editar:hover {
+        background: #1a252f;
+        color: #fff;
+    }
+    .paginacao {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .paginacao a,
+    .paginacao span {
+        padding: 0.4rem 0.7rem;
+        border-radius: 6px;
+        border: 1px solid #d1d9e0;
+        text-decoration: none;
+        color: #2c3e50;
+        font-size: 0.85rem;
+    }
+    .paginacao .atual {
+        background: #2c3e50;
+        color: #fff;
+        border-color: #2c3e50;
+    }
+    .vazio {
+        text-align: center;
+        color: #7f8c8d;
+        padding: 2rem 1rem;
+    }
+    @media (max-width: 768px) {
+        .tabela-cadastros thead {
+            display: none;
+        }
+        .tabela-cadastros tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+        .tabela-cadastros td {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border: none;
+            padding: 0.4rem 0;
+        }
+        .tabela-cadastros td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #34495e;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Gestão de Cadastros</h1>
+<p class="page-intro">Visualize e edite os dados de perfil de todos os usuários da plataforma.</p>
+
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card">
+    <form method="get" class="filtros">
+        <div class="form-group">
+            <label for="q">Buscar</label>
+            <input type="text" id="q" name="q" value="{{ q }}" placeholder="E-mail, nome, razão social ou CNPJ">
+        </div>
+        <div class="form-group" style="max-width: 180px;">
+            <label for="tipo">Tipo de pessoa</label>
+            <select id="tipo" name="tipo">
+                <option value="">Todos</option>
+                <option value="PF" {% if tipo == 'PF' %}selected{% endif %}>Pessoa Física</option>
+                <option value="PJ" {% if tipo == 'PJ' %}selected{% endif %}>Pessoa Jurídica</option>
+            </select>
+        </div>
+        <button type="submit" class="btn">Filtrar</button>
+        {% if q or tipo %}
+        <a href="{% url 'intra:gestao_cadastros' %}" class="btn btn-secondary">Limpar</a>
+        {% endif %}
+    </form>
+
+    <p class="resumo">{{ total }} usuário{{ total|pluralize }} encontrado{{ total|pluralize }}</p>
+
+    {% if page_obj.object_list %}
+    <div style="overflow-x: auto;">
+        <table class="tabela-cadastros">
+            <thead>
+                <tr>
+                    <th>E-mail</th>
+                    <th>Nome / Razão social</th>
+                    <th>Tipo</th>
+                    <th>Cadastro</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in page_obj %}
+                <tr>
+                    <td data-label="E-mail">{{ u.email|default:"—" }}</td>
+                    <td data-label="Nome">{{ u.perfil_solicitante.nome_solicitante|default:"—" }}</td>
+                    <td data-label="Tipo">
+                        {% if u.perfil_solicitante.tipo_pessoa == 'PJ' %}
+                        <span class="badge badge-pj">Pessoa Jurídica</span>
+                        {% else %}
+                        <span class="badge badge-pf">Pessoa Física</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Cadastro">
+                        {% if u.perfil_solicitante and u.perfil_solicitante.dados_completos %}
+                        <span class="badge badge-ok">Completo</span>
+                        {% else %}
+                        <span class="badge badge-pendente">Incompleto</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Ações">
+                        <a class="btn-editar" href="{% url 'intra:gestao_cadastro_editar' u.id %}">Editar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="paginacao">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tipo %}&tipo={{ tipo }}{% endif %}">Anterior</a>
+        {% endif %}
+        <span class="atual">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if tipo %}&tipo={{ tipo }}{% endif %}">Próxima</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="vazio">Nenhum usuário encontrado.</p>
+    {% endif %}
+</div>
+{% endblock %}

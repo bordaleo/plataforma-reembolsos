@@ -38,6 +38,245 @@
     .tabela-reembolsos th:last-child {
         border-top-right-radius: 8px;
     }
+    .tabela-reembolsos th.col-check,
+    .tabela-reembolsos td.col-check {
+        width: 44px;
+        text-align: center;
+        vertical-align: middle;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    .tabela-reembolsos .check-reembolso {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #38a169;
+    }
+    .tabela-reembolsos tbody tr.selecionada {
+        background-color: #f0fff4;
+    }
+    .tabela-reembolsos tbody tr.selecionada:hover {
+        background-color: #e6ffed;
+    }
+    .aprovacao-lote-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1.15rem 1.35rem;
+        background: #f8fafb;
+        border: 2px solid #e1e8ed;
+        border-radius: 10px;
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .aprovacao-lote-bar.com-selecao {
+        background: linear-gradient(135deg, #f0fff4 0%, #e6ffed 100%);
+        border-color: #38a169;
+        box-shadow: 0 2px 8px rgba(56, 161, 105, 0.15);
+    }
+    .aprovacao-lote-bar .lote-texto {
+        color: #4a5568;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .aprovacao-lote-bar.com-selecao .lote-texto {
+        color: #276749;
+        font-weight: 700;
+    }
+    .aprovacao-lote-bar .lote-texto .count-selecionadas {
+        color: #38a169;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    .aprovacao-lote-bar .lote-texto .hint-selecao {
+        color: #718096;
+        font-weight: 500;
+    }
+    .aprovacao-lote-bar .lote-botoes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+    }
+    .aprovacao-lote-bar .btn-lote {
+        border: none;
+        border-radius: 8px;
+        padding: 0.7rem 1.15rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .aprovacao-lote-bar .btn-lote-limpar {
+        display: none;
+        background: #fff;
+        color: #2c3e50;
+        border: 2px solid #cbd5e0;
+    }
+    .aprovacao-lote-bar.com-selecao .btn-lote-limpar {
+        display: inline-flex;
+        align-items: center;
+    }
+    .aprovacao-lote-bar .btn-lote-limpar:hover {
+        background: #f7fafc;
+        border-color: #a0aec0;
+    }
+    .aprovacao-lote-bar .btn-lote-todos {
+        background: #2c3e50;
+        color: #fff;
+    }
+    .aprovacao-lote-bar.com-selecao-completa .btn-lote-todos {
+        display: none;
+    }
+    .aprovacao-lote-bar .btn-lote-todos:hover {
+        background: #1a252f;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(44, 62, 80, 0.3);
+    }
+    .aprovacao-lote-bar .btn-aprovar-lote {
+        display: none;
+        background: #38a169;
+        color: #fff;
+        border: none;
+        padding: 0.85rem 1.6rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        box-shadow: 0 3px 12px rgba(56, 161, 105, 0.35);
+        letter-spacing: 0.2px;
+    }
+    .aprovacao-lote-bar.com-selecao .btn-aprovar-lote {
+        display: inline-flex;
+        align-items: center;
+    }
+    .aprovacao-lote-bar .btn-aprovar-lote:hover {
+        background: #2f855a;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 16px rgba(56, 161, 105, 0.45);
+    }
+    .aprovacao-lote-bar .btn-rejeitar-lote {
+        display: none;
+        background: #e53e3e;
+        color: #fff;
+        border: none;
+        padding: 0.85rem 1.4rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        box-shadow: 0 3px 12px rgba(229, 62, 62, 0.3);
+    }
+    .aprovacao-lote-bar.com-selecao .btn-rejeitar-lote {
+        display: inline-flex;
+        align-items: center;
+    }
+    .aprovacao-lote-bar .btn-rejeitar-lote:hover {
+        background: #c53030;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 16px rgba(229, 62, 62, 0.4);
+    }
+    .motivo-lote-item {
+        background: #f8f9fa;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 1rem 1.15rem;
+        margin-bottom: 1rem;
+    }
+    .motivo-lote-item strong {
+        display: block;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .motivo-lote-item textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+    .motivo-lote-item textarea:focus {
+        outline: none;
+        border-color: #e53e3e;
+        box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.12);
+    }
+    .escolha-lote-opcoes {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+    }
+    .escolha-lote-opcoes button {
+        width: 100%;
+        padding: 0.9rem 1.25rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    .btn-escolha-selecionados {
+        background: #38a169;
+        color: #fff;
+    }
+    .btn-escolha-selecionados.rejeitar {
+        background: #e53e3e;
+    }
+    .btn-escolha-selecionados:hover {
+        filter: brightness(0.95);
+        transform: translateY(-1px);
+    }
+    .btn-escolha-unico {
+        background: #2c3e50;
+        color: #fff;
+    }
+    .btn-escolha-unico:hover {
+        background: #1a252f;
+    }
+    .btn-escolha-cancelar {
+        background: #e1e8ed;
+        color: #34495e;
+    }
+    .btn-escolha-cancelar:hover {
+        background: #d1d9e0;
+    }
+    @media (max-width: 768px) {
+        .aprovacao-lote-bar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .aprovacao-lote-bar .lote-botoes {
+            flex-direction: column;
+        }
+        .aprovacao-lote-bar .btn-lote,
+        .aprovacao-lote-bar .btn-aprovar-lote,
+        .aprovacao-lote-bar .btn-rejeitar-lote {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    .reembolso-card-mobile.selecionada {
+        outline: 2px solid #38a169;
+        outline-offset: -2px;
+    }
+    .reembolso-card-mobile-check {
+        display: flex;
+        align-items: center;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
     .tabela-reembolsos td {
         padding: 1rem 1.25rem;
         border-bottom: 2px solid #e1e8ed;
@@ -71,15 +310,15 @@
     .tabela-reembolsos .acoes {
         text-align: center;
     }
-    /* Centralizar colunas de Status */
-    .tabela-reembolsos th:nth-child(6),
+    /* Centralizar colunas de Status (após coluna de checkbox) */
     .tabela-reembolsos th:nth-child(7),
-    .tabela-reembolsos td:nth-child(6),
-    .tabela-reembolsos td:nth-child(7) {
+    .tabela-reembolsos th:nth-child(8),
+    .tabela-reembolsos td:nth-child(7),
+    .tabela-reembolsos td:nth-child(8) {
         text-align: center;
     }
-    .tabela-reembolsos td:nth-child(6) > *,
-    .tabela-reembolsos td:nth-child(7) > * {
+    .tabela-reembolsos td:nth-child(7) > *,
+    .tabela-reembolsos td:nth-child(8) > * {
         display: inline-block;
         text-align: center;
     }
@@ -243,6 +482,25 @@
     .btn-ver-solicitacao:hover {
         background: #ddd;
         color: #2c3e50;
+    }
+    .btn-modificar-admin {
+        display: inline-block;
+        padding: 0.4rem 0.75rem;
+        background: #2c5282;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    .btn-modificar-admin:hover {
+        background: #2a4365;
+        color: white;
+        text-decoration: none;
     }
     .detalhe-solicitacao {
         display: grid;
@@ -526,11 +784,12 @@
         }
         .reembolso-card-mobile-header {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            justify-content: flex-start;
+            align-items: center;
             margin-bottom: 1rem;
             padding-bottom: 1rem;
             border-bottom: 2px solid #e1e8ed;
+            gap: 0.5rem;
         }
         .reembolso-card-mobile-id {
             font-size: 1.1rem;
@@ -565,7 +824,8 @@
         .reembolso-card-mobile-actions .btn-programar-pagamento,
         .reembolso-card-mobile-actions .btn-concluir,
         .reembolso-card-mobile-actions .btn-ver-solicitacao,
-        .reembolso-card-mobile-actions .btn-pdf {
+        .reembolso-card-mobile-actions .btn-pdf,
+        .reembolso-card-mobile-actions .btn-modificar-admin {
             width: 100%;
             padding: 0.75rem 1rem;
         }
@@ -774,11 +1034,37 @@
 
 {% if solicitacoes %}
 <div class="card">
+    <form method="post" action="{% url 'intra:reembolso_decidir_lote' %}" id="form-aprovar-lote" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="acao" id="lote-acao" value="aprovar">
+        <input type="hidden" name="aprovar_todos" id="lote-aprovar-todos" value="0">
+        <input type="hidden" name="ids_csv" id="lote-ids-csv" value="">
+    </form>
+
+    {% if total_aprovaveis %}
+    <div class="aprovacao-lote-bar" id="aprovacao-lote-bar">
+        <span class="lote-texto" id="lote-texto">
+            <span class="hint-selecao">Marque as solicitações para aprovar ou rejeitar em lote · {{ total_aprovaveis }} pendente{{ total_aprovaveis|pluralize:"s" }}</span>
+        </span>
+        <div class="lote-botoes">
+            <button type="button" class="btn-lote btn-lote-limpar" id="btn-limpar-selecao">Limpar seleção</button>
+            <button type="button" class="btn-lote btn-lote-todos" id="btn-selecionar-todos">Selecionar todos</button>
+            <button type="button" class="btn-rejeitar-lote" id="btn-rejeitar-selecionados">Rejeitar selecionados</button>
+            <button type="button" class="btn-aprovar-lote" id="btn-aprovar-selecionados">Aprovar selecionados</button>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Desktop Table -->
     <div class="tabela-wrapper">
     <table class="tabela-reembolsos">
         <thead>
             <tr>
+                <th class="col-check">
+                    {% if total_aprovaveis %}
+                    <input type="checkbox" class="check-reembolso" id="check-todos-pagina" title="Selecionar todos nesta página" aria-label="Selecionar todos nesta página">
+                    {% endif %}
+                </th>
                 <th>Ver Solicitação</th>
                 <th>ID</th>
                 <th>Data de Envio</th>
@@ -791,9 +1077,19 @@
         </thead>
         <tbody>
             {% for s in solicitacoes %}
-            <tr>
+            <tr{% if s.pode_decidir %} data-pk="{{ s.pk }}"{% endif %}>
+                <td class="col-check">
+                    {% if s.pode_decidir %}
+                    <input type="checkbox" class="check-reembolso check-item" value="{{ s.pk }}" data-label="#{{ s.pk }}{% if s.nome_solicitante %} — {{ s.nome_solicitante }}{% elif s.user.get_full_name %} — {{ s.user.get_full_name }}{% else %} — {{ s.email_solicitante }}{% endif %}" aria-label="Selecionar solicitação #{{ s.pk }}">
+                    {% endif %}
+                </td>
                 <td class="acoes">
                     <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver</button>
+                    {% if is_gestor_admin %}
+                    <div class="acoes-vertical" style="margin-top: 0.35rem;">
+                        <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin">Modificar</a>
+                    </div>
+                    {% endif %}
                 </td>
                 <td><strong>#{{ s.pk }}</strong></td>
                 <td>{{ s.criado_em_brasilia|date:"d/m/Y H:i"|default:"—" }}</td>
@@ -834,15 +1130,15 @@
                     {% if s.pode_decidir %}
                         <div class="acoes-vertical">
                             {% if is_gestor_admin %}
-                                <button type="button" class="btn-aprovar btn-programar-pagamento" data-pk="{{ s.pk }}">Aprovar</button>
+                                <button type="button" class="btn-aprovar btn-programar-pagamento btn-aprovar-manual" data-pk="{{ s.pk }}">Aprovar</button>
                             {% else %}
-                                <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
+                                <form method="post" action="/reembolso/{{ s.pk }}/decidir/" class="form-aprovar-individual" data-pk="{{ s.pk }}" style="display: inline-block;">
                                     {% csrf_token %}
                                     <input type="hidden" name="acao" value="aprovar">
-                                    <button type="submit" class="btn-aprovar">Aprovar</button>
+                                    <button type="submit" class="btn-aprovar btn-aprovar-manual">Aprovar</button>
                                 </form>
                             {% endif %}
-                            <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                            <button type="button" class="btn-rejeitar btn-rejeitar-manual" data-pk="{{ s.pk }}">Rejeitar</button>
                         </div>
                     {% elif s.pode_marcar_pago %}
                         <button type="button" class="btn-programar-pagamento" data-pk="{{ s.pk }}">
@@ -867,8 +1163,13 @@
     <!-- Mobile Cards -->
     <div class="tabela-reembolsos-mobile">
         {% for s in solicitacoes %}
-        <div class="reembolso-card-mobile">
+        <div class="reembolso-card-mobile"{% if s.pode_decidir %} data-pk="{{ s.pk }}"{% endif %}>
             <div class="reembolso-card-mobile-header">
+                {% if s.pode_decidir %}
+                <div class="reembolso-card-mobile-check">
+                    <input type="checkbox" class="check-reembolso check-item" value="{{ s.pk }}" data-label="#{{ s.pk }}{% if s.nome_solicitante %} — {{ s.nome_solicitante }}{% elif s.user.get_full_name %} — {{ s.user.get_full_name }}{% else %} — {{ s.email_solicitante }}{% endif %}" aria-label="Selecionar solicitação #{{ s.pk }}">
+                </div>
+                {% endif %}
                 <div class="reembolso-card-mobile-id">#{{ s.pk }}</div>
             </div>
             <div class="reembolso-card-mobile-field">
@@ -911,17 +1212,20 @@
             <div class="reembolso-card-mobile-actions">
                 <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
                 <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                {% if is_gestor_admin %}
+                    <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin" style="text-align:center;">Modificar</a>
+                {% endif %}
                 {% if s.pode_decidir %}
                     {% if is_gestor_admin %}
-                        <button type="button" class="btn-aprovar btn-programar-pagamento" data-pk="{{ s.pk }}">Aprovar</button>
+                        <button type="button" class="btn-aprovar btn-programar-pagamento btn-aprovar-manual" data-pk="{{ s.pk }}">Aprovar</button>
                     {% else %}
-                        <form method="post" action="/reembolso/{{ s.pk }}/decidir/" style="display: inline-block; width: 100%;" onsubmit="showLoading('Aprovando solicitação...'); return true;">
+                        <form method="post" action="/reembolso/{{ s.pk }}/decidir/" class="form-aprovar-individual" data-pk="{{ s.pk }}" style="display: inline-block; width: 100%;">
                             {% csrf_token %}
                             <input type="hidden" name="acao" value="aprovar">
-                            <button type="submit" class="btn-aprovar" style="width: 100%;">Aprovar</button>
+                            <button type="submit" class="btn-aprovar btn-aprovar-manual" style="width: 100%;">Aprovar</button>
                         </form>
                     {% endif %}
-                    <button type="button" class="btn-rejeitar" data-pk="{{ s.pk }}">Rejeitar</button>
+                    <button type="button" class="btn-rejeitar btn-rejeitar-manual" data-pk="{{ s.pk }}">Rejeitar</button>
                 {% elif s.pode_marcar_pago %}
                     <button type="button" class="btn-programar-pagamento" data-pk="{{ s.pk }}">Programar Pagamento</button>
                 {% elif s.pode_concluir %}
@@ -1036,6 +1340,42 @@
     </div>
 </div>
 
+<!-- Modal rejeitar em lote (motivo por solicitação) -->
+<div id="modal-rejeitar-lote" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>Rejeitar selecionadas</h2>
+            <button type="button" class="modal-fechar" id="modal-rejeitar-lote-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form method="post" action="{% url 'intra:reembolso_decidir_lote' %}" id="form-rejeitar-lote">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="rejeitar">
+            <input type="hidden" name="aprovar_todos" value="0">
+            <input type="hidden" name="ids_csv" id="rejeitar-lote-ids-csv" value="">
+            <div id="rejeitar-lote-motivos" style="padding: 0.5rem 0 1rem;"></div>
+            <button type="submit" class="btn-primary" style="background: #e53e3e;">Confirmar rejeições</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal escolha: selecionados vs apenas esta -->
+<div id="modal-escolha-lote" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box" style="max-width: 480px;">
+        <div class="modal-header">
+            <h2 id="escolha-lote-titulo">Confirmar ação</h2>
+            <button type="button" class="modal-fechar" id="modal-escolha-lote-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div style="padding: 0.5rem 0 0.25rem;">
+            <p id="escolha-lote-texto" style="color: #4a5568; line-height: 1.5; margin: 0;"></p>
+            <div class="escolha-lote-opcoes">
+                <button type="button" class="btn-escolha-selecionados" id="btn-escolha-selecionados"></button>
+                <button type="button" class="btn-escolha-unico" id="btn-escolha-unico"></button>
+                <button type="button" class="btn-escolha-cancelar" id="btn-escolha-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Programar Pagamento -->
 <div id="modal-programar-pagamento" class="modal-overlay" aria-hidden="true">
     <div class="modal-box" style="max-width: 550px;">
@@ -1048,6 +1388,9 @@
         </div>
         <form method="post" id="form-programar-pagamento" action="" onsubmit="showLoading('Programando pagamento...'); return true;">
             {% csrf_token %}
+            <input type="hidden" name="acao" value="aprovar">
+            <input type="hidden" name="aprovar_todos" id="modal-aprovar-todos" value="0">
+            <input type="hidden" name="ids_csv" id="modal-ids-csv" value="">
             <div style="padding: 2.5rem 2rem;">
                 <!-- Opção 1: Programar Data -->
                 <div style="margin-bottom: 2.5rem;">
@@ -1544,65 +1887,406 @@
         });
     });
 
-    // Modal de rejeitar
+    // ---- Seleção / lote / ações individuais ----
+    var isGestorAdmin = {{ is_gestor_admin|yesno:"true,false" }};
+    var totalAprovaveis = {{ total_aprovaveis|default:0 }};
+
     var modalRejeitar = document.getElementById('modal-rejeitar');
     var formRejeitar = document.getElementById('form-rejeitar');
-    // Função para adicionar listeners aos botões de rejeitar
-    function adicionarListenersRejeitar() {
-        document.querySelectorAll('.btn-rejeitar').forEach(function(btn) {
-            // Remove listeners anteriores se existirem
-            var novoBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(novoBtn, btn);
-            novoBtn.addEventListener('click', function() {
-                var pk = this.getAttribute('data-pk');
-                formRejeitar.action = '/reembolso/' + pk + '/decidir/';
-                document.getElementById('rejeitar-pk').value = pk;
-                document.getElementById('motivo_rejeicao').value = '';
-                modalRejeitar.classList.add('aberto');
-                modalRejeitar.setAttribute('aria-hidden', 'false');
-            });
-        });
-    }
-    adicionarListenersRejeitar();
-    
-    var btnFechar = document.getElementById('modal-rejeitar-fechar');
-    if (btnFechar) {
-        btnFechar.addEventListener('click', function() {
-            modalRejeitar.classList.remove('aberto');
-            modalRejeitar.setAttribute('aria-hidden', 'true');
-        });
-    }
-    modalRejeitar.addEventListener('click', function(e) {
-        if (e.target === modalRejeitar) {
-            modalRejeitar.classList.remove('aberto');
-            modalRejeitar.setAttribute('aria-hidden', 'true');
-        }
-    });
-    
-    // Modal Programar Pagamento
+    var modalRejeitarLote = document.getElementById('modal-rejeitar-lote');
+    var formRejeitarLote = document.getElementById('form-rejeitar-lote');
+    var rejeitarLoteIdsCsv = document.getElementById('rejeitar-lote-ids-csv');
+    var rejeitarLoteMotivos = document.getElementById('rejeitar-lote-motivos');
+
+    var modalEscolhaLote = document.getElementById('modal-escolha-lote');
+    var escolhaTitulo = document.getElementById('escolha-lote-titulo');
+    var escolhaTexto = document.getElementById('escolha-lote-texto');
+    var btnEscolhaSelecionados = document.getElementById('btn-escolha-selecionados');
+    var btnEscolhaUnico = document.getElementById('btn-escolha-unico');
+    var btnEscolhaCancelar = document.getElementById('btn-escolha-cancelar');
+    var escolhaPendente = null;
+
     var modalProgramarPagamento = document.getElementById('modal-programar-pagamento');
     var formProgramarPagamento = document.getElementById('form-programar-pagamento');
     var btnCancelarProgramar = document.getElementById('btn-cancelar-programar');
     var btnFecharProgramar = document.getElementById('modal-programar-pagamento-fechar');
     var checkMarcarComoPago = document.getElementById('marcar_como_pago');
     var inputDataPagamento = document.getElementById('data_pagamento');
-    
-    // Abrir modal ao clicar no botão
-    document.querySelectorAll('.btn-programar-pagamento').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var pk = this.getAttribute('data-pk');
+    var modalAprovarTodos = document.getElementById('modal-aprovar-todos');
+    var modalIdsCsv = document.getElementById('modal-ids-csv');
+
+    var checkTodosPagina = document.getElementById('check-todos-pagina');
+    var formAprovarLote = document.getElementById('form-aprovar-lote');
+    var loteIdsCsv = document.getElementById('lote-ids-csv');
+    var loteAprovarTodos = document.getElementById('lote-aprovar-todos');
+    var loteAcao = document.getElementById('lote-acao');
+    var btnAprovarSelecionados = document.getElementById('btn-aprovar-selecionados');
+    var btnRejeitarSelecionados = document.getElementById('btn-rejeitar-selecionados');
+    var btnLimparSelecao = document.getElementById('btn-limpar-selecao');
+    var btnSelecionarTodos = document.getElementById('btn-selecionar-todos');
+    var bulkBar = document.getElementById('aprovacao-lote-bar');
+    var loteTexto = document.getElementById('lote-texto');
+
+    function getChecksPagina() {
+        return Array.prototype.slice.call(document.querySelectorAll('.check-item'));
+    }
+
+    function getSelectedIds() {
+        var ids = [];
+        var seen = {};
+        getChecksPagina().forEach(function(cb) {
+            if (cb.checked && !seen[cb.value]) {
+                seen[cb.value] = true;
+                ids.push(cb.value);
+            }
+        });
+        return ids;
+    }
+
+    function getLabelForId(id) {
+        var cb = document.querySelector('.check-item[value="' + id + '"]');
+        return (cb && cb.getAttribute('data-label')) || ('#' + id);
+    }
+
+    function syncChecksByValue(value, checked) {
+        getChecksPagina().forEach(function(cb) {
+            if (cb.value === value) cb.checked = checked;
+        });
+        document.querySelectorAll('tr[data-pk="' + value + '"], .reembolso-card-mobile[data-pk="' + value + '"]').forEach(function(el) {
+            if (checked) el.classList.add('selecionada');
+            else el.classList.remove('selecionada');
+        });
+    }
+
+    function updateBulkUI() {
+        var ids = getSelectedIds();
+        var checks = getChecksPagina();
+        var temSelecao = ids.length > 0;
+
+        if (bulkBar) {
+            if (temSelecao) bulkBar.classList.add('com-selecao');
+            else bulkBar.classList.remove('com-selecao');
+            var todasMarcadas = checks.length > 0 && checks.every(function(cb) { return cb.checked; });
+            if (todasMarcadas) bulkBar.classList.add('com-selecao-completa');
+            else bulkBar.classList.remove('com-selecao-completa');
+        }
+
+        if (loteTexto) {
+            if (temSelecao) {
+                var label = ids.length === 1 ? '1 selecionada' : ids.length + ' selecionadas';
+                loteTexto.innerHTML = '<span class="count-selecionadas">' + label + '</span> · ' + totalAprovaveis + ' pendente' + (totalAprovaveis !== 1 ? 's' : '');
+            } else {
+                loteTexto.innerHTML = '<span class="hint-selecao">Marque as solicitações para aprovar ou rejeitar em lote · ' + totalAprovaveis + ' pendente' + (totalAprovaveis !== 1 ? 's' : '') + '</span>';
+            }
+        }
+
+        if (btnAprovarSelecionados) {
+            btnAprovarSelecionados.textContent = temSelecao
+                ? ('Aprovar selecionados (' + ids.length + ')')
+                : 'Aprovar selecionados';
+        }
+        if (btnRejeitarSelecionados) {
+            btnRejeitarSelecionados.textContent = temSelecao
+                ? ('Rejeitar selecionados (' + ids.length + ')')
+                : 'Rejeitar selecionados';
+        }
+
+        if (checkTodosPagina && checks.length) {
+            var allChecked = checks.every(function(cb) { return cb.checked; });
+            var someChecked = checks.some(function(cb) { return cb.checked; });
+            checkTodosPagina.checked = allChecked;
+            checkTodosPagina.indeterminate = someChecked && !allChecked;
+        }
+    }
+
+    function abrirModal(el) {
+        if (!el) return;
+        el.classList.add('aberto');
+        el.setAttribute('aria-hidden', 'false');
+    }
+
+    function fecharModal(el) {
+        if (!el) return;
+        el.classList.remove('aberto');
+        el.setAttribute('aria-hidden', 'true');
+    }
+
+    function abrirModalProgramar(pk, loteOpts) {
+        loteOpts = loteOpts || null;
+        if (loteOpts) {
+            formProgramarPagamento.action = '{% url "intra:reembolso_decidir_lote" %}';
+            if (modalAprovarTodos) modalAprovarTodos.value = loteOpts.aprovarTodos ? '1' : '0';
+            if (modalIdsCsv) modalIdsCsv.value = loteOpts.idsCsv || '';
+            var titulo = modalProgramarPagamento.querySelector('.modal-header h2 span:last-child');
+            if (titulo) {
+                titulo.textContent = loteOpts.aprovarTodos ? 'Aprovar todos' : 'Aprovar selecionados';
+            }
+        } else {
             formProgramarPagamento.action = '/reembolso/' + pk + '/programar-pagamento/';
-            inputDataPagamento.value = '';
-            checkMarcarComoPago.checked = false;
-            // Resetar hover overlay
-            var hoverOverlay = document.getElementById('hover-overlay');
-            if (hoverOverlay) hoverOverlay.style.opacity = '0';
-            modalProgramarPagamento.classList.add('aberto');
-            modalProgramarPagamento.setAttribute('aria-hidden', 'false');
+            if (modalAprovarTodos) modalAprovarTodos.value = '0';
+            if (modalIdsCsv) modalIdsCsv.value = '';
+            var tituloPadrao = modalProgramarPagamento.querySelector('.modal-header h2 span:last-child');
+            if (tituloPadrao) tituloPadrao.textContent = 'Programar Pagamento';
+        }
+        inputDataPagamento.value = '';
+        checkMarcarComoPago.checked = false;
+        var hoverOverlay = document.getElementById('hover-overlay');
+        if (hoverOverlay) hoverOverlay.style.opacity = '0';
+        abrirModal(modalProgramarPagamento);
+    }
+
+    function abrirRejeitarIndividual(pk) {
+        formRejeitar.action = '/reembolso/' + pk + '/decidir/';
+        document.getElementById('rejeitar-pk').value = pk;
+        document.getElementById('motivo_rejeicao').value = '';
+        abrirModal(modalRejeitar);
+    }
+
+    function abrirRejeitarLote(ids) {
+        if (!ids || !ids.length) {
+            alert('Selecione ao menos uma solicitação.');
+            return;
+        }
+        if (rejeitarLoteIdsCsv) rejeitarLoteIdsCsv.value = ids.join(',');
+        var html = '<p style="color:#718096;margin:0 0 1rem;font-size:0.9rem;">Informe o motivo da rejeição para cada solicitação.</p>';
+        ids.forEach(function(id) {
+            html += '<div class="motivo-lote-item">';
+            html += '<strong>' + escapeHtml(getLabelForId(id)) + '</strong>';
+            html += '<textarea name="motivo_' + id + '" rows="3" required placeholder="Motivo da rejeição..."></textarea>';
+            html += '</div>';
+        });
+        if (rejeitarLoteMotivos) rejeitarLoteMotivos.innerHTML = html;
+        abrirModal(modalRejeitarLote);
+    }
+
+    function aprovarIndividual(pk) {
+        if (isGestorAdmin) {
+            abrirModalProgramar(pk, null);
+            return;
+        }
+        var form = document.querySelector('.form-aprovar-individual[data-pk="' + pk + '"]');
+        if (form) {
+            showLoading('Aprovando solicitação...');
+            form.submit();
+        }
+    }
+
+    function enviarAprovacaoLote(aprovarTodos) {
+        var ids = getSelectedIds();
+        if (aprovarTodos) {
+            if (!totalAprovaveis) {
+                alert('Não há solicitações pendentes para aprovar.');
+                return;
+            }
+        } else {
+            if (!ids.length) {
+                alert('Selecione ao menos uma solicitação.');
+                return;
+            }
+        }
+
+        if (isGestorAdmin) {
+            abrirModalProgramar(null, {
+                aprovarTodos: !!aprovarTodos,
+                idsCsv: aprovarTodos ? '' : ids.join(',')
+            });
+            return;
+        }
+        if (!formAprovarLote) return;
+        if (loteAcao) loteAcao.value = 'aprovar';
+        if (loteAprovarTodos) loteAprovarTodos.value = aprovarTodos ? '1' : '0';
+        if (loteIdsCsv) loteIdsCsv.value = aprovarTodos ? '' : ids.join(',');
+        showLoading(aprovarTodos ? 'Aprovando todas as solicitações...' : 'Aprovando solicitações selecionadas...');
+        formAprovarLote.submit();
+    }
+
+    function fecharEscolhaLote() {
+        escolhaPendente = null;
+        fecharModal(modalEscolhaLote);
+    }
+
+    function perguntarEscopoAcao(acao, pk) {
+        var ids = getSelectedIds();
+        if (ids.length <= 1) {
+            if (acao === 'aprovar') aprovarIndividual(pk);
+            else abrirRejeitarIndividual(pk);
+            return;
+        }
+
+        escolhaPendente = { acao: acao, pk: String(pk), ids: ids };
+        if (escolhaTitulo) escolhaTitulo.textContent = acao === 'aprovar' ? 'Aprovar' : 'Rejeitar';
+        if (escolhaTexto) {
+            escolhaTexto.textContent = 'Há ' + ids.length + ' solicitações selecionadas. O que deseja fazer?';
+        }
+        if (btnEscolhaSelecionados) {
+            btnEscolhaSelecionados.className = 'btn-escolha-selecionados' + (acao === 'rejeitar' ? ' rejeitar' : '');
+            btnEscolhaSelecionados.textContent = acao === 'aprovar'
+                ? ('Aprovar as ' + ids.length + ' selecionadas')
+                : ('Rejeitar as ' + ids.length + ' selecionadas');
+        }
+        if (btnEscolhaUnico) {
+            btnEscolhaUnico.textContent = acao === 'aprovar'
+                ? ('Aprovar apenas a #' + pk)
+                : ('Rejeitar apenas a #' + pk);
+        }
+        abrirModal(modalEscolhaLote);
+    }
+
+    // Checkbox listeners
+    getChecksPagina().forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            syncChecksByValue(this.value, this.checked);
+            updateBulkUI();
         });
     });
-    
-    // Efeito hover no label do checkbox
+
+    if (checkTodosPagina) {
+        checkTodosPagina.addEventListener('change', function() {
+            var checked = this.checked;
+            getChecksPagina().forEach(function(cb) {
+                cb.checked = checked;
+                syncChecksByValue(cb.value, checked);
+            });
+            updateBulkUI();
+        });
+    }
+
+    if (btnLimparSelecao) {
+        btnLimparSelecao.addEventListener('click', function() {
+            getChecksPagina().forEach(function(cb) {
+                cb.checked = false;
+                syncChecksByValue(cb.value, false);
+            });
+            updateBulkUI();
+        });
+    }
+
+    if (btnAprovarSelecionados) {
+        btnAprovarSelecionados.addEventListener('click', function() {
+            enviarAprovacaoLote(false);
+        });
+    }
+
+    if (btnSelecionarTodos) {
+        btnSelecionarTodos.addEventListener('click', function() {
+            getChecksPagina().forEach(function(cb) {
+                cb.checked = true;
+                syncChecksByValue(cb.value, true);
+            });
+            updateBulkUI();
+        });
+    }
+
+    if (btnRejeitarSelecionados) {
+        btnRejeitarSelecionados.addEventListener('click', function() {
+            var ids = getSelectedIds();
+            if (!ids.length) {
+                alert('Selecione ao menos uma solicitação.');
+                return;
+            }
+            abrirRejeitarLote(ids);
+        });
+    }
+
+    // Aprovar individual (gestor admin = programar; gestor = form)
+    document.querySelectorAll('.btn-programar-pagamento').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            var pk = this.getAttribute('data-pk');
+            // Botão "Aprovar" do gestor admin (tem btn-aprovar-manual)
+            if (this.classList.contains('btn-aprovar-manual')) {
+                e.preventDefault();
+                perguntarEscopoAcao('aprovar', pk);
+                return;
+            }
+            // Programar pagamento (já aprovado)
+            abrirModalProgramar(pk, null);
+        });
+    });
+
+    document.querySelectorAll('.form-aprovar-individual').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var pk = this.getAttribute('data-pk');
+            perguntarEscopoAcao('aprovar', pk);
+        });
+    });
+
+    document.querySelectorAll('.btn-rejeitar-manual').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            perguntarEscopoAcao('rejeitar', this.getAttribute('data-pk'));
+        });
+    });
+
+    if (btnEscolhaSelecionados) {
+        btnEscolhaSelecionados.addEventListener('click', function() {
+            if (!escolhaPendente) return;
+            var acao = escolhaPendente.acao;
+            var ids = escolhaPendente.ids.slice();
+            fecharEscolhaLote();
+            if (acao === 'aprovar') enviarAprovacaoLote(false);
+            else abrirRejeitarLote(ids);
+        });
+    }
+
+    if (btnEscolhaUnico) {
+        btnEscolhaUnico.addEventListener('click', function() {
+            if (!escolhaPendente) return;
+            var acao = escolhaPendente.acao;
+            var pk = escolhaPendente.pk;
+            fecharEscolhaLote();
+            if (acao === 'aprovar') aprovarIndividual(pk);
+            else abrirRejeitarIndividual(pk);
+        });
+    }
+
+    if (btnEscolhaCancelar) {
+        btnEscolhaCancelar.addEventListener('click', fecharEscolhaLote);
+    }
+    var btnFecharEscolha = document.getElementById('modal-escolha-lote-fechar');
+    if (btnFecharEscolha) btnFecharEscolha.addEventListener('click', fecharEscolhaLote);
+    if (modalEscolhaLote) {
+        modalEscolhaLote.addEventListener('click', function(e) {
+            if (e.target === modalEscolhaLote) fecharEscolhaLote();
+        });
+    }
+
+    // Modal rejeitar individual
+    var btnFecharRejeitar = document.getElementById('modal-rejeitar-fechar');
+    if (btnFecharRejeitar) {
+        btnFecharRejeitar.addEventListener('click', function() { fecharModal(modalRejeitar); });
+    }
+    if (modalRejeitar) {
+        modalRejeitar.addEventListener('click', function(e) {
+            if (e.target === modalRejeitar) fecharModal(modalRejeitar);
+        });
+    }
+
+    // Modal rejeitar lote
+    var btnFecharRejeitarLote = document.getElementById('modal-rejeitar-lote-fechar');
+    if (btnFecharRejeitarLote) {
+        btnFecharRejeitarLote.addEventListener('click', function() { fecharModal(modalRejeitarLote); });
+    }
+    if (modalRejeitarLote) {
+        modalRejeitarLote.addEventListener('click', function(e) {
+            if (e.target === modalRejeitarLote) fecharModal(modalRejeitarLote);
+        });
+    }
+    if (formRejeitarLote) {
+        formRejeitarLote.addEventListener('submit', function(e) {
+            var areas = formRejeitarLote.querySelectorAll('textarea[required]');
+            for (var i = 0; i < areas.length; i++) {
+                if (!(areas[i].value || '').trim()) {
+                    e.preventDefault();
+                    alert('Informe o motivo da rejeição para todas as solicitações.');
+                    areas[i].focus();
+                    return false;
+                }
+            }
+            showLoading('Rejeitando solicitações...');
+        });
+    }
+
+    // Modal programar pagamento
     var labelMarcarPago = document.getElementById('label-marcar-pago');
     var hoverOverlay = document.getElementById('hover-overlay');
     if (labelMarcarPago && hoverOverlay) {
@@ -1617,35 +2301,29 @@
             hoverOverlay.style.opacity = '0';
         });
     }
-    
-    // Fechar modal
-    function fecharModalProgramar() {
-        modalProgramarPagamento.classList.remove('aberto');
-        modalProgramarPagamento.setAttribute('aria-hidden', 'true');
+
+    function fecharModalProgramar() { fecharModal(modalProgramarPagamento); }
+    if (btnCancelarProgramar) btnCancelarProgramar.addEventListener('click', fecharModalProgramar);
+    if (btnFecharProgramar) btnFecharProgramar.addEventListener('click', fecharModalProgramar);
+    if (modalProgramarPagamento) {
+        modalProgramarPagamento.addEventListener('click', function(e) {
+            if (e.target === modalProgramarPagamento) fecharModalProgramar();
+        });
     }
-    
-    if (btnCancelarProgramar) {
-        btnCancelarProgramar.addEventListener('click', fecharModalProgramar);
+    if (formProgramarPagamento) {
+        formProgramarPagamento.addEventListener('submit', function(e) {
+            if (!checkMarcarComoPago.checked && !inputDataPagamento.value) {
+                e.preventDefault();
+                alert('Por favor, informe uma data de pagamento ou marque como pago imediatamente.');
+                return false;
+            }
+            if (formProgramarPagamento.action.indexOf('decidir-lote') !== -1) {
+                showLoading('Aprovando solicitações...');
+            }
+        });
     }
-    
-    if (btnFecharProgramar) {
-        btnFecharProgramar.addEventListener('click', fecharModalProgramar);
-    }
-    
-    modalProgramarPagamento.addEventListener('click', function(e) {
-        if (e.target === modalProgramarPagamento) {
-            fecharModalProgramar();
-        }
-    });
-    
-    // Validar formulário antes de enviar
-    formProgramarPagamento.addEventListener('submit', function(e) {
-        if (!checkMarcarComoPago.checked && !inputDataPagamento.value) {
-            e.preventDefault();
-            alert('Por favor, informe uma data de pagamento ou marque como pago imediatamente.');
-            return false;
-        }
-    });
+
+    updateBulkUI();
 })();
 </script>
 {% endblock %}

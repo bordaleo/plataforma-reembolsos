@@ -60,12 +60,24 @@ class PerfilSolicitante(models.Model):
         ("TRANSFERENCIA", "Transferência Bancária"),
     ]
 
+    TIPO_PESSOA_CHOICES = [
+        ("PF", "Pessoa Física"),
+        ("PJ", "Pessoa Jurídica"),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="perfil_solicitante",
     )
     nome_solicitante = models.CharField("Nome do solicitante", max_length=200, blank=True)
+    tipo_pessoa = models.CharField(
+        "Tipo de pessoa",
+        max_length=2,
+        choices=TIPO_PESSOA_CHOICES,
+        blank=True,
+    )
+    cnpj = models.CharField("CNPJ", max_length=18, blank=True)
     forma_pagamento = models.CharField(
         "Forma de Pagamento",
         max_length=20,
@@ -97,7 +109,11 @@ class PerfilSolicitante(models.Model):
 
     @property
     def dados_completos(self):
-        """True se todos os campos obrigatórios estão preenchidos."""
+        """True se todos os campos obrigatórios estão preenchidos.
+
+        tipo_pessoa não bloqueia quem já tinha cadastro completo;
+        a migração para PJ é opcional no perfil.
+        """
         if not self.nome_solicitante or not self.nome_solicitante.strip():
             return False
         

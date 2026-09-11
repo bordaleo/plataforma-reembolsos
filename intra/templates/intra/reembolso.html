@@ -363,6 +363,17 @@
         gap: 0.5rem;
         text-align: left;
     }
+    .anexo-wrapper .custom-file-label.anexo-erro {
+        border-color: #e74c3c;
+        background: #fdecea;
+        color: #c0392b;
+    }
+    .anexo-erro-msg {
+        color: #c0392b;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 0.4rem;
+    }
     .anexo-wrapper .custom-file-label .custom-file-text {
         flex: 1;
         min-width: 0;
@@ -696,9 +707,18 @@
 </style>
 {% endblock %}
 {% block content %}
-<h1 class="page-title">{% if eh_rascunho %}Continuar Rascunho{% elif solicitacao_editar %}Editar Solicitação de Reembolso{% else %}Solicitação de Reembolso{% endif %}</h1>
+<h1 class="page-title">{% if eh_edicao_admin %}Modificar Solicitação #{{ solicitacao_editar.pk }}{% elif eh_rascunho %}Continuar Rascunho{% elif solicitacao_editar %}Editar Solicitação de Reembolso{% else %}Solicitação de Reembolso{% endif %}</h1>
 
-{% if solicitacao_editar and not eh_rascunho %}
+{% if eh_edicao_admin %}
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2c5282;">
+    <div style="padding: 1rem 1.5rem;">
+        <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700; color: #2c5282;">Edição pelo Gestor Administrativo</h3>
+        <p style="margin: 0; color: #2c3e50; font-size: 0.95rem; line-height: 1.6;">
+            Você pode alterar qualquer campo desta solicitação. O status atual de aprovação será mantido. Também é possível <strong>excluir</strong> a solicitação permanentemente.
+        </p>
+    </div>
+</div>
+{% elif solicitacao_editar and not eh_rascunho %}
 <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #e53e3e;">
     <div style="padding: 1rem 1.5rem;">
         <h3 style="margin: 0 0 0.75rem; font-size: 1.1rem; font-weight: 700; color: #e53e3e;">Motivo da Rejeição</h3>
@@ -724,10 +744,13 @@
 </div>
 {% endif %}
 
-<form method="post" action="" enctype="multipart/form-data" id="form-reembolso">
+<form method="post" action="{% if eh_edicao_admin %}{% url 'intra:reembolso_admin_editar' solicitacao_editar.pk %}{% endif %}" enctype="multipart/form-data" id="form-reembolso">
     {% csrf_token %}
     <input type="hidden" name="acao" id="acao-reembolso" value="">
-    {% if solicitacao_editar %}
+    {% if eh_edicao_admin and next_url %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {% endif %}
+    {% if solicitacao_editar and not eh_edicao_admin %}
     <input type="hidden" name="editar_id" value="{{ solicitacao_editar.pk }}">
     {% endif %}
 
@@ -741,14 +764,14 @@
                 <select name="centro_custo" id="centro_custo" required class="form-control">
                     <option value="">Selecione...</option>
                     {% for programa in programas %}
-                    <option value="{{ programa }}">{{ programa }}</option>
+                    <option value="{{ programa }}"{% if solicitacao_editar and solicitacao_editar.centro_custo == programa %} selected{% endif %}>{{ programa }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-group">
                 <label for="nome_gestor">E-mail do Gestor(a)/Aprovador(a)<span style="color: #e74c3c;">*</span></label>
                 <input type="email" name="nome_gestor" id="nome_gestor" required class="form-control"
-                       value="{% if perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
+                       value="{% if solicitacao_editar and solicitacao_editar.nome_gestor %}{{ solicitacao_editar.nome_gestor }}{% elif perfil %}{{ perfil.nome_gestor|default:'' }}{% endif %}" 
                        placeholder="Digite o e-mail do gestor/aprovador">
             </div>
         </div>
@@ -925,12 +948,43 @@
     </div>
 
     <div class="card card-submit">
+        {% if eh_edicao_admin %}
+        <button type="submit" class="btn btn-primary" id="btn-enviar-solicitacao" data-acao="enviar">Salvar alterações</button>
+        {% else %}
         <button type="submit" class="btn-salvar-rascunho" id="btn-salvar-rascunho" data-acao="rascunho" formnovalidate>Salvar rascunho</button>
         <button type="submit" class="btn btn-primary" id="btn-enviar-solicitacao" data-acao="enviar" style="margin: 0;">
             {% if eh_rascunho %}Enviar solicitação{% elif solicitacao_editar %}Reenviar solicitação{% else %}Enviar solicitação{% endif %}
         </button>
+        {% endif %}
     </div>
 </form>
+
+{% if eh_edicao_admin and solicitacao_editar %}
+<form method="post" action="{% url 'intra:reembolso_admin_excluir' solicitacao_editar.pk %}" id="form-excluir-admin" class="card" style="margin-top: 1.5rem; border-left: 4px solid #c53030;">
+    {% csrf_token %}
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url|escape }}">{% endif %}
+    <div style="padding: 1.25rem 1.5rem;">
+        <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700; color: #c53030;">Zona de exclusão</h3>
+        <p style="margin: 0 0 1rem; color: #4a5568; font-size: 0.95rem; line-height: 1.5;">
+            Esta ação remove permanentemente a solicitação #{{ solicitacao_editar.pk }} e não pode ser desfeita.
+        </p>
+        <button type="submit" class="btn" style="width: 100%; background: #c53030; color: #fff; border: none; padding: 1.1rem 1.5rem; border-radius: 10px; font-size: 1.15rem; font-weight: 700; cursor: pointer; letter-spacing: 0.02em;">
+            Excluir solicitação
+        </button>
+    </div>
+</form>
+<script>
+(function() {
+    var form = document.getElementById('form-excluir-admin');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        if (!confirm('Tem certeza que deseja EXCLUIR permanentemente a solicitação #{{ solicitacao_editar.pk }}? Esta ação não pode ser desfeita.')) {
+            e.preventDefault();
+        }
+    });
+})();
+</script>
+{% endif %}
 
 
 <!-- Popup KM para Deslocamento -->
@@ -1029,6 +1083,9 @@
     }
 
     function podeEditarDespesa() {
+        {% if eh_rascunho or eh_edicao_admin %}
+        return true;
+        {% endif %}
         var ccOk = !!(centroCusto && centroCusto.value);
         var aprovadorValor = (aprovadorInput && aprovadorInput.value) ? aprovadorInput.value.trim() : '';
         var naoEhProprioEmail = !(
@@ -2278,6 +2335,12 @@
             ]
         };
         
+        // Preencher nome do gestor primeiro para o botão "Adicionar Item" habilitar junto com o centro de custo
+        if (sol.nome_gestor) {
+            var nomeGestor = document.getElementById('nome_gestor');
+            if (nomeGestor) nomeGestor.value = sol.nome_gestor;
+        }
+
         // Preencher centro de custo
         if (sol.centro_custo) {
             var centroCustoEl = document.getElementById('centro_custo');
@@ -2289,12 +2352,8 @@
                 }
             }
         }
-        
-        // Preencher nome do gestor
-        if (sol.nome_gestor) {
-            var nomeGestor = document.getElementById('nome_gestor');
-            if (nomeGestor) nomeGestor.value = sol.nome_gestor;
-        }
+
+        atualizarHabilitacaoDespesa();
         
         // Preencher forma de pagamento
         if (sol.forma_pagamento && formaPagamento) {
@@ -2392,6 +2451,10 @@
                     if (typeof atualizarTotal === 'function') {
                         atualizarTotal();
                     }
+                    if (typeof atualizarContadorItens === 'function') {
+                        atualizarContadorItens();
+                    }
+                    atualizarHabilitacaoDespesa();
                     // Capturar valores iniciais após preencher todos os campos
                     if (typeof obterValoresIniciais === 'function') {
                         valoresIniciais = obterValoresIniciais();
@@ -2733,6 +2796,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
             window.reembolsoEnviandoSolicitacao = true;
 
+            function itemTemAnexo(linha) {
+                var tipoSel = linha.querySelector('select[name^="tipo_despesa_"]');
+                var tipo = tipoSel ? tipoSel.value : '';
+                if (tipo === 'PASSAGENS') return true;
+                var input = linha.querySelector('input[type="file"][name^="anexo_"]');
+                if (!input) return false;
+                if (input.files && input.files.length > 0) return true;
+                return input.hasAttribute('data-anexo-oculto');
+            }
+
+            function validarAnexosObrigatorios() {
+                var linhas = form.querySelectorAll('.linha-despesa');
+                var faltando = [];
+                linhas.forEach(function(linha) {
+                    var label = linha.querySelector('.custom-file-label');
+                    var msg = linha.querySelector('.anexo-erro-msg');
+                    if (msg) msg.remove();
+                    if (label) label.classList.remove('anexo-erro');
+                    if (!itemTemAnexo(linha)) {
+                        faltando.push(linha);
+                        if (label) label.classList.add('anexo-erro');
+                        var inner = linha.querySelector('.campo-anexo-inner') || linha;
+                        var erro = document.createElement('div');
+                        erro.className = 'anexo-erro-msg';
+                        erro.textContent = 'Selecione o anexo deste item.';
+                        inner.appendChild(erro);
+                    }
+                });
+                if (faltando.length) {
+                    var texto = faltando.length === 1
+                        ? 'Falta o anexo de um item de despesa.'
+                        : 'Falta o anexo de ' + faltando.length + ' itens de despesa.';
+                    if (typeof showError === 'function') {
+                        showError(texto);
+                    } else {
+                        alert(texto);
+                    }
+                    faltando[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    var labelFocus = faltando[0].querySelector('.custom-file-label');
+                    if (labelFocus && typeof labelFocus.focus === 'function') {
+                        labelFocus.focus();
+                    }
+                    return false;
+                }
+                return true;
+            }
+
+            if (!validarAnexosObrigatorios()) {
+                e.preventDefault();
+                if (typeof e.stopImmediatePropagation === 'function') {
+                    e.stopImmediatePropagation();
+                } else {
+                    e.stopPropagation();
+                }
+                window.reembolsoEnviandoSolicitacao = false;
+                if (typeof hideLoading === 'function') hideLoading();
+                return false;
+            }
+
             // Manter "Outro" selecionado no front para não quebrar a edição.
             // A substituição pelo código digitado é feita no backend ao salvar.
             var selectsCod = form.querySelectorAll('select[name^="cod_despesa_"]');
@@ -2784,7 +2906,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Se estiver editando solicitação rejeitada, verificar se houve alterações
-            {% if solicitacao_editar and not eh_rascunho %}
+            {% if solicitacao_editar and not eh_rascunho and not eh_edicao_admin %}
             if (valoresIniciais) {
                 var valoresAtuais = obterValoresAtuais();
                 if (compararValores(valoresIniciais, valoresAtuais)) {
@@ -2803,38 +2925,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             {% endif %}
             
-            // Remover required de todos os inputs de anexo que estão ocultos ANTES da validação do navegador
+            // Só dispensa o required do anexo quando já existe arquivo salvo neste item
             var inputsAnexo = form.querySelectorAll('input[type="file"][name^="anexo_"]');
             inputsAnexo.forEach(function(input) {
-                // Verificar se está oculto de várias formas
-                var isHidden = input.style.display === 'none' || 
-                              input.offsetParent === null || 
-                              window.getComputedStyle(input).display === 'none' ||
-                              input.hasAttribute('data-anexo-oculto');
-                
-                if (isHidden) {
+                if (input.hasAttribute('data-anexo-oculto')) {
                     input.removeAttribute('required');
                     input.required = false;
-                    // Marcar como oculto para referência futura
-                    input.setAttribute('data-anexo-oculto', 'true');
                 }
             });
-            // Não prevenir o submit, apenas remover o required
         }, true); // Usar capture phase para executar antes da validação do navegador
         
         // Também interceptar o evento invalid para prevenir o erro
         form.addEventListener('invalid', function(e) {
             var input = e.target;
             if (input && input.type === 'file' && input.name && input.name.startsWith('anexo_')) {
-                var isHidden = input.style.display === 'none' || 
-                              input.offsetParent === null || 
-                              window.getComputedStyle(input).display === 'none';
-                if (isHidden) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (input.hasAttribute('data-anexo-oculto')) {
                     input.removeAttribute('required');
                     input.required = false;
-                    e.preventDefault();
-                    e.stopPropagation();
+                    return;
                 }
+                var linha = input.closest('.linha-despesa');
+                var label = linha ? linha.querySelector('.custom-file-label') : null;
+                if (label) label.classList.add('anexo-erro');
+                if (typeof showError === 'function') {
+                    showError('Falta o anexo de um item de despesa.');
+                }
+                if (linha) linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, true);
     }

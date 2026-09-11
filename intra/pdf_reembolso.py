@@ -487,23 +487,53 @@ def _gerar_folha_rosto(solicitacao):
     
     # Usar dados de pagamento da solicitação (não do cadastro)
     perfil = getattr(solicitacao.user, "perfil_solicitante", None)
-    nome_solicitante = perfil.nome_solicitante if perfil else solicitacao.user.get_full_name() or solicitacao.user.email or '-'
-    
+    nome_solicitante = (
+        (perfil.nome_solicitante or "").strip()
+        if perfil
+        else ""
+    ) or solicitacao.user.get_full_name() or solicitacao.user.email or '-'
+    eh_pj = bool(perfil and (perfil.tipo_pessoa or "").strip() == "PJ")
+    cnpj_empresa = ((perfil.cnpj or "").strip() if perfil else "") or "-"
+
     c.setFont("Helvetica", 9)
-    c.drawString(margin_left, y, f"Nome: {nome_solicitante}")
+    if eh_pj:
+        c.drawString(margin_left, y, f"Razão Social: {nome_solicitante}")
+        y -= 5 * mm
+        c.drawString(margin_left, y, f"CNPJ: {cnpj_empresa}")
+    else:
+        c.drawString(margin_left, y, f"Nome: {nome_solicitante}")
     y -= 5 * mm
-    
+
+    def _somente_digitos(valor):
+        return "".join(ch for ch in (valor or "") if ch.isdigit())
+
+    def _desenhar_doc_titular(doc):
+        """Documento do titular da conta/PIX.
+
+        Em PJ o CNPJ da empresa já foi exibido; só mostra o documento de
+        pagamento se for diferente (ex.: CPF de conta PF) ou se o CNPJ
+        da empresa estiver ausente.
+        """
+        nonlocal y
+        doc = (doc or "").strip() or "XXX.XXX.XXX-XX"
+        if eh_pj:
+            digitos_doc = _somente_digitos(doc)
+            digitos_cnpj = _somente_digitos(cnpj_empresa)
+            if digitos_cnpj and digitos_doc == digitos_cnpj:
+                return  # mesmo CNPJ da empresa — não duplicar
+        c.drawString(margin_left, y, f"CPF/CNPJ: {doc}")
+        y -= 5 * mm
+
     # Verificar forma de pagamento da solicitação
     if solicitacao.forma_pagamento == 'PIX':
         # Dados PIX da solicitação
         pix_chave = solicitacao.pix_chave or solicitacao.user.email or '-'
         pix_banco = solicitacao.pix_banco or '-'
         pix_cpf = solicitacao.pix_cpf or 'XXX.XXX.XXX-XX'
-        
+
         c.drawString(margin_left, y, f"PIX: {pix_chave}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"CPF/CNPJ: {pix_cpf}")
-        y -= 5 * mm
+        _desenhar_doc_titular(pix_cpf)
         c.drawString(margin_left, y, f"Banco: {pix_banco}")
         # Não exibir Agência e Conta para PIX
     elif solicitacao.forma_pagamento == 'TRANSFERENCIA':
@@ -519,8 +549,7 @@ def _gerar_folha_rosto(solicitacao):
         
         c.drawString(margin_left, y, f"PIX: {pix_fallback}")
         y -= 5 * mm
-        c.drawString(margin_left, y, f"CPF/CNPJ: {cpf_fallback}")
-        y -= 5 * mm
+        _desenhar_doc_titular(cpf_fallback)
         # Mostrar o nome do banco (já está salvo, não precisa verificar se é "Outro")
         c.drawString(margin_left, y, f"Banco: {transf_banco}")
         
@@ -545,10 +574,13 @@ def _gerar_folha_rosto(solicitacao):
         # Fallback: usar dados do cadastro se não houver forma de pagamento definida
         if perfil:
             pix_chave = perfil.chave_pix or solicitacao.user.email or '-'
+            doc_cadastro = (
+                (perfil.cpf_pix if perfil.forma_pagamento == "PIX" else perfil.cpf_transferencia)
+                or ""
+            ).strip() or "XXX.XXX.XXX-XX"
             c.drawString(margin_left, y, f"PIX: {pix_chave}")
             y -= 5 * mm
-            c.drawString(margin_left, y, "CPF/CNPJ: XXX.XXX.XXX-XX")
-            y -= 5 * mm
+            _desenhar_doc_titular(doc_cadastro)
             c.drawString(margin_left, y, f"Banco: {perfil.banco or 'YYYY'}")
             y -= 5 * mm
             c.drawString(margin_left, y, f"Agência: {perfil.agencia or 'XXXX-X'}")

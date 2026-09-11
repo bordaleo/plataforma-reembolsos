@@ -417,15 +417,86 @@
 {% endif %}
 
 <div class="card">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Dados de Acesso</h2>
+        <button type="button" id="btn-editar-acesso" class="btn-edit">✏️ Editar</button>
     </div>
-    <dl class="perfil-lista">
-        <dt>E-mail</dt>
-        <dd>{{ request.user.email|default:"—" }}</dd>
-        <dt>Nome</dt>
-        <dd>{{ perfil.nome_solicitante|default:"—" }}</dd>
-    </dl>
+
+    <!-- Modo Visualização -->
+    <div id="view-mode-acesso" class="view-mode">
+        <dl class="perfil-lista">
+            <dt>E-mail</dt>
+            <dd>{{ request.user.email|default:"—" }}</dd>
+        <dt>Tipo de pessoa</dt>
+        <dd>{% if perfil.tipo_pessoa == 'PJ' %}Pessoa Jurídica{% else %}Pessoa Física{% endif %}</dd>
+        <dt>{% if perfil.tipo_pessoa == 'PJ' %}Razão social{% else %}Nome{% endif %}</dt>
+            <dd>{{ perfil.nome_solicitante|default:"—" }}</dd>
+            {% if perfil.tipo_pessoa == 'PJ' %}
+            <dt>CNPJ</dt>
+            <dd>{{ perfil.cnpj|default:"—" }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+
+    <!-- Modo Edição -->
+    <form method="post" action="{% url 'intra:meu_perfil' %}" id="edit-mode-acesso" class="edit-mode" data-no-loading>
+        {% csrf_token %}
+        <input type="hidden" name="editar_acesso" value="1">
+
+        <div class="form-section">
+            <div class="form-group">
+                <label>E-mail</label>
+                <input type="text" class="form-control" value="{{ request.user.email|default:'' }}" disabled>
+            </div>
+
+            <div class="form-group">
+                <label for="id_tipo_pessoa">
+                    {{ acesso_form.tipo_pessoa.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ acesso_form.tipo_pessoa }}
+                {% if acesso_form.tipo_pessoa.errors %}<ul class="errorlist">{{ acesso_form.tipo_pessoa.errors }}</ul>{% endif %}
+            </div>
+
+            <!-- Campos Pessoa Física -->
+            <div id="pf-fields-acesso" style="display: none;">
+                <div class="form-group">
+                    <label for="id_nome_solicitante_pf">
+                        Nome completo
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" id="id_nome_solicitante_pf" class="form-control" placeholder="Nome completo" maxlength="200">
+                </div>
+            </div>
+
+            <!-- Campos Pessoa Jurídica -->
+            <div id="pj-fields-acesso" style="display: none;">
+                <div class="form-group">
+                    <label for="id_nome_solicitante_pj">
+                        Razão social
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" id="id_nome_solicitante_pj" class="form-control" placeholder="Razão social da empresa" maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="id_cnpj">
+                        CNPJ
+                        <span class="required">*</span>
+                    </label>
+                    {{ acesso_form.cnpj }}
+                    {% if acesso_form.cnpj.errors %}<ul class="errorlist">{{ acesso_form.cnpj.errors }}</ul>{% endif %}
+                </div>
+            </div>
+
+            {{ acesso_form.nome_solicitante }}
+            {% if acesso_form.nome_solicitante.errors %}<ul class="errorlist">{{ acesso_form.nome_solicitante.errors }}</ul>{% endif %}
+        </div>
+
+        <div class="btn-actions">
+            <button type="button" id="btn-cancelar-acesso" class="btn-cancel">Cancelar</button>
+            <button type="submit" class="btn">Salvar Alterações</button>
+        </div>
+    </form>
 </div>
 
 <div class="card">
@@ -643,7 +714,104 @@
 </div>
 
 <script>
-    // Controle de modo edição/visualização
+    // Controle de modo edição/visualização - Dados de Acesso
+    (function() {
+        const btnEditar = document.getElementById('btn-editar-acesso');
+        const btnCancelar = document.getElementById('btn-cancelar-acesso');
+        const viewMode = document.getElementById('view-mode-acesso');
+        const editMode = document.getElementById('edit-mode-acesso');
+
+        const hasAcessoFormErrors = !!document.querySelector('#edit-mode-acesso .errorlist');
+        if (hasAcessoFormErrors) {
+            if (viewMode) viewMode.classList.add('hidden');
+            if (editMode) editMode.classList.add('active');
+            if (btnEditar) btnEditar.style.display = 'none';
+        } else {
+            if (viewMode) viewMode.classList.remove('hidden');
+            if (editMode) editMode.classList.remove('active');
+            if (btnEditar) btnEditar.style.display = 'block';
+        }
+
+        if (btnEditar && btnCancelar && viewMode && editMode) {
+            btnEditar.addEventListener('click', function() {
+                viewMode.classList.add('hidden');
+                editMode.classList.add('active');
+                btnEditar.style.display = 'none';
+            });
+
+            btnCancelar.addEventListener('click', function() {
+                viewMode.classList.remove('hidden');
+                editMode.classList.remove('active');
+                btnEditar.style.display = 'block';
+            });
+        }
+    })();
+
+    // Controle PF / PJ em Dados de Acesso
+    (function() {
+        const tipoPessoa = document.getElementById('id_tipo_pessoa');
+        const pfFields = document.getElementById('pf-fields-acesso');
+        const pjFields = document.getElementById('pj-fields-acesso');
+        const nomeHidden = document.getElementById('id_nome_solicitante');
+        const nomePf = document.getElementById('id_nome_solicitante_pf');
+        const nomePj = document.getElementById('id_nome_solicitante_pj');
+        const cnpjEmpresa = document.getElementById('id_cnpj');
+        const form = document.getElementById('edit-mode-acesso');
+
+        function mascaraSomenteCNPJ(value) {
+            let numeros = value.replace(/\D/g, '').substring(0, 14);
+            if (numeros.length <= 2) return numeros;
+            if (numeros.length <= 5) return numeros.substring(0, 2) + '.' + numeros.substring(2);
+            if (numeros.length <= 8) return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5);
+            if (numeros.length <= 12) return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8);
+            return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8, 12) + '-' + numeros.substring(12, 14);
+        }
+
+        function syncFromHidden() {
+            const valor = nomeHidden ? (nomeHidden.value || '') : '';
+            if (nomePf) nomePf.value = valor;
+            if (nomePj) nomePj.value = valor;
+        }
+
+        function syncToHidden() {
+            if (!nomeHidden || !tipoPessoa) return;
+            if (tipoPessoa.value === 'PJ' && nomePj) {
+                nomeHidden.value = nomePj.value.trim();
+            } else if (tipoPessoa.value === 'PF' && nomePf) {
+                nomeHidden.value = nomePf.value.trim();
+            }
+        }
+
+        function atualizarTipoPessoa() {
+            const tipo = tipoPessoa ? tipoPessoa.value : '';
+            if (pfFields) pfFields.style.display = tipo === 'PF' ? 'block' : 'none';
+            if (pjFields) pjFields.style.display = tipo === 'PJ' ? 'block' : 'none';
+            syncToHidden();
+        }
+
+        if (tipoPessoa) {
+            syncFromHidden();
+            atualizarTipoPessoa();
+            tipoPessoa.addEventListener('change', atualizarTipoPessoa);
+        }
+        if (nomePf) nomePf.addEventListener('input', syncToHidden);
+        if (nomePj) nomePj.addEventListener('input', syncToHidden);
+        if (cnpjEmpresa) {
+            cnpjEmpresa.addEventListener('input', function(e) {
+                e.target.value = mascaraSomenteCNPJ(e.target.value);
+            });
+            if (cnpjEmpresa.value) {
+                cnpjEmpresa.value = mascaraSomenteCNPJ(cnpjEmpresa.value);
+            }
+        }
+        if (form) {
+            form.addEventListener('submit', function() {
+                syncToHidden();
+            });
+        }
+    })();
+
+    // Controle de modo edição/visualização - Dados de Pagamento
     (function() {
         const btnEditar = document.getElementById('btn-editar');
         const btnCancelar = document.getElementById('btn-cancelar');
@@ -716,39 +884,46 @@
         }
     })();
 
-    // Função para aplicar máscara de CPF ou CNPJ
+    // Função para aplicar máscara de CPF ou CNPJ nos dados de pagamento
     (function() {
-        function aplicarMascaraCPFCNPJ(value) {
-            let numeros = value.replace(/\D/g, '');
-            
-            // Se tiver 11 dígitos ou menos, aplicar máscara de CPF
-            if (numeros.length <= 11) {
-                if (numeros.length <= 3) {
-                    return numeros;
-                } else if (numeros.length <= 6) {
-                    return numeros.substring(0, 3) + '.' + numeros.substring(3);
-                } else if (numeros.length <= 9) {
-                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
-                } else {
-                    return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9, 11);
-                }
-            } else {
-                // Se tiver mais de 11 dígitos, aplicar máscara de CNPJ
-                if (numeros.length <= 14) {
-                    if (numeros.length <= 2) {
-                        return numeros;
-                    } else if (numeros.length <= 5) {
-                        return numeros.substring(0, 2) + '.' + numeros.substring(2);
-                    } else if (numeros.length <= 8) {
-                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5);
-                    } else if (numeros.length <= 12) {
-                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8);
-                    } else {
-                        return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8, 12) + '-' + numeros.substring(12, 14);
+        function atualizarLabelsDocumento() {
+            // Dados de pagamento sempre aceitam CPF ou CNPJ
+            const labelTexto = 'CPF/CNPJ';
+            const placeholder = 'CPF ou CNPJ';
+
+            ['id_cpf_pix', 'id_cpf_transferencia'].forEach(function(fieldId) {
+                const input = document.getElementById(fieldId);
+                if (!input) return;
+                const label = document.querySelector('label[for="' + fieldId + '"]');
+                if (label) {
+                    const required = label.querySelector('.required');
+                    label.childNodes[0].textContent = labelTexto + ' ';
+                    if (!required) {
+                        const span = document.createElement('span');
+                        span.className = 'required';
+                        span.textContent = '*';
+                        label.appendChild(span);
                     }
                 }
+                input.placeholder = placeholder;
+            });
+        }
+
+        function aplicarMascaraCPFCNPJ(value) {
+            let numeros = value.replace(/\D/g, '');
+
+            if (numeros.length <= 11) {
+                if (numeros.length <= 3) return numeros;
+                if (numeros.length <= 6) return numeros.substring(0, 3) + '.' + numeros.substring(3);
+                if (numeros.length <= 9) return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6);
+                return numeros.substring(0, 3) + '.' + numeros.substring(3, 6) + '.' + numeros.substring(6, 9) + '-' + numeros.substring(9, 11);
             }
-            return value;
+            numeros = numeros.substring(0, 14);
+            if (numeros.length <= 2) return numeros;
+            if (numeros.length <= 5) return numeros.substring(0, 2) + '.' + numeros.substring(2);
+            if (numeros.length <= 8) return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5);
+            if (numeros.length <= 12) return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8);
+            return numeros.substring(0, 2) + '.' + numeros.substring(2, 5) + '.' + numeros.substring(5, 8) + '/' + numeros.substring(8, 12) + '-' + numeros.substring(12, 14);
         }
 
         const cpfPix = document.getElementById('id_cpf_pix');
@@ -765,6 +940,8 @@
                 e.target.value = aplicarMascaraCPFCNPJ(e.target.value);
             });
         }
+
+        atualizarLabelsDocumento();
     })();
 
     // Atualizar campos hidden quando selecionar banco e controlar Carteira Digital

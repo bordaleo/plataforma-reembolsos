@@ -1,0 +1,60 @@
+{% load currency_filters %}
+<div class="solicitacoes-grupo">
+    <h3>{{ titulo }}</h3>
+    {% if lista %}
+    <div style="overflow-x: auto;">
+        <table class="tabela-solicitacoes">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>#</th>
+                    <th>Data</th>
+                    <th>Centro de custo</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>PDF</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in lista %}
+                <tr class="solicitacao-linha" data-pk="{{ s.pk }}" style="cursor: pointer;">
+                    <td data-label="Ações">
+                        <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    </td>
+                    <td data-label="#"><strong class="id-clicavel" data-pk="{{ s.pk }}">#{{ s.pk }}</strong></td>
+                    <td data-label="Data">{{ s.criado_em_brasilia|date:"d/m/Y H:i" }}</td>
+                    <td data-label="Centro">{{ s.centro_custo|default:"—" }}</td>
+                    <td data-label="Valor" class="valor">R$ {{ s.valor_total|currency_br }}</td>
+                    <td data-label="Status">
+                        {% if s.status_descritivo == 'aguardando_gestor' %}
+                        <span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>
+                        {% elif s.status_descritivo == 'aguardando_gestor_admin' %}
+                        <span class="status-aguardando-gestor-admin">Aguardando aprovação de gestor administrativo</span>
+                        {% elif s.status_descritivo == 'aguardando_pagamento' %}
+                        <span class="status-aguardando-pagamento">Aprovado - Aguardando pagamento</span>
+                        {% elif s.status_descritivo == 'pagamento_agendado' %}
+                        <span class="status-aguardando-pagamento">Solicitação aprovada - Pagamento agendado</span>
+                        {% elif s.status_descritivo == 'pago_aguardando_assinaturas' %}
+                        <span class="status-aguardando-assinatura">Pago - Aguardando assinaturas</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor' %}
+                        <span class="status-rejeitado">Rejeitado pelo gestor</span>
+                        {% elif s.status_descritivo == 'rejeitado_gestor_admin' %}
+                        <span class="status-rejeitado">Rejeitado pelo gestor administrativo</span>
+                        {% elif s.status_descritivo == 'concluido' %}
+                        <span class="status-concluido">Concluído</span>
+                        {% else %}
+                        <span class="status-aguardando-gestor">Em processo</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="PDF">
+                        <a class="btn-pdf-mini" href="{% url 'intra:reembolso_pdf' s.pk %}" target="_blank" rel="noopener" data-no-loading>PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="vazio-solicitacoes">Nenhuma solicitação nesta categoria.</p>
+    {% endif %}
+</div>

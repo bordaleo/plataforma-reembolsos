@@ -1,0 +1,885 @@
+{% extends "intra/base.html" %}
+{% load static %}
+{% block title %}Editar Cadastro - Plataforma de Reembolsos{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro { margin: 0 0 1.5rem; color: #7f8c8d; font-size: 1rem; }
+    .voltar-link { display: inline-block; margin-bottom: 1rem; color: #34495e; font-weight: 600; text-decoration: none; }
+    .voltar-link:hover { text-decoration: underline; }
+    .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .card-header {
+        margin: -1.5rem -1.5rem 1.25rem -1.5rem;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px 8px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-header h2 { margin: 0; font-size: 1rem; font-weight: 700; color: #ffffff; letter-spacing: 0.3px; }
+    .card-danger .card-header { background: linear-gradient(135deg, #c0392b 0%, #922b21 100%); }
+    .perfil-lista {
+        margin: 0;
+        display: grid;
+        gap: 0.75rem 2rem;
+        grid-template-columns: auto 1fr;
+        max-width: 700px;
+    }
+    .perfil-lista dt {
+        font-weight: 700;
+        color: #34495e;
+        font-size: 0.95rem;
+        padding: 0.75rem 0;
+        border-right: 3px solid #34495e;
+        padding-right: 1.5rem;
+        min-width: 200px;
+    }
+    .perfil-lista dd {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 0.95rem;
+        font-weight: 500;
+        padding: 0.75rem 0;
+        border-bottom: 2px solid #e1e8ed;
+        padding-left: 1rem;
+    }
+    .perfil-lista dd:last-of-type { border-bottom: none; }
+    .form-section { margin-bottom: 1.25rem; }
+    .section-description { font-size: 0.85rem; color: #7f8c8d; margin: 0 0 1rem; }
+    .form-group { margin-bottom: 1rem; max-width: 520px; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #34495e; font-size: 0.9rem; }
+    .form-group label .required { color: #c53030; margin-left: 3px; }
+    .form-group input, .form-group select, .form-control {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group select:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+    }
+    .password-wrapper { position: relative; display: block; width: 100%; }
+    .password-wrapper input { padding-right: 2.5rem; }
+    .password-toggle {
+        position: absolute; right: 0.625rem; top: 50%; transform: translateY(-50%);
+        background: none; border: none; cursor: pointer; color: #7f8c8d; font-size: 0.9rem;
+    }
+    .btn-edit {
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.35);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-edit:hover { background: rgba(255,255,255,0.25); }
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 50%, #1a252f 100%);
+        color: #fff;
+    }
+    .btn-cancel {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        background: #7f8c8d;
+        color: #fff;
+    }
+    .btn-danger {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        background: #c0392b;
+        color: #fff;
+    }
+    .btn-danger:hover { background: #922b21; }
+    .btn-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .edit-mode { display: none; }
+    .edit-mode.active { display: block; }
+    .view-mode.hidden { display: none; }
+    .errorlist { list-style: none; padding: 0; margin: 0.5rem 0 0; color: #c53030; font-size: 0.85rem; }
+    .danger-text { color: #7f8c8d; margin: 0 0 1rem; font-size: 0.95rem; }
+    .solicitacoes-resumo {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+    .solicitacoes-resumo .chip {
+        background: #f4f6f8;
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #34495e;
+    }
+    .solicitacoes-grupo {
+        margin-bottom: 1.5rem;
+    }
+    .solicitacoes-grupo h3 {
+        margin: 0 0 0.75rem;
+        font-size: 0.95rem;
+        color: #34495e;
+        font-weight: 700;
+    }
+    .tabela-solicitacoes {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabela-solicitacoes th,
+    .tabela-solicitacoes td {
+        padding: 0.7rem 0.6rem;
+        text-align: left;
+        border-bottom: 1px solid #e1e8ed;
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+    .tabela-solicitacoes th {
+        background: #f4f6f8;
+        color: #34495e;
+        font-weight: 700;
+    }
+    .tabela-solicitacoes .valor { font-weight: 700; white-space: nowrap; }
+    .btn-ver {
+        padding: 0.4rem 0.85rem;
+        background: #e1e8ed;
+        color: #2c3e50;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-ver:hover { background: #d0d7de; }
+    .btn-pdf-mini {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: #2c3e50;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .btn-pdf-mini:hover { background: #1a252f; color: #fff; }
+    .id-clicavel { color: #2c3e50; cursor: pointer; }
+    .id-clicavel:hover { text-decoration: underline; }
+    .status-aguardando-gestor {
+        color: #d69e2e; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #fef3c7; border-radius: 4px; display: inline-block;
+    }
+    .status-aguardando-gestor-admin {
+        color: #3182ce; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #bee3f8; border-radius: 4px; display: inline-block;
+    }
+    .status-aguardando-pagamento {
+        color: #0c5460; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #d1ecf1; border-radius: 4px; display: inline-block;
+    }
+    .status-aguardando-assinatura {
+        color: #856404; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #fff3cd; border-radius: 4px; display: inline-block;
+    }
+    .status-rejeitado {
+        color: #e53e3e; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #fed7d7; border-radius: 4px; display: inline-block;
+    }
+    .status-concluido {
+        color: #1e8449; font-weight: 600; padding: 0.375rem 0.75rem;
+        background: #d5f4e6; border-radius: 4px; display: inline-block;
+    }
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .modal-overlay.aberto { display: flex; }
+    .modal-box {
+        background: #fff;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e1e8ed;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        color: #fff;
+        border-radius: 10px 10px 0 0;
+    }
+    .modal-header h2 { margin: 0; font-size: 1rem; }
+    .modal-fechar {
+        background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; line-height: 1;
+    }
+    .modal-body { padding: 1.25rem; }
+    .detalhe-solicitacao-item {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 0.75rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid #eef2f5;
+        font-size: 0.9rem;
+    }
+    .detalhe-solicitacao-item strong { color: #34495e; }
+    .vazio-solicitacoes {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin: 0;
+        padding: 0.5rem 0;
+    }
+    @media (max-width: 700px) {
+        .perfil-lista { grid-template-columns: 1fr; }
+        .perfil-lista dt { border-right: none; border-bottom: 2px solid #34495e; min-width: 0; padding-right: 0; }
+        .perfil-lista dd { padding-left: 0; }
+        .tabela-solicitacoes thead { display: none; }
+        .tabela-solicitacoes tr {
+            display: block;
+            margin-bottom: 0.75rem;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 0.65rem;
+        }
+        .tabela-solicitacoes td {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border: none;
+            padding: 0.3rem 0;
+        }
+        .tabela-solicitacoes td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #34495e;
+        }
+        .detalhe-solicitacao-item { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<a class="voltar-link" href="{% url 'intra:gestao_cadastros' %}">← Voltar para Gestão de Cadastros</a>
+<h1 class="page-title">Editar Cadastro</h1>
+<p class="page-intro">Gerencie acesso, senha e dados de pagamento de <strong>{{ usuario.email }}</strong>.</p>
+
+{% if messages %}
+<ul class="messages">
+    {% for message in messages %}
+    <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>Dados de Acesso</h2>
+        <button type="button" id="btn-editar-acesso" class="btn-edit">✏️ Editar</button>
+    </div>
+
+    <div id="view-mode-acesso" class="view-mode">
+        <dl class="perfil-lista">
+            <dt>E-mail</dt>
+            <dd>{{ usuario.email|default:"—" }}</dd>
+            <dt>Tipo de pessoa</dt>
+            <dd>{% if perfil.tipo_pessoa == 'PJ' %}Pessoa Jurídica{% else %}Pessoa Física{% endif %}</dd>
+            <dt>{% if perfil.tipo_pessoa == 'PJ' %}Razão social{% else %}Nome{% endif %}</dt>
+            <dd>{{ perfil.nome_solicitante|default:"—" }}</dd>
+            {% if perfil.tipo_pessoa == 'PJ' %}
+            <dt>CNPJ</dt>
+            <dd>{{ perfil.cnpj|default:"—" }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+
+    <form method="post" action="{% url 'intra:gestao_cadastro_editar' usuario.id %}" id="edit-mode-acesso" class="edit-mode" data-no-loading>
+        {% csrf_token %}
+        <input type="hidden" name="editar_acesso" value="1">
+
+        <div class="form-section">
+            <div class="form-group">
+                <label for="id_email">
+                    {{ acesso_form.email.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ acesso_form.email }}
+                {% if acesso_form.email.errors %}<ul class="errorlist">{{ acesso_form.email.errors }}</ul>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="id_tipo_pessoa">
+                    {{ acesso_form.tipo_pessoa.label }}
+                    <span class="required">*</span>
+                </label>
+                {{ acesso_form.tipo_pessoa }}
+                {% if acesso_form.tipo_pessoa.errors %}<ul class="errorlist">{{ acesso_form.tipo_pessoa.errors }}</ul>{% endif %}
+            </div>
+
+            <div id="pf-fields-acesso" style="display: none;">
+                <div class="form-group">
+                    <label for="id_nome_solicitante_pf">Nome completo <span class="required">*</span></label>
+                    <input type="text" id="id_nome_solicitante_pf" class="form-control" placeholder="Nome completo" maxlength="200">
+                </div>
+            </div>
+
+            <div id="pj-fields-acesso" style="display: none;">
+                <div class="form-group">
+                    <label for="id_nome_solicitante_pj">Razão social <span class="required">*</span></label>
+                    <input type="text" id="id_nome_solicitante_pj" class="form-control" placeholder="Razão social da empresa" maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="id_cnpj">CNPJ <span class="required">*</span></label>
+                    {{ acesso_form.cnpj }}
+                    {% if acesso_form.cnpj.errors %}<ul class="errorlist">{{ acesso_form.cnpj.errors }}</ul>{% endif %}
+                </div>
+            </div>
+
+            {{ acesso_form.nome_solicitante }}
+            {% if acesso_form.nome_solicitante.errors %}<ul class="errorlist">{{ acesso_form.nome_solicitante.errors }}</ul>{% endif %}
+        </div>
+
+        <div class="btn-actions">
+            <button type="button" id="btn-cancelar-acesso" class="btn-cancel">Cancelar</button>
+            <button type="submit" class="btn">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Alterar Senha</h2>
+    </div>
+    <form method="post" action="{% url 'intra:gestao_cadastro_editar' usuario.id %}" id="form-alterar-senha" data-no-loading>
+        {% csrf_token %}
+        <input type="hidden" name="alterar_senha" value="1">
+        <div class="form-section">
+            <p class="section-description">Defina uma nova senha para este usuário (mínimo 8 caracteres).</p>
+            <div class="form-group">
+                <label for="id_nova_senha">{{ senha_form.nova_senha.label }} <span class="required">*</span></label>
+                <div class="password-wrapper">
+                    {{ senha_form.nova_senha }}
+                    <button type="button" class="password-toggle" data-target="id_nova_senha" aria-label="Mostrar senha">👁</button>
+                </div>
+                {% if senha_form.nova_senha.errors %}<ul class="errorlist">{{ senha_form.nova_senha.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label for="id_confirmar_senha">{{ senha_form.confirmar_senha.label }} <span class="required">*</span></label>
+                <div class="password-wrapper">
+                    {{ senha_form.confirmar_senha }}
+                    <button type="button" class="password-toggle" data-target="id_confirmar_senha" aria-label="Mostrar senha">👁</button>
+                </div>
+                {% if senha_form.confirmar_senha.errors %}<ul class="errorlist">{{ senha_form.confirmar_senha.errors }}</ul>{% endif %}
+                {% if senha_form.non_field_errors %}<ul class="errorlist">{{ senha_form.non_field_errors }}</ul>{% endif %}
+            </div>
+        </div>
+        <div class="btn-actions">
+            <button type="submit" class="btn">Alterar Senha</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Dados de Pagamento</h2>
+        <button type="button" id="btn-editar" class="btn-edit">✏️ Editar</button>
+    </div>
+
+    <div id="view-mode" class="view-mode">
+        <dl class="perfil-lista">
+            <dt>Forma de Pagamento</dt>
+            <dd>{{ perfil.get_forma_pagamento_display|default:"—" }}</dd>
+            {% if perfil.forma_pagamento == 'PIX' %}
+            <dt>Banco (PIX)</dt>
+            <dd>{{ perfil.banco_pix|default:"—" }}</dd>
+            <dt>Chave PIX</dt>
+            <dd>{{ perfil.chave_pix|default:"—" }}</dd>
+            <dt>CPF/CNPJ (PIX)</dt>
+            <dd>{{ perfil.cpf_pix|default:"—" }}</dd>
+            {% elif perfil.forma_pagamento == 'TRANSFERENCIA' %}
+            <dt>Banco</dt>
+            <dd>{{ perfil.banco|default:"—" }}</dd>
+            <dt>Agência</dt>
+            <dd>{{ perfil.agencia|default:"—" }}</dd>
+            <dt>Tipo de Conta</dt>
+            <dd>{{ perfil.get_conta_tipo_display|default:"—" }}</dd>
+            <dt>Conta</dt>
+            <dd>{{ perfil.conta_numero|default:"—" }}</dd>
+            <dt>CPF/CNPJ (Transferência)</dt>
+            <dd>{{ perfil.cpf_transferencia|default:"—" }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+
+    <form method="post" action="{% url 'intra:gestao_cadastro_editar' usuario.id %}" id="edit-mode" class="edit-mode" data-no-loading>
+        {% csrf_token %}
+        <input type="hidden" name="editar_pagamento" value="1">
+        <div class="form-section">
+            <p class="section-description">Escolha a forma de pagamento desejada (CPF ou CNPJ)</p>
+            <div class="form-group">
+                <label for="id_forma_pagamento">{{ form.forma_pagamento.label }} <span class="required">*</span></label>
+                {{ form.forma_pagamento }}
+                {% if form.forma_pagamento.errors %}<ul class="errorlist">{{ form.forma_pagamento.errors }}</ul>{% endif %}
+            </div>
+
+            <div id="pix-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="id_banco_pix_select">Banco <span class="required">*</span></label>
+                    {{ form.banco_pix_select }}
+                    <div class="form-group" id="banco-pix-outro-group" style="display: none; margin-top: 0.5rem;">
+                        <label for="banco_pix_outro">Nome do Banco <span class="required">*</span></label>
+                        <input type="text" id="banco_pix_outro" class="form-control" placeholder="Digite o nome do banco">
+                    </div>
+                    {{ form.banco_pix }}
+                    {% if form.banco_pix_select.errors or form.banco_pix.errors %}<ul class="errorlist">{{ form.banco_pix_select.errors }}{{ form.banco_pix.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_chave_pix">{{ form.chave_pix.label }} <span class="required">*</span></label>
+                    {{ form.chave_pix }}
+                    {% if form.chave_pix.errors %}<ul class="errorlist">{{ form.chave_pix.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_cpf_pix">CPF/CNPJ <span class="required">*</span></label>
+                    {{ form.cpf_pix }}
+                    {% if form.cpf_pix.errors %}<ul class="errorlist">{{ form.cpf_pix.errors }}</ul>{% endif %}
+                </div>
+            </div>
+
+            <div id="transferencia-fields" style="display: none;">
+                <div class="form-group">
+                    <label for="id_banco_transf_select">Banco <span class="required">*</span></label>
+                    {{ form.banco_transf_select }}
+                    <div class="form-group" id="banco-transf-outro-group" style="display: none; margin-top: 0.5rem;">
+                        <label for="banco_transf_outro">Nome do Banco <span class="required">*</span></label>
+                        <input type="text" id="banco_transf_outro" class="form-control" placeholder="Digite o nome do banco">
+                    </div>
+                    {{ form.banco }}
+                    {% if form.banco_transf_select.errors or form.banco.errors %}<ul class="errorlist">{{ form.banco_transf_select.errors }}{{ form.banco.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group" id="agencia-conta-group">
+                    <label for="id_agencia">{{ form.agencia.label }} <span class="required">*</span></label>
+                    {{ form.agencia }}
+                    {% if form.agencia.errors %}<ul class="errorlist">{{ form.agencia.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group" id="conta-tipo-group">
+                    <label for="id_conta_tipo">{{ form.conta_tipo.label }} <span class="required">*</span></label>
+                    {{ form.conta_tipo }}
+                    {% if form.conta_tipo.errors %}<ul class="errorlist">{{ form.conta_tipo.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group" id="conta-numero-group">
+                    <label for="id_conta_numero">{{ form.conta_numero.label }} <span class="required">*</span></label>
+                    {{ form.conta_numero }}
+                    {% if form.conta_numero.errors %}<ul class="errorlist">{{ form.conta_numero.errors }}</ul>{% endif %}
+                </div>
+                <div class="form-group" id="carteira-digital-group" style="display: none;">
+                    <label for="id_carteira_digital">Chave (E-mail, CPF ou Telefone) <span class="required">*</span></label>
+                    <input type="text" id="id_carteira_digital" name="carteira_digital" class="form-control" placeholder="Digite e-mail, CPF ou telefone" value="{% if perfil.banco == 'Carteira Digital' %}{{ perfil.conta_numero }}{% endif %}">
+                </div>
+                <div class="form-group">
+                    <label for="id_cpf_transferencia">CPF/CNPJ <span class="required">*</span></label>
+                    {{ form.cpf_transferencia }}
+                    {% if form.cpf_transferencia.errors %}<ul class="errorlist">{{ form.cpf_transferencia.errors }}</ul>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="btn-actions">
+            <button type="button" id="btn-cancelar" class="btn-cancel">Cancelar</button>
+            <button type="submit" class="btn">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Solicitações de Reembolso</h2>
+    </div>
+
+    <div class="solicitacoes-resumo">
+        <span class="chip">Em processo: {{ solicitacoes_em_processo|length }}</span>
+        <span class="chip">Rejeitadas: {{ solicitacoes_rejeitadas|length }}</span>
+        <span class="chip">Concluídas: {{ solicitacoes_concluidas|length }}</span>
+    </div>
+
+    {% include "intra/_gestao_solicitacoes_grupo.html" with titulo="Em processo" lista=solicitacoes_em_processo tipo="processo" %}
+    {% include "intra/_gestao_solicitacoes_grupo.html" with titulo="Rejeitadas" lista=solicitacoes_rejeitadas tipo="rejeitado" %}
+    {% include "intra/_gestao_solicitacoes_grupo.html" with titulo="Concluídas" lista=solicitacoes_concluidas tipo="concluido" %}
+</div>
+
+<!-- Modal Ver Solicitação -->
+<div id="modal-ver-solicitacao" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Detalhes da Solicitação</h2>
+            <button type="button" class="modal-fechar" id="modal-ver-solicitacao-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="modal-body" id="solicitacao-content">
+            <p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const btnEditar = document.getElementById('btn-editar-acesso');
+    const btnCancelar = document.getElementById('btn-cancelar-acesso');
+    const viewMode = document.getElementById('view-mode-acesso');
+    const editMode = document.getElementById('edit-mode-acesso');
+    const hasErrors = !!document.querySelector('#edit-mode-acesso .errorlist');
+    if (hasErrors) {
+        viewMode.classList.add('hidden');
+        editMode.classList.add('active');
+        btnEditar.style.display = 'none';
+    }
+    btnEditar.addEventListener('click', function() {
+        viewMode.classList.add('hidden');
+        editMode.classList.add('active');
+        btnEditar.style.display = 'none';
+    });
+    btnCancelar.addEventListener('click', function() {
+        viewMode.classList.remove('hidden');
+        editMode.classList.remove('active');
+        btnEditar.style.display = 'block';
+    });
+})();
+
+(function() {
+    const tipoPessoa = document.getElementById('id_tipo_pessoa');
+    const pfFields = document.getElementById('pf-fields-acesso');
+    const pjFields = document.getElementById('pj-fields-acesso');
+    const nomeHidden = document.getElementById('id_nome_solicitante');
+    const nomePf = document.getElementById('id_nome_solicitante_pf');
+    const nomePj = document.getElementById('id_nome_solicitante_pj');
+    const cnpj = document.getElementById('id_cnpj');
+    const form = document.getElementById('edit-mode-acesso');
+
+    function mascaraCNPJ(value) {
+        let n = value.replace(/\D/g, '').substring(0, 14);
+        if (n.length <= 2) return n;
+        if (n.length <= 5) return n.substring(0, 2) + '.' + n.substring(2);
+        if (n.length <= 8) return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5);
+        if (n.length <= 12) return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5, 8) + '/' + n.substring(8);
+        return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5, 8) + '/' + n.substring(8, 12) + '-' + n.substring(12, 14);
+    }
+    function syncFromHidden() {
+        const valor = nomeHidden ? (nomeHidden.value || '') : '';
+        if (nomePf) nomePf.value = valor;
+        if (nomePj) nomePj.value = valor;
+    }
+    function syncToHidden() {
+        if (!nomeHidden || !tipoPessoa) return;
+        if (tipoPessoa.value === 'PJ' && nomePj) nomeHidden.value = nomePj.value.trim();
+        else if (tipoPessoa.value === 'PF' && nomePf) nomeHidden.value = nomePf.value.trim();
+    }
+    function atualizarTipo() {
+        const tipo = tipoPessoa ? tipoPessoa.value : '';
+        if (pfFields) pfFields.style.display = tipo === 'PF' ? 'block' : 'none';
+        if (pjFields) pjFields.style.display = tipo === 'PJ' ? 'block' : 'none';
+        syncToHidden();
+    }
+    if (tipoPessoa) {
+        syncFromHidden();
+        atualizarTipo();
+        tipoPessoa.addEventListener('change', atualizarTipo);
+    }
+    if (nomePf) nomePf.addEventListener('input', syncToHidden);
+    if (nomePj) nomePj.addEventListener('input', syncToHidden);
+    if (cnpj) {
+        cnpj.addEventListener('input', function(e) { e.target.value = mascaraCNPJ(e.target.value); });
+        if (cnpj.value) cnpj.value = mascaraCNPJ(cnpj.value);
+    }
+    if (form) form.addEventListener('submit', syncToHidden);
+})();
+
+(function() {
+    const btnEditar = document.getElementById('btn-editar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+    const viewMode = document.getElementById('view-mode');
+    const editMode = document.getElementById('edit-mode');
+    const hasErrors = !!document.querySelector('#edit-mode .errorlist');
+    if (hasErrors) {
+        viewMode.classList.add('hidden');
+        editMode.classList.add('active');
+        btnEditar.style.display = 'none';
+    }
+    btnEditar.addEventListener('click', function() {
+        viewMode.classList.add('hidden');
+        editMode.classList.add('active');
+        btnEditar.style.display = 'none';
+    });
+    btnCancelar.addEventListener('click', function() {
+        viewMode.classList.remove('hidden');
+        editMode.classList.remove('active');
+        btnEditar.style.display = 'block';
+    });
+})();
+
+(function() {
+    const formaPagamento = document.getElementById('id_forma_pagamento');
+    const pixFields = document.getElementById('pix-fields');
+    const transferenciaFields = document.getElementById('transferencia-fields');
+    function atualizar() {
+        const forma = formaPagamento ? formaPagamento.value : '';
+        if (pixFields) pixFields.style.display = forma === 'PIX' ? 'block' : 'none';
+        if (transferenciaFields) transferenciaFields.style.display = forma === 'TRANSFERENCIA' ? 'block' : 'none';
+    }
+    if (formaPagamento) {
+        formaPagamento.addEventListener('change', atualizar);
+        atualizar();
+    }
+})();
+
+(function() {
+    function mascaraDoc(value) {
+        let n = value.replace(/\D/g, '');
+        if (n.length <= 11) {
+            if (n.length <= 3) return n;
+            if (n.length <= 6) return n.substring(0, 3) + '.' + n.substring(3);
+            if (n.length <= 9) return n.substring(0, 3) + '.' + n.substring(3, 6) + '.' + n.substring(6);
+            return n.substring(0, 3) + '.' + n.substring(3, 6) + '.' + n.substring(6, 9) + '-' + n.substring(9, 11);
+        }
+        n = n.substring(0, 14);
+        if (n.length <= 2) return n;
+        if (n.length <= 5) return n.substring(0, 2) + '.' + n.substring(2);
+        if (n.length <= 8) return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5);
+        if (n.length <= 12) return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5, 8) + '/' + n.substring(8);
+        return n.substring(0, 2) + '.' + n.substring(2, 5) + '.' + n.substring(5, 8) + '/' + n.substring(8, 12) + '-' + n.substring(12, 14);
+    }
+    ['id_cpf_pix', 'id_cpf_transferencia'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function(e) { e.target.value = mascaraDoc(e.target.value); });
+    });
+})();
+
+(function() {
+    const bancoPixSelect = document.getElementById('id_banco_pix_select');
+    const bancoPixHidden = document.getElementById('id_banco_pix');
+    const bancoTransfSelect = document.getElementById('id_banco_transf_select');
+    const bancoHidden = document.getElementById('id_banco');
+
+    function atualizarCarteira(isCarteira) {
+        ['agencia-conta-group', 'conta-tipo-group', 'conta-numero-group'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isCarteira ? 'none' : 'block';
+        });
+        const carteira = document.getElementById('carteira-digital-group');
+        if (carteira) carteira.style.display = isCarteira ? 'block' : 'none';
+    }
+
+    if (bancoPixSelect && bancoPixHidden) {
+        function syncPix() {
+            const isOutro = bancoPixSelect.value === 'Outro';
+            const group = document.getElementById('banco-pix-outro-group');
+            const outro = document.getElementById('banco_pix_outro');
+            if (group) group.style.display = isOutro ? 'block' : 'none';
+            bancoPixHidden.value = isOutro ? (outro ? outro.value : '') : bancoPixSelect.value;
+        }
+        bancoPixSelect.addEventListener('change', syncPix);
+        const outro = document.getElementById('banco_pix_outro');
+        if (outro) {
+            if (bancoPixSelect.value === 'Outro' && bancoPixHidden.value) outro.value = bancoPixHidden.value;
+            outro.addEventListener('input', syncPix);
+        }
+        syncPix();
+    }
+
+    if (bancoTransfSelect && bancoHidden) {
+        function syncTransf() {
+            const isOutro = bancoTransfSelect.value === 'Outro';
+            const group = document.getElementById('banco-transf-outro-group');
+            const outro = document.getElementById('banco_transf_outro');
+            if (group) group.style.display = isOutro ? 'block' : 'none';
+            bancoHidden.value = isOutro ? (outro ? outro.value : '') : bancoTransfSelect.value;
+            atualizarCarteira(bancoTransfSelect.value === 'Carteira Digital');
+        }
+        bancoTransfSelect.addEventListener('change', syncTransf);
+        const outro = document.getElementById('banco_transf_outro');
+        if (outro) {
+            if (bancoTransfSelect.value === 'Outro' && bancoHidden.value) outro.value = bancoHidden.value;
+            outro.addEventListener('input', syncTransf);
+        }
+        syncTransf();
+    }
+})();
+
+document.querySelectorAll('.password-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const input = document.getElementById(btn.getAttribute('data-target'));
+        if (!input) return;
+        input.type = input.type === 'password' ? 'text' : 'password';
+    });
+});
+
+(function() {
+    var modal = document.getElementById('modal-ver-solicitacao');
+    var content = document.getElementById('solicitacao-content');
+    var btnFechar = document.getElementById('modal-ver-solicitacao-fechar');
+
+    function escapeHtml(text) {
+        if (text == null) return '';
+        var div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    function formatarValor(valor) {
+        var n = parseFloat(valor || 0);
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function statusInfo(status) {
+        if (status === 'aguardando_gestor') return { label: 'Aguardando aprovação de gestor', bg: '#fef3c7', color: '#d69e2e' };
+        if (status === 'aguardando_gestor_admin') return { label: 'Aguardando aprovação de gestor administrativo', bg: '#bee3f8', color: '#3182ce' };
+        if (status === 'aguardando_pagamento') return { label: 'Aprovado - Aguardando pagamento', bg: '#d1ecf1', color: '#0c5460' };
+        if (status === 'pagamento_agendado') return { label: 'Solicitação aprovada - Pagamento agendado', bg: '#d1ecf1', color: '#0c5460' };
+        if (status === 'pago_aguardando_assinaturas') return { label: 'Pago - Aguardando assinaturas', bg: '#fff3cd', color: '#856404' };
+        if (status === 'rejeitado_gestor' || status === 'rejeitado_gestor_admin' || status === 'rejeitado') return { label: 'Rejeitado', bg: '#fed7d7', color: '#e53e3e' };
+        if (status === 'concluido') return { label: 'Concluído', bg: '#d5f4e6', color: '#1e8449' };
+        return { label: 'Em processo', bg: '#fef3c7', color: '#d69e2e' };
+    }
+
+    function abrirDetalhesSolicitacao(pk) {
+        content.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 2rem;">Carregando dados...</p>';
+        modal.classList.add('aberto');
+        modal.setAttribute('aria-hidden', 'false');
+        if (typeof showLoading === 'function') showLoading('Carregando detalhes da solicitação...');
+
+        fetch('/reembolso/' + pk + '/detalhe-gestor/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (typeof hideLoading === 'function') hideLoading();
+                if (data.error) {
+                    content.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">' + escapeHtml(data.error) + '</p>';
+                    return;
+                }
+
+                var st = statusInfo(data.status_descritivo);
+                var html = '<div class="detalhe-solicitacao">';
+                html += '<div class="detalhe-solicitacao-item"><strong>ID da Solicitação</strong><span>#' + pk + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Data</strong><span>' + escapeHtml(data.criado_em || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Centro de custo</strong><span>' + escapeHtml(data.centro_custo || '—') + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Status</strong><span style="display:inline-block;padding:0.35rem 0.75rem;border-radius:4px;font-weight:600;background:' + st.bg + ';color:' + st.color + ';">' + escapeHtml(st.label) + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Valor total</strong><span>R$ ' + formatarValor(data.valor_total) + '</span></div>';
+                html += '<div class="detalhe-solicitacao-item"><strong>Nome do Gestor</strong><span>' + escapeHtml(data.nome_gestor || '—') + '</span></div>';
+
+                html += '<div style="margin-top:1.25rem;padding-top:1rem;border-top:2px solid #e1e8ed;"><strong style="color:#34495e;">Itens de Despesa</strong>';
+                if (data.itens && data.itens.length) {
+                    data.itens.forEach(function(item, index) {
+                        html += '<div style="background:#f8f9fa;border:1px solid #e1e8ed;border-radius:8px;padding:1rem;margin-top:0.75rem;">';
+                        html += '<div style="display:flex;justify-content:space-between;gap:0.75rem;margin-bottom:0.5rem;">';
+                        html += '<span><strong>Item ' + (index + 1) + '</strong> — ' + escapeHtml(item.tipo_despesa || '—') + '</span>';
+                        html += '<strong style="color:#27ae60;">R$ ' + formatarValor(item.valor || 0) + '</strong></div>';
+                        if (item.cod_despesa_com_descricao || item.cod_despesa) {
+                            html += '<div style="margin-bottom:0.35rem;"><span style="color:#7f8c8d;">Código:</span> ' + escapeHtml(item.cod_despesa_com_descricao || item.cod_despesa) + '</div>';
+                        }
+                        if (item.data_despesa) {
+                            html += '<div style="margin-bottom:0.35rem;"><span style="color:#7f8c8d;">Data:</span> ' + escapeHtml(item.data_despesa) + '</div>';
+                        }
+                        if (item.descricao) {
+                            html += '<div style="margin-bottom:0.35rem;white-space:pre-wrap;word-break:break-word;"><span style="color:#7f8c8d;">Descrição:</span> ' + escapeHtml(item.descricao) + '</div>';
+                        }
+                        if (item.anexo_url) {
+                            html += '<div><a href="' + escapeHtml(item.anexo_url) + '" target="_blank" rel="noopener">📎 ' + escapeHtml(item.anexo_nome || 'Ver anexo') + '</a></div>';
+                        }
+                        html += '</div>';
+                    });
+                } else {
+                    html += '<p style="color:#7f8c8d;margin:0.75rem 0 0;">Nenhum item.</p>';
+                }
+                html += '</div>';
+
+                if (data.forma_pagamento) {
+                    html += '<div style="margin-top:1.25rem;padding-top:1rem;border-top:2px solid #e1e8ed;"><strong style="color:#34495e;">Forma de Pagamento</strong>';
+                    if (data.forma_pagamento === 'PIX') {
+                        html += '<div style="margin-top:0.5rem;">PIX</div>';
+                        if (data.pix_chave) html += '<div>Chave PIX: ' + escapeHtml(data.pix_chave) + '</div>';
+                        if (data.pix_banco) html += '<div>Banco: ' + escapeHtml(data.pix_banco) + '</div>';
+                        if (data.pix_cpf) html += '<div>CPF/CNPJ: ' + escapeHtml(data.pix_cpf) + '</div>';
+                    } else if (data.forma_pagamento === 'TRANSFERENCIA') {
+                        html += '<div style="margin-top:0.5rem;">Transferência Bancária</div>';
+                        if (data.transf_banco) html += '<div>Banco: ' + escapeHtml(data.transf_banco) + '</div>';
+                        if (data.transf_agencia) html += '<div>Agência: ' + escapeHtml(data.transf_agencia) + '</div>';
+                        if (data.transf_conta_tipo) html += '<div>Tipo: ' + (data.transf_conta_tipo === 'CORRENTE' ? 'Conta Corrente' : 'Poupança') + '</div>';
+                        if (data.transf_conta_numero) html += '<div>Conta: ' + escapeHtml(data.transf_conta_numero) + '</div>';
+                        if (data.transf_cpf) html += '<div>CPF/CNPJ: ' + escapeHtml(data.transf_cpf) + '</div>';
+                    }
+                    html += '</div>';
+                }
+
+                if (data.motivo_rejeicao) {
+                    html += '<div style="margin-top:1.25rem;padding-top:1rem;border-top:2px solid #e1e8ed;"><strong style="color:#c0392b;">Motivo da rejeição</strong><div style="margin-top:0.5rem;white-space:pre-wrap;">' + escapeHtml(data.motivo_rejeicao) + '</div></div>';
+                }
+
+                html += '</div>';
+                content.innerHTML = html;
+            })
+            .catch(function() {
+                if (typeof hideLoading === 'function') hideLoading();
+                content.innerHTML = '<p style="text-align: center; color: #c53030; padding: 2rem;">Erro ao carregar dados.</p>';
+            });
+    }
+
+    document.addEventListener('click', function(e) {
+        // PDF não abre o modal
+        if (e.target.closest('.btn-pdf-mini')) return;
+
+        var alvo = e.target.closest('.btn-ver, .id-clicavel');
+        if (!alvo) {
+            alvo = e.target.closest('.solicitacao-linha');
+        }
+        if (!alvo) return;
+
+        var pk = alvo.getAttribute('data-pk');
+        if (pk) {
+            e.preventDefault();
+            abrirDetalhesSolicitacao(pk);
+        }
+    });
+
+    if (btnFechar) {
+        btnFechar.addEventListener('click', function() {
+            modal.classList.remove('aberto');
+            modal.setAttribute('aria-hidden', 'true');
+        });
+    }
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.classList.remove('aberto');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

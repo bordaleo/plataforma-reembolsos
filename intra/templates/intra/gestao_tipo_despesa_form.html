@@ -1,0 +1,145 @@
+﻿{% extends "intra/base.html" %}
+{% load static %}
+{% block title %}{% if eh_novo %}Adicionar{% else %}Editar{% endif %} Tipo de Despesa - Plataforma de Reembolsos{% endblock %}
+{% block extra_css %}
+<style>
+    .voltar-link { display: inline-block; margin-bottom: 1rem; color: #34495e; font-weight: 600; text-decoration: none; }
+    .voltar-link:hover { text-decoration: underline; }
+    .page-intro { margin: 0 0 1.5rem; color: #7f8c8d; font-size: 1rem; }
+    .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 0;
+        max-width: 680px;
+        overflow: hidden;
+    }
+    .card-header {
+        padding: 1.15rem 1.5rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        color: #fff;
+    }
+    .card-header h2 { margin: 0; font-size: 1.05rem; }
+    .card-body { padding: 1.5rem; }
+    .form-group { margin-bottom: 1.15rem; }
+    .form-group label { display: block; margin-bottom: 0.45rem; font-weight: 600; color: #34495e; font-size: 0.9rem; }
+    .form-help { margin: 0.4rem 0 0; color: #7f8c8d; font-size: 0.82rem; }
+    .form-group input[type="text"],
+    .form-group input[type="number"] {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.12);
+    }
+    .codigo-interno {
+        margin: 0 0 1.25rem;
+        padding: 0.85rem 1rem;
+        background: #f4f6f8;
+        border-radius: 8px;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+    .codigo-interno strong { color: #2c3e50; font-family: Consolas, monospace; }
+    .opcoes { display: grid; gap: 0.7rem; margin: 0.25rem 0 1.4rem; }
+    .opcao-box {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 0.85rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .opcao-box:hover { border-color: #b8c4ce; }
+    .opcao-box input { margin-top: 0.2rem; }
+    .opcao-box strong { display: block; color: #2c3e50; font-size: 0.9rem; }
+    .opcao-box small { display: block; margin-top: 0.2rem; color: #7f8c8d; font-size: 0.8rem; }
+    .form-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
+    .btn {
+        padding: 0.65rem 1.15rem;
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn:hover { background: #1a252f; color: #fff; }
+    .btn-secondary { background: #7f8c8d; }
+</style>
+{% endblock %}
+{% block content %}
+<a class="voltar-link" href="{% url 'intra:gestao_despesas' %}">← Voltar para Catálogo de despesas</a>
+<h1 class="page-title">{% if eh_novo %}Adicionar tipo de despesa{% else %}Editar tipo de despesa{% endif %}</h1>
+<p class="page-intro">
+    {% if eh_novo %}
+    Este tipo passa a aparecer no formulário de reembolso para todos os solicitantes.
+    {% else %}
+    Altere os dados deste tipo. O código interno não muda, para preservar solicitações já feitas.
+    {% endif %}
+</p>
+
+<div class="card">
+    <div class="card-header">
+        <h2>{% if eh_novo %}Novo tipo{% else %}{{ tipo.nome }}{% endif %}</h2>
+    </div>
+    <div class="card-body">
+        {% if not eh_novo %}
+        <p class="codigo-interno">Código interno: <strong>{{ tipo.codigo }}</strong></p>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="nome">Nome *</label>
+                <input type="text" id="nome" name="nome" maxlength="80" required value="{{ tipo.nome|default:'' }}" placeholder="Ex.: Hospedagem">
+                <p class="form-help">Texto exibido no campo Tipo de Despesa do formulário.</p>
+            </div>
+            <div class="form-group">
+                <label for="rotulo_pdf">Rótulo no PDF</label>
+                <input type="text" id="rotulo_pdf" name="rotulo_pdf" maxlength="80" value="{{ tipo.rotulo_pdf|default:'' }}" placeholder="Como aparece no PDF">
+                <p class="form-help">Se ficar em branco, o PDF usa o próprio nome.</p>
+            </div>
+            <div class="form-group" style="max-width: 180px;">
+                <label for="ordem">Ordem na lista</label>
+                <input type="number" id="ordem" name="ordem" min="0" value="{{ tipo.ordem|default:0 }}">
+            </div>
+            <div class="opcoes">
+                <label class="opcao-box">
+                    <input type="checkbox" name="ativo" {% if tipo.ativo %}checked{% endif %}>
+                    <span>
+                        <strong>Ativo</strong>
+                        <small>Se desmarcado, o tipo some do formulário, mas continua nas solicitações antigas.</small>
+                    </span>
+                </label>
+                <label class="opcao-box">
+                    <input type="checkbox" name="exige_km" {% if tipo.exige_km %}checked{% endif %}>
+                    <span>
+                        <strong>Reembolso por KM</strong>
+                        <small>Abre o cálculo de quilometragem (KM × R$ 1,10), como em Deslocamento.</small>
+                    </span>
+                </label>
+                <label class="opcao-box">
+                    <input type="checkbox" name="anexo_opcional" {% if tipo.anexo_opcional %}checked{% endif %}>
+                    <span>
+                        <strong>Anexo opcional</strong>
+                        <small>Não exige comprovante anexado, como em Passagens de Ônibus.</small>
+                    </span>
+                </label>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">{% if eh_novo %}Adicionar tipo{% else %}Salvar alteração{% endif %}</button>
+                <a class="btn btn-secondary" href="{% url 'intra:gestao_despesas' %}">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

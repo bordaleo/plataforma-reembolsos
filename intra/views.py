@@ -13,14 +13,17 @@ from django.contrib import messages
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.utils.crypto import get_random_string
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Max
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from datetime import datetime, timedelta
 import json
 import html
 import logging
+import re
 import time
+import unicodedata
+from urllib.parse import urlencode
 from functools import wraps
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.core.cache import cache
@@ -39,7 +42,7 @@ from .forms import (
     AdminAlterarSenhaForm,
     TrocarSenhaForm,
 )
-from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso
+from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, ItemReembolso, CentroCusto, HistoricoReembolso, TipoDespesa, Programa
 from .pdf_reembolso import gerar_pdf
 from .docusign_integration import (
     enviar_documento_para_assinatura,
@@ -481,6 +484,116 @@ def _get_status_descritivo(solicitacao):
     
     # Fallback
     return 'aguardando_gestor'
+
+
+STATUS_ADMIN_CHOICES = [
+    ("aguardando_gestor", "Aguardando aprovação de gestor"),
+    ("aguardando_gestor_admin", "Aguardando aprovação de gestor administrativo"),
+    ("aguardando_pagamento", "Aprovado - Aguardando pagamento"),
+    ("pagamento_agendado", "Solicitação aprovada - Pagamento agendado"),
+    ("pago_aguardando_assinaturas", "Pago - Aguardando assinaturas"),
+    ("rejeitado_gestor", "Rejeitado pelo gestor"),
+    ("rejeitado_gestor_admin", "Rejeitado pelo gestor administrativo"),
+    ("concluido", "Concluído"),
+]
+STATUS_ADMIN_LABELS = dict(STATUS_ADMIN_CHOICES)
+
+
+def _aplicar_status_admin(sol, status_alvo, usuario):
+    """Ajusta os campos internos para o status descritivo escolhido pelo gestor administrativo."""
+    if status_alvo not in STATUS_ADMIN_LABELS:
+        return
+    agora = timezone.now()
+    S = SolicitacaoReembolso
+
+    if status_alvo == "aguardando_gestor":
+        sol.status = S.STATUS_PENDENTE
+        sol.status_gestor = S.STATUS_PENDENTE
+        sol.status_gestor_admin = S.STATUS_PENDENTE
+        sol.pago = False
+        sol.concluido = False
+    elif status_alvo == "aguardando_gestor_admin":
+        sol.status = S.STATUS_PENDENTE
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_PENDENTE
+        sol.pago = False
+        sol.concluido = False
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+    elif status_alvo == "aguardando_pagamento":
+        sol.status = S.STATUS_AGUARDANDO_PAGAMENTO
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_APROVADO
+        sol.pago = False
+        sol.concluido = False
+        sol.data_pagamento_programada = None
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+        if not sol.aprovado_em_gestor_admin:
+            sol.aprovado_em_gestor_admin = agora
+            sol.aprovado_por_gestor_admin = usuario
+    elif status_alvo == "pagamento_agendado":
+        sol.status = S.STATUS_PAGAMENTO_AGENDADO
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_APROVADO
+        sol.pago = False
+        sol.concluido = False
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+        if not sol.aprovado_em_gestor_admin:
+            sol.aprovado_em_gestor_admin = agora
+            sol.aprovado_por_gestor_admin = usuario
+    elif status_alvo == "pago_aguardando_assinaturas":
+        sol.status = S.STATUS_PAGO_AGUARDANDO_ASSINATURAS
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_APROVADO
+        sol.pago = True
+        sol.concluido = False
+        if not sol.pago_em:
+            sol.pago_em = agora
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+        if not sol.aprovado_em_gestor_admin:
+            sol.aprovado_em_gestor_admin = agora
+            sol.aprovado_por_gestor_admin = usuario
+    elif status_alvo == "rejeitado_gestor":
+        sol.status = S.STATUS_REJEITADO
+        sol.status_gestor = S.STATUS_REJEITADO
+        sol.status_gestor_admin = S.STATUS_PENDENTE
+        sol.pago = False
+        sol.concluido = False
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+    elif status_alvo == "rejeitado_gestor_admin":
+        sol.status = S.STATUS_REJEITADO
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_REJEITADO
+        sol.pago = False
+        sol.concluido = False
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+        if not sol.aprovado_em_gestor_admin:
+            sol.aprovado_em_gestor_admin = agora
+            sol.aprovado_por_gestor_admin = usuario
+    elif status_alvo == "concluido":
+        sol.status = S.STATUS_CONCLUIDO
+        sol.status_gestor = S.STATUS_APROVADO
+        sol.status_gestor_admin = S.STATUS_APROVADO
+        sol.concluido = True
+        if not sol.concluido_em:
+            sol.concluido_em = agora
+        if not sol.aprovado_em_gestor:
+            sol.aprovado_em_gestor = agora
+            sol.aprovado_por_gestor = usuario
+        if not sol.aprovado_em_gestor_admin:
+            sol.aprovado_em_gestor_admin = agora
+            sol.aprovado_por_gestor_admin = usuario
 
 
 def _enviar_email_aprovacao_gestor(solicitacao, aprovado=True):
@@ -1420,6 +1533,94 @@ TIPOS_DESPESA = [
     ("OUTROS_MATERIAIS", "Outros"),
 ]
 
+
+def _tipos_despesa_choices(ativos_apenas=True):
+    try:
+        qs = TipoDespesa.objects.all()
+        if ativos_apenas:
+            qs = qs.filter(ativo=True)
+        choices = [(t.codigo, t.nome) for t in qs.order_by("ordem", "nome")]
+        if choices:
+            return choices
+    except Exception:
+        pass
+    return list(TIPOS_DESPESA)
+
+
+def _tipos_despesa_labels():
+    return dict(_tipos_despesa_choices(ativos_apenas=False))
+
+
+def _tipos_despesa_flags():
+    flags = {
+        "DESLOCAMENTO": {"exige_km": True, "anexo_opcional": False},
+        "PASSAGENS": {"exige_km": False, "anexo_opcional": True},
+    }
+    try:
+        for t in TipoDespesa.objects.all():
+            flags[t.codigo] = {
+                "exige_km": bool(t.exige_km),
+                "anexo_opcional": bool(t.anexo_opcional),
+            }
+    except Exception:
+        pass
+    return flags
+
+
+def _tipo_exige_km(codigo):
+    codigo_norm = (codigo or "").strip().upper()
+    flags = _tipos_despesa_flags().get(codigo_norm)
+    if flags is not None:
+        return bool(flags.get("exige_km"))
+    return codigo_norm == "DESLOCAMENTO"
+
+
+def _tipo_anexo_opcional(codigo):
+    codigo_norm = (codigo or "").strip().upper()
+    flags = _tipos_despesa_flags().get(codigo_norm)
+    if flags is not None:
+        return bool(flags.get("anexo_opcional"))
+    return codigo_norm == "PASSAGENS"
+
+
+def _contexto_tipos_despesa(incluir_codigos=None):
+    choices = list(_tipos_despesa_choices(ativos_apenas=True))
+    existentes = {c[0] for c in choices}
+    labels = _tipos_despesa_labels()
+    for codigo in incluir_codigos or []:
+        codigo = (codigo or "").strip()
+        if codigo and codigo not in existentes:
+            choices.append((codigo, labels.get(codigo, codigo)))
+            existentes.add(codigo)
+    return {
+        "tipos_despesa": choices,
+        "tipos_despesa_json": json.dumps(choices),
+        "tipos_despesa_flags_json": json.dumps(_tipos_despesa_flags()),
+    }
+
+
+def _slug_codigo_tipo_despesa(nome, pk=None):
+    nfkd = unicodedata.normalize("NFKD", nome or "")
+    ascii_txt = nfkd.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_txt).strip("_").upper()[:30]
+    if not slug:
+        slug = "TIPO"
+    base = slug
+    n = 2
+    while True:
+        qs = TipoDespesa.objects.filter(codigo=slug)
+        if pk:
+            qs = qs.exclude(pk=pk)
+        if not qs.exists():
+            return slug
+        suffix = f"_{n}"
+        slug = (base[: 30 - len(suffix)] + suffix)
+        n += 1
+
+
+FATOR_REEMBOLSO_KM = 1.10
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect(settings.LOGIN_REDIRECT_URL)
@@ -1970,7 +2171,7 @@ def reembolso_detalhe_gestor_json(request, pk):
         
         if not corresponde:
             return JsonResponse({"error": "Você não é o gestor indicado nesta solicitação."}, status=403)
-    tipos_labels = dict(TIPOS_DESPESA)
+    tipos_labels = _tipos_despesa_labels()
     criado_em_brasilia = localtime(sol.criado_em) if sol.criado_em else None
     
     # Coletar códigos de despesa dos itens com descrições
@@ -2188,7 +2389,7 @@ def reembolso_anexos_json(request, pk):
     
     if not is_gestor_simples and not is_gestor_admin:
         return JsonResponse({"error": "Acesso restrito a Gestores ou Gestores Administrativos."}, status=403)
-    tipos_labels = dict(TIPOS_DESPESA)
+    tipos_labels = _tipos_despesa_labels()
     anexos = []
     for item in sol.itens.all():
         anexo_url = None
@@ -2211,7 +2412,7 @@ def reembolso_detalhe_json(request, pk):
     sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
     if sol.user_id != request.user.id:
         return JsonResponse({"error": "Não autorizado."}, status=403)
-    tipos_labels = dict(TIPOS_DESPESA)
+    tipos_labels = _tipos_despesa_labels()
     itens = []
     for item in sol.itens.all():
         # Buscar descrição do código no orçamento
@@ -3501,7 +3702,7 @@ def dashboard_gestor(request):
         total=Sum('valor')
     ).order_by('-total')
     
-    tipos_labels = dict(TIPOS_DESPESA)
+    tipos_labels = _tipos_despesa_labels()
     gastos_por_tipo_formatado = []
     for item in gastos_por_tipo:
         gastos_por_tipo_formatado.append({
@@ -3655,7 +3856,7 @@ def dashboard_gestor(request):
     # Labels para os filtros - usar os nomes do STATUS_CHOICES
     status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
-    tipo_labels = dict(TIPOS_DESPESA)
+    tipo_labels = _tipos_despesa_labels()
     
     # Construir URLs de paginação mantendo filtros
     def build_pagination_url(page_mes=None):
@@ -4051,7 +4252,7 @@ def dashboard_gestor(request):
         'pagination_urls': pagination_urls,
         # Opções para os selects
         'centros_custo': CENTROS_CUSTO,
-        'tipos_despesa': TIPOS_DESPESA,
+        'tipos_despesa': _tipos_despesa_choices(ativos_apenas=False),
         'status_choices': [
             ('', 'Todos'),
             ('concluido', 'Concluído'),
@@ -4215,6 +4416,194 @@ def dashboard_export_pptx(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+def _querysets_dashboard_export(filtros):
+    """Monta os querysets do dashboard a partir dos filtros enviados no export Excel."""
+    data_inicio = (filtros.get("data_inicio") or "").strip()
+    data_fim = (filtros.get("data_fim") or "").strip()
+    status_filtro = (filtros.get("status") or "").strip()
+    centro_custo_filtro = (filtros.get("centro_custo") or "").strip()
+    tipo_despesa_filtro = (filtros.get("tipo_despesa") or "").strip()
+    id_filtro = (filtros.get("id") or "").strip()
+
+    filtros_comuns = Q()
+    if id_filtro:
+        try:
+            filtros_comuns &= Q(pk=int(id_filtro))
+        except (TypeError, ValueError):
+            pass
+    if data_inicio:
+        try:
+            filtros_comuns &= Q(criado_em__date__gte=datetime.strptime(data_inicio, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if data_fim:
+        try:
+            filtros_comuns &= Q(criado_em__date__lte=datetime.strptime(data_fim, "%Y-%m-%d").date())
+        except ValueError:
+            pass
+    if centro_custo_filtro:
+        filtros_comuns &= Q(centro_custo=centro_custo_filtro)
+    if tipo_despesa_filtro:
+        ids_tipo = ItemReembolso.objects.filter(tipo_despesa=tipo_despesa_filtro).values_list(
+            "solicitacao_id", flat=True
+        )
+        filtros_comuns &= Q(pk__in=ids_tipo)
+
+    filtros_concluidos = filtros_comuns & (
+        Q(status=SolicitacaoReembolso.STATUS_CONCLUIDO) | Q(concluido=True)
+    )
+    filtros_em_processo = filtros_comuns & (
+        (
+            Q(status_gestor=SolicitacaoReembolso.STATUS_APROVADO, concluido=False)
+            & ~Q(status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO)
+        )
+        | Q(
+            status=SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+            pago=False,
+            concluido=False,
+        )
+    ) & _q_excluir_solicitacao_ja_concluida()
+    filtros_rejeitados = filtros_comuns & Q(
+        status_gestor_admin=SolicitacaoReembolso.STATUS_REJEITADO
+    )
+
+    if status_filtro:
+        if status_filtro in ("concluido", SolicitacaoReembolso.STATUS_CONCLUIDO):
+            filtros_em_processo = Q(pk__in=[])
+            filtros_rejeitados = Q(pk__in=[])
+        elif status_filtro == SolicitacaoReembolso.STATUS_REJEITADO:
+            filtros_concluidos = Q(pk__in=[])
+            filtros_em_processo = Q(pk__in=[])
+        elif status_filtro in [
+            SolicitacaoReembolso.STATUS_AGUARDANDO_PAGAMENTO,
+            SolicitacaoReembolso.STATUS_PAGAMENTO_AGENDADO,
+            SolicitacaoReembolso.STATUS_PAGO_AGUARDANDO_ASSINATURAS,
+        ]:
+            filtros_em_processo = (
+                filtros_comuns
+                & Q(status=status_filtro, concluido=False)
+                & _q_excluir_solicitacao_ja_concluida()
+            )
+            filtros_concluidos = Q(pk__in=[])
+            filtros_rejeitados = Q(pk__in=[])
+
+    queryset = SolicitacaoReembolso.objects.filter(
+        filtros_concluidos | filtros_em_processo | filtros_rejeitados
+    ).select_related("user", "user__perfil_solicitante").prefetch_related("itens").order_by("-criado_em")
+    return queryset, tipo_despesa_filtro
+
+
+def _linhas_export_dashboard(queryset, tipo_despesa_filtro=""):
+    centro_labels = dict(CENTROS_CUSTO)
+    tipo_labels = _tipos_despesa_labels()
+    solicitacoes_rows = []
+    itens_rows = []
+
+    def _fmt_dt(valor):
+        if not valor:
+            return ""
+        try:
+            return localtime(valor).strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            return valor.strftime("%d/%m/%Y %H:%M") if hasattr(valor, "strftime") else str(valor)
+
+    def _fmt_date(valor):
+        if not valor:
+            return ""
+        return valor.strftime("%d/%m/%Y")
+
+    for sol in queryset:
+        perfil = getattr(sol.user, "perfil_solicitante", None)
+        nome = ""
+        if perfil and getattr(perfil, "nome_solicitante", None):
+            nome = perfil.nome_solicitante
+        else:
+            nome = sol.user.get_full_name() or sol.user.email or ""
+        centro = centro_labels.get(sol.centro_custo, sol.centro_custo or "")
+        status_desc = STATUS_ADMIN_LABELS.get(_get_status_descritivo(sol), sol.get_status_display())
+        solicitacoes_rows.append([
+            sol.pk,
+            nome,
+            centro,
+            sol.get_status_display(),
+            status_desc,
+            float(sol.valor_total or 0),
+            "Sim" if sol.pago else "Não",
+            "Sim" if sol.concluido else "Não",
+            _fmt_dt(sol.criado_em),
+            _fmt_dt(sol.concluido_em),
+            sol.get_forma_pagamento_display() if sol.forma_pagamento else "",
+        ])
+        for item in sol.itens.all():
+            if tipo_despesa_filtro and item.tipo_despesa != tipo_despesa_filtro:
+                continue
+            itens_rows.append([
+                sol.pk,
+                nome,
+                centro,
+                sol.get_status_display(),
+                tipo_labels.get(item.tipo_despesa, item.tipo_despesa or ""),
+                item.cod_despesa or "",
+                _fmt_date(item.data_despesa),
+                (item.descricao or "").strip(),
+                float(item.valor or 0),
+                float(item.km) if item.km is not None else "",
+            ])
+    return solicitacoes_rows, itens_rows
+
+
+@login_required
+def dashboard_export_excel(request):
+    """
+    Gera um XLSX com dashboards (gráficos nativos) e abas de dados no formato planilha/CSV.
+    Recebe via POST o recorte atual do dashboard (KPIs, áreas, tipos, meses e filtros).
+    """
+    if not _is_gestor(request.user):
+        return HttpResponse("Acesso restrito a Gestores Administrativos.", status=403)
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    try:
+        from .excel_dashboard import gerar_excel_dashboard
+    except Exception:
+        return HttpResponse("Biblioteca openpyxl não está instalada no servidor.", status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return HttpResponse("Requisição inválida", status=400)
+
+    filtros = payload.get("filtros") or {}
+    kpis = payload.get("kpis") or {}
+    insights = payload.get("insights") or {}
+    areas = payload.get("areas") or []
+    tipos = payload.get("tipos") or {"labels": [], "valores": []}
+    meses = payload.get("meses") or {"labels": [], "concluidos": [], "em_processo": [], "rejeitados": []}
+
+    queryset, tipo_despesa_filtro = _querysets_dashboard_export(filtros)
+    solicitacoes_rows, itens_rows = _linhas_export_dashboard(queryset, tipo_despesa_filtro)
+
+    agora = localtime(timezone.now())
+    out = gerar_excel_dashboard(
+        kpis=kpis,
+        filtros=payload.get("filtros_label") or {},
+        insights=insights,
+        areas=areas,
+        tipos=tipos,
+        meses=meses,
+        solicitacoes_rows=solicitacoes_rows,
+        itens_rows=itens_rows,
+        gerado_em=agora.strftime("%d/%m/%Y %H:%M"),
+    )
+    filename = f"dashboard_reembolsos_{agora.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    response = HttpResponse(
+        out.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
 
 @login_required
 def dashboard_solicitacoes_json(request):
@@ -4391,7 +4780,7 @@ def dashboard_solicitacoes_json(request):
 def _coletar_indices_itens_post(request):
     indices = set()
     for key in list(request.POST.keys()) + list(request.FILES.keys()):
-        for prefix in ("valor_", "tipo_despesa_", "descricao_", "data_despesa_", "cod_despesa_", "anexo_"):
+        for prefix in ("valor_", "tipo_despesa_", "descricao_", "data_despesa_", "cod_despesa_", "anexo_", "km_"):
             if key.startswith(prefix):
                 suffix = key[len(prefix):]
                 if suffix.isdigit():
@@ -4408,6 +4797,21 @@ def _parse_valor_reembolso(valor_texto):
     else:
         valor_limpo = valor_texto
     return float(valor_limpo)
+
+
+def _extrair_km_item(request, idx, tipo, valor):
+    tipo_norm = (tipo or "").strip().upper()
+    if not _tipo_exige_km(tipo_norm):
+        return None
+    km_texto = request.POST.get(f"km_{idx}", "").strip()
+    if km_texto:
+        try:
+            return _parse_valor_reembolso(km_texto)
+        except (ValueError, TypeError):
+            pass
+    if valor:
+        return round(float(valor) / FATOR_REEMBOLSO_KM, 2)
+    return None
 
 
 def _parse_item_reembolso_post(request, idx, rascunho=False):
@@ -4443,6 +4847,7 @@ def _parse_item_reembolso_post(request, idx, rascunho=False):
             "data_despesa": data_despesa,
             "descricao": desc,
             "valor": valor,
+            "km": _extrair_km_item(request, idx, tipo, valor),
         }
 
     if not valor_texto:
@@ -4460,6 +4865,7 @@ def _parse_item_reembolso_post(request, idx, rascunho=False):
         "data_despesa": data_despesa,
         "descricao": desc,
         "valor": valor,
+        "km": _extrair_km_item(request, idx, tipo, valor),
     }
 
 
@@ -4522,7 +4928,7 @@ def _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento):
 
 def _item_tem_anexo_obrigatorio(item, request, anexos_existentes=None):
     """True se o item não exige anexo ou já tem arquivo novo/existente."""
-    if (item.get("tipo_despesa") or "") == "PASSAGENS":
+    if _tipo_anexo_opcional(item.get("tipo_despesa") or ""):
         return True
     if f"anexo_{item['idx']}" in request.FILES:
         return True
@@ -4540,7 +4946,7 @@ def _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=None, e
         if exigir_descricao and not (item.get("descricao") or "").strip():
             return "O campo 'Descrição' é obrigatório para todos os itens de despesa."
         if exigir_anexo and not _item_tem_anexo_obrigatorio(item, request, anexos_existentes):
-            return "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus)."
+            return "Cada item de despesa precisa de um anexo (exceto tipos com anexo opcional)."
         anexo = None
         anexo_key = f"anexo_{item['idx']}"
         if anexo_key in request.FILES:
@@ -4559,6 +4965,7 @@ def _salvar_itens_reembolso(sol, itens_dados, request, anexos_existentes=None, e
             data_despesa=item.get("data_despesa"),
             descricao=item.get("descricao") or "",
             valor=item.get("valor") or 0,
+            km=item.get("km"),
             anexo=anexo,
         )
     return None
@@ -4608,6 +5015,43 @@ def _safe_next_url(next_url, default_name="intra:aprovar_reembolsos"):
     return reverse(default_name)
 
 
+def _programas_centro_custo(ativos_apenas=False):
+    try:
+        qs = Programa.objects.all()
+        if ativos_apenas:
+            qs = qs.filter(ativo=True)
+        nomes = list(qs.order_by("ordem", "nome").values_list("nome", flat=True))
+        if nomes:
+            return nomes
+    except Exception:
+        pass
+    return list(
+        CentroCusto.objects.exclude(PROGRAMA__isnull=True)
+        .exclude(PROGRAMA__exact="")
+        .values_list("PROGRAMA", flat=True)
+        .distinct()
+        .order_by("PROGRAMA")
+    )
+
+
+def _programas_formulario(incluir=None):
+    nomes = list(_programas_centro_custo(ativos_apenas=True))
+    extra = (incluir or "").strip()
+    if extra and extra not in nomes:
+        nomes.append(extra)
+    return nomes
+
+
+def _renomear_programa(nome_antigo, nome_novo):
+    CentroCusto.objects.filter(PROGRAMA=nome_antigo).update(PROGRAMA=nome_novo)
+    SolicitacaoReembolso.objects.filter(centro_custo=nome_antigo).update(centro_custo=nome_novo)
+    prefixo = f"{nome_antigo} - "
+    prefixo_novo = f"{nome_novo} - "
+    for sol in SolicitacaoReembolso.objects.filter(centro_custo__startswith=prefixo):
+        sol.centro_custo = prefixo_novo + sol.centro_custo[len(prefixo):]
+        sol.save(update_fields=["centro_custo"])
+
+
 def _build_contexto_formulario_reembolso(
     request,
     solicitacao_editar=None,
@@ -4617,13 +5061,16 @@ def _build_contexto_formulario_reembolso(
     dados_post=None,
     abrir_modal_sem_alteracoes=False,
 ):
-    programas = (
-        CentroCusto.objects.exclude(PROGRAMA__isnull=True)
-        .exclude(PROGRAMA__exact="")
-        .values_list("PROGRAMA", flat=True)
-        .distinct()
-        .order_by("PROGRAMA")
+    programas = _programas_formulario(
+        incluir=solicitacao_editar.centro_custo if solicitacao_editar else None
     )
+    incluir_codigos = []
+    if solicitacao_editar is not None:
+        incluir_codigos = [
+            (item.cod_despesa or "").strip()
+            for item in solicitacao_editar.itens.all()
+            if (item.cod_despesa or "").strip()
+        ]
     codigos = (
         CentroCusto.objects.exclude(CODIGO__isnull=True)
         .exclude(CODIGO__exact="")
@@ -4631,7 +5078,12 @@ def _build_contexto_formulario_reembolso(
         .exclude(DESCRICAO__exact="")
         .order_by("CODIGO")
     )
-    codigos_visiveis = [c for c in codigos if (c.CODIGO or "").strip() != "2.5"]
+    incluir_set = {c for c in incluir_codigos}
+    codigos_visiveis = [
+        c for c in codigos
+        if (c.CODIGO or "").strip() != "2.5"
+        and (c.ativo or (c.CODIGO or "").strip() in incluir_set)
+    ]
     codigos_por_programa = {}
     for c in codigos_visiveis:
         programa = c.PROGRAMA or ""
@@ -4653,11 +5105,18 @@ def _build_contexto_formulario_reembolso(
     except PerfilSolicitante.DoesNotExist:
         pass
 
+    incluir_tipos = []
+    if solicitacao_editar is not None:
+        incluir_tipos = [
+            (item.tipo_despesa or "").strip()
+            for item in solicitacao_editar.itens.all()
+            if (item.tipo_despesa or "").strip()
+        ]
+
     context = {
         "programas": programas,
         "codigos": codigos_visiveis,
-        "tipos_despesa": TIPOS_DESPESA,
-        "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
+        **_contexto_tipos_despesa(incluir_codigos=incluir_tipos),
         "codigos_despesa_json": json.dumps(codigos_json),
         "codigos_por_programa_json": json.dumps(codigos_por_programa),
         "perfil": perfil,
@@ -4667,10 +5126,373 @@ def _build_contexto_formulario_reembolso(
         "next_url": next_url or "",
         "abrir_modal_sem_alteracoes": abrir_modal_sem_alteracoes,
         "bancos_choices": BANCOS_CHOICES_REEMBOLSO,
+        "status_admin_choices": STATUS_ADMIN_CHOICES,
+        "status_admin_atual": "",
     }
+    if eh_edicao_admin and solicitacao_editar:
+        if dados_post and dados_post.get("status_descritivo"):
+            context["status_admin_atual"] = dados_post.get("status_descritivo")
+        else:
+            context["status_admin_atual"] = _get_status_descritivo(solicitacao_editar)
     if dados_post is not None:
         context["dados_post"] = dados_post
     return context
+
+
+def _redirect_gestao_despesas(request, **extra):
+    params = {}
+    q_tipo = (request.POST.get("q_tipo") or request.GET.get("q_tipo") or extra.get("q_tipo") or "").strip()
+    q_codigo = (
+        request.POST.get("q_codigo")
+        or request.GET.get("q_codigo")
+        or request.GET.get("q")
+        or extra.get("q_codigo")
+        or extra.get("q")
+        or ""
+    ).strip()
+    q_programa = (request.POST.get("q_programa") or request.GET.get("q_programa") or extra.get("q_programa") or "").strip()
+    programa = (request.POST.get("programa_filtro") or request.GET.get("programa") or extra.get("programa") or "").strip()
+    if q_tipo:
+        params["q_tipo"] = q_tipo
+    if q_codigo:
+        params["q_codigo"] = q_codigo
+    if q_programa:
+        params["q_programa"] = q_programa
+    if programa:
+        params["programa"] = programa
+    url = reverse("intra:gestao_despesas")
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    return redirect(url)
+
+
+def _dados_tipo_despesa_post(request):
+    nome = (request.POST.get("nome") or "").strip()
+    rotulo_pdf = (request.POST.get("rotulo_pdf") or "").strip()
+    try:
+        ordem = int((request.POST.get("ordem") or "0").strip() or 0)
+    except (TypeError, ValueError):
+        ordem = 0
+    return {
+        "nome": nome[:80] if nome else "",
+        "rotulo_pdf": (rotulo_pdf or nome)[:80],
+        "ordem": max(0, ordem),
+        "ativo": request.POST.get("ativo") == "on",
+        "exige_km": request.POST.get("exige_km") == "on",
+        "anexo_opcional": request.POST.get("anexo_opcional") == "on",
+    }
+
+
+def _dados_codigo_orcamento_post(request):
+    programa = (request.POST.get("programa") or "").strip()
+    codigo = (request.POST.get("codigo") or "").strip()
+    descricao = (request.POST.get("descricao") or "").strip()
+    return programa, codigo, descricao
+
+
+def _proxima_ordem_tipo():
+    atual = TipoDespesa.objects.aggregate(maior=Max("ordem")).get("maior") or 0
+    return atual + 1
+
+
+def _proxima_ordem_programa():
+    atual = Programa.objects.aggregate(maior=Max("ordem")).get("maior") or 0
+    return atual + 1
+
+
+@login_required
+def gestao_despesas(request):
+    """Lista tipos de despesa e códigos no orçamento para o gestor administrativo."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    if request.method == "POST":
+        acao = (request.POST.get("acao") or "").strip()
+
+        if acao == "toggle_tipo":
+            tipo = get_object_or_404(TipoDespesa, pk=request.POST.get("tipo_id"))
+            tipo.ativo = not tipo.ativo
+            tipo.save(update_fields=["ativo"])
+            estado = "ativado" if tipo.ativo else "inativado"
+            messages.success(request, f'Tipo de despesa "{tipo.nome}" {estado}.')
+            return _redirect_gestao_despesas(request)
+
+        if acao == "excluir_tipo":
+            tipo = get_object_or_404(TipoDespesa, pk=request.POST.get("tipo_id"))
+            usado = ItemReembolso.objects.filter(tipo_despesa=tipo.codigo).exists()
+            if usado:
+                messages.error(
+                    request,
+                    f'O tipo "{tipo.nome}" já foi usado em solicitações e não pode ser excluído. Inative-o se quiser tirá-lo do formulário.',
+                )
+                return _redirect_gestao_despesas(request)
+            nome = tipo.nome
+            tipo.delete()
+            messages.success(request, f'Tipo de despesa "{nome}" excluído.')
+            return _redirect_gestao_despesas(request)
+
+        if acao == "toggle_codigo":
+            registro = get_object_or_404(CentroCusto, pk=request.POST.get("codigo_id"))
+            registro.ativo = not registro.ativo
+            registro.save(update_fields=["ativo"])
+            estado = "ativado" if registro.ativo else "inativado"
+            messages.success(request, f"Código {registro.CODIGO} {estado}.")
+            return _redirect_gestao_despesas(request)
+
+        if acao == "excluir_codigo":
+            registro = get_object_or_404(CentroCusto, pk=request.POST.get("codigo_id"))
+            codigo = registro.CODIGO or ""
+            usado = ItemReembolso.objects.filter(cod_despesa=codigo).exists() if codigo else False
+            if usado:
+                messages.error(
+                    request,
+                    f"O código {codigo} já foi usado em solicitações e não pode ser excluído. Inative-o se quiser tirá-lo do formulário.",
+                )
+                return _redirect_gestao_despesas(request)
+            programa = registro.PROGRAMA or ""
+            registro.delete()
+            messages.success(request, f"Código {codigo} excluído.")
+            return _redirect_gestao_despesas(request, programa=programa)
+
+        if acao == "toggle_programa":
+            programa = get_object_or_404(Programa, pk=request.POST.get("programa_id"))
+            programa.ativo = not programa.ativo
+            programa.save(update_fields=["ativo"])
+            estado = "ativado" if programa.ativo else "inativado"
+            messages.success(request, f'Programa "{programa.nome}" {estado}.')
+            return _redirect_gestao_despesas(request)
+
+        if acao == "excluir_programa":
+            programa = get_object_or_404(Programa, pk=request.POST.get("programa_id"))
+            nome = programa.nome
+            tem_codigos = (
+                CentroCusto.objects.filter(PROGRAMA=nome)
+                .exclude(CODIGO__isnull=True)
+                .exclude(CODIGO__exact="")
+                .exists()
+            )
+            usado = SolicitacaoReembolso.objects.filter(
+                Q(centro_custo=nome) | Q(centro_custo__startswith=f"{nome} - ")
+            ).exists()
+            if tem_codigos or usado:
+                messages.error(
+                    request,
+                    f'O programa "{nome}" já possui códigos ou solicitações e não pode ser excluído. Inative-o se quiser tirá-lo do formulário.',
+                )
+                return _redirect_gestao_despesas(request)
+            CentroCusto.objects.filter(PROGRAMA=nome).delete()
+            programa.delete()
+            messages.success(request, f'Programa "{nome}" excluído.')
+            return _redirect_gestao_despesas(request)
+
+        messages.error(request, "Ação inválida.")
+        return _redirect_gestao_despesas(request)
+
+    q_tipo = (request.GET.get("q_tipo") or "").strip()
+    q_codigo = (request.GET.get("q_codigo") or request.GET.get("q") or "").strip()
+    q_programa = (request.GET.get("q_programa") or "").strip()
+    programa_filtro = (request.GET.get("programa") or "").strip()
+
+    tipos_qs = TipoDespesa.objects.all().order_by("ordem", "nome")
+    if q_tipo:
+        tipos_qs = tipos_qs.filter(
+            Q(nome__icontains=q_tipo) | Q(codigo__icontains=q_tipo) | Q(rotulo_pdf__icontains=q_tipo)
+        )
+    tipos = list(tipos_qs)
+    programas = _programas_centro_custo(ativos_apenas=False)
+
+    programas_qs = Programa.objects.all().order_by("ordem", "nome")
+    if q_programa:
+        programas_qs = programas_qs.filter(nome__icontains=q_programa)
+    programas_cadastro = list(programas_qs)
+    contagem_codigos = {
+        row["PROGRAMA"]: row["n"]
+        for row in CentroCusto.objects.exclude(PROGRAMA__isnull=True)
+        .exclude(PROGRAMA__exact="")
+        .exclude(CODIGO__isnull=True)
+        .exclude(CODIGO__exact="")
+        .values("PROGRAMA")
+        .annotate(n=Count("id"))
+    }
+    for item in programas_cadastro:
+        item.qtd_codigos = contagem_codigos.get(item.nome, 0)
+
+    codigos_qs = CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact="").order_by("PROGRAMA", "CODIGO")
+    if programa_filtro:
+        codigos_qs = codigos_qs.filter(PROGRAMA=programa_filtro)
+    if q_codigo:
+        codigos_qs = codigos_qs.filter(
+            Q(CODIGO__icontains=q_codigo) | Q(DESCRICAO__icontains=q_codigo) | Q(PROGRAMA__icontains=q_codigo)
+        )
+
+    page_number = request.GET.get("page", 1)
+    try:
+        page_number = int(page_number)
+    except (ValueError, TypeError):
+        page_number = 1
+    paginator = Paginator(codigos_qs, 25)
+    try:
+        page_obj = paginator.get_page(page_number)
+    except (EmptyPage, InvalidPage):
+        page_obj = paginator.get_page(1)
+
+    return render(request, "intra/gestao_despesas.html", {
+        "tipos": tipos,
+        "total_tipos": len(tipos),
+        "q_tipo": q_tipo,
+        "programas": programas,
+        "programas_cadastro": programas_cadastro,
+        "total_programas": len(programas_cadastro),
+        "q_programa": q_programa,
+        "programa_filtro": programa_filtro,
+        "q_codigo": q_codigo,
+        "page_obj": page_obj,
+        "total_codigos": paginator.count,
+    })
+
+
+@login_required
+def gestao_tipo_despesa_form(request, tipo_id=None):
+    """Adiciona ou edita um tipo de despesa em tela própria."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    tipo = get_object_or_404(TipoDespesa, pk=tipo_id) if tipo_id else None
+    eh_novo = tipo is None
+
+    if request.method == "POST":
+        dados = _dados_tipo_despesa_post(request)
+        if not dados["nome"]:
+            messages.error(request, "Informe o nome do tipo de despesa.")
+            if tipo is None:
+                tipo = TipoDespesa(ordem=_proxima_ordem_tipo(), ativo=True)
+            for campo, valor in dados.items():
+                setattr(tipo, campo, valor)
+        elif eh_novo:
+            TipoDespesa.objects.create(
+                codigo=_slug_codigo_tipo_despesa(dados["nome"]),
+                **dados,
+            )
+            messages.success(request, f'Tipo de despesa "{dados["nome"]}" adicionado.')
+            return redirect("intra:gestao_despesas")
+        else:
+            for campo, valor in dados.items():
+                setattr(tipo, campo, valor)
+            tipo.save()
+            messages.success(request, f'Tipo de despesa "{tipo.nome}" atualizado.')
+            return redirect("intra:gestao_despesas")
+    elif tipo is None:
+        tipo = TipoDespesa(ordem=_proxima_ordem_tipo(), ativo=True)
+
+    return render(request, "intra/gestao_tipo_despesa_form.html", {
+        "tipo": tipo,
+        "eh_novo": eh_novo,
+    })
+
+
+@login_required
+def gestao_codigo_orcamento_form(request, codigo_id=None):
+    """Adiciona ou edita um código no orçamento em tela própria."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    registro = get_object_or_404(CentroCusto, pk=codigo_id) if codigo_id else None
+    eh_novo = registro is None
+    programas = _programas_centro_custo(ativos_apenas=False)
+
+    if request.method == "POST":
+        programa, codigo, descricao = _dados_codigo_orcamento_post(request)
+        if registro is None:
+            registro = CentroCusto()
+        registro.PROGRAMA = programa
+        registro.CODIGO = codigo
+        registro.DESCRICAO = descricao
+        registro.ativo = request.POST.get("ativo") == "on"
+        if not programa or not codigo or not descricao:
+            messages.error(request, "Informe programa, código e descrição.")
+        else:
+            duplicado = CentroCusto.objects.filter(PROGRAMA=programa, CODIGO=codigo)
+            if not eh_novo:
+                duplicado = duplicado.exclude(pk=codigo_id)
+            if duplicado.exists():
+                messages.error(request, f"Já existe o código {codigo} no programa {programa}.")
+            else:
+                registro.save()
+                if eh_novo:
+                    messages.success(request, f"Código {codigo} adicionado ao programa {programa}.")
+                else:
+                    messages.success(request, f"Código {codigo} atualizado.")
+                return _redirect_gestao_despesas(request, programa=programa)
+    elif registro is None:
+        registro = CentroCusto(ativo=True)
+
+    return render(request, "intra/gestao_codigo_orcamento_form.html", {
+        "registro": registro,
+        "programas": programas,
+        "eh_novo": eh_novo,
+    })
+
+
+@login_required
+def gestao_programa_form(request, programa_id=None):
+    """Adiciona ou edita um programa / centro de custo em tela própria."""
+    if not _is_gestor(request.user):
+        messages.error(request, "Acesso restrito ao gestor administrativo.")
+        return redirect("intra:home")
+
+    programa = get_object_or_404(Programa, pk=programa_id) if programa_id else None
+    eh_novo = programa is None
+
+    if request.method == "POST":
+        nome = (request.POST.get("nome") or "").strip()
+        try:
+            ordem = int((request.POST.get("ordem") or "0").strip() or 0)
+        except (TypeError, ValueError):
+            ordem = 0
+        ativo = request.POST.get("ativo") == "on"
+        if not nome:
+            messages.error(request, "Informe o nome do programa.")
+            if programa is None:
+                programa = Programa(ordem=_proxima_ordem_programa(), ativo=True)
+            programa.nome = nome
+            programa.ordem = max(0, ordem)
+            programa.ativo = ativo
+        else:
+            duplicado = Programa.objects.filter(nome__iexact=nome)
+            if programa:
+                duplicado = duplicado.exclude(pk=programa.pk)
+            if duplicado.exists():
+                messages.error(request, f'Já existe o programa "{nome}".')
+                if programa is None:
+                    programa = Programa(ordem=max(0, ordem), ativo=ativo, nome=nome)
+                else:
+                    programa.nome = nome
+                    programa.ordem = max(0, ordem)
+                    programa.ativo = ativo
+            elif eh_novo:
+                Programa.objects.create(nome=nome[:200], ordem=max(0, ordem), ativo=ativo)
+                messages.success(request, f'Programa "{nome}" adicionado.')
+                return redirect("intra:gestao_despesas")
+            else:
+                nome_antigo = programa.nome
+                programa.nome = nome[:200]
+                programa.ordem = max(0, ordem)
+                programa.ativo = ativo
+                programa.save()
+                if nome_antigo != programa.nome:
+                    _renomear_programa(nome_antigo, programa.nome)
+                messages.success(request, f'Programa "{programa.nome}" atualizado.')
+                return redirect("intra:gestao_despesas")
+    elif programa is None:
+        programa = Programa(ordem=_proxima_ordem_programa(), ativo=True)
+
+    return render(request, "intra/gestao_programa_form.html", {
+        "programa": programa,
+        "eh_novo": eh_novo,
+    })
 
 
 @login_required
@@ -4749,6 +5571,7 @@ def reembolso_admin_editar(request, pk):
                     ),
                     "descricao": item.get("descricao") or "",
                     "valor": item.get("valor") or "",
+                    "km": item.get("km") if item.get("km") is not None else "",
                 })
             context = _build_contexto_formulario_reembolso(
                 request,
@@ -4768,6 +5591,7 @@ def reembolso_admin_editar(request, pk):
                     "transf_conta_numero": dados_pagamento.get("transf_conta_numero") or "",
                     "transf_cpf": dados_pagamento.get("transf_cpf") or "",
                     "itens": itens_post,
+                    "status_descritivo": request.POST.get("status_descritivo") or request.POST.get("status_admin", ""),
                 },
             )
             return render(request, "intra/reembolso.html", context)
@@ -4793,11 +5617,28 @@ def reembolso_admin_editar(request, pk):
         if any(k.startswith("anexo_") for k in request.FILES.keys()):
             alteracoes.append("Anexo(s) atualizado(s)")
 
+        status_atual = _get_status_descritivo(sol)
+        status_alvo = (
+            request.POST.get("status_admin")
+            or request.POST.get("status_descritivo")
+            or ""
+        ).strip()
+        if status_alvo in STATUS_ADMIN_LABELS and status_alvo != status_atual:
+            _aplicar_status_admin(sol, status_alvo, request.user)
+            alteracoes.append(
+                f"Status: '{STATUS_ADMIN_LABELS.get(status_atual, status_atual)}' → '{STATUS_ADMIN_LABELS.get(status_alvo, status_alvo)}'"
+            )
+
         sol.centro_custo = centro_custo
         sol.cod_despesa = ""
         sol.valor_total = valor_total
         _aplicar_dados_pagamento_solicitacao(sol, dados_pagamento)
         sol.save()
+        if status_alvo in STATUS_ADMIN_LABELS:
+            sol.refresh_from_db()
+            if _get_status_descritivo(sol) != status_alvo:
+                _aplicar_status_admin(sol, status_alvo, request.user)
+                sol.save()
 
         erro_itens = _salvar_itens_reembolso(
             sol,
@@ -4862,29 +5703,6 @@ def reembolso(request):
         print(f"[DEBUG STORAGE] DEFAULT_FILE_STORAGE: {getattr(settings, 'DEFAULT_FILE_STORAGE', None)}")
         print(f"[DEBUG STORAGE] MEDIA_URL: {getattr(settings, 'MEDIA_URL', None)}")
         print(f"[DEBUG STORAGE] AWS_STORAGE_BUCKET_NAME: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '') or '(local)'}")
-    # Buscar valores únicos de PROGRAMA para Centro de Custo
-    programas = CentroCusto.objects.exclude(PROGRAMA__isnull=True).exclude(PROGRAMA__exact='').values_list("PROGRAMA", flat=True).distinct().order_by("PROGRAMA")
-    
-    # Buscar todos os registros de CentroCusto para Código no Orçamento
-    codigos = CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact='').exclude(DESCRICAO__isnull=True).exclude(DESCRICAO__exact='').order_by("CODIGO")
-    codigos_visiveis = [c for c in codigos if (c.CODIGO or "").strip() != "2.5"]
-    
-    # Preparar dados para JSON organizados por PROGRAMA (para filtro dinâmico)
-    # Estrutura: { "PROGRAMA1": [{"codigo": "...", "descricao": "..."}, ...], ... }
-    codigos_por_programa = {}
-    for c in codigos_visiveis:
-        programa = c.PROGRAMA or ""
-        if programa not in codigos_por_programa:
-            codigos_por_programa[programa] = []
-        codigos_por_programa[programa].append({
-            "codigo": c.CODIGO,
-            "descricao": c.DESCRICAO
-        })
-
-    # Também manter a lista completa para compatibilidade
-    codigos_json = [{"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""} for c in codigos_visiveis]
-    codigos_context = codigos_visiveis
-    
     # Buscar perfil do solicitante para pré-preencher dados de pagamento
     perfil = None
     try:
@@ -4895,7 +5713,7 @@ def reembolso(request):
     # Verificar se é edição de uma solicitação rejeitada ou rascunho
     solicitacao_editar = None
     eh_rascunho = False
-    editar_id = request.GET.get("editar", "").strip()
+    editar_id = request.GET.get("editar", "").strip() or request.POST.get("editar_id", "").strip()
     abrir_modal_sem_alteracoes = request.GET.get("sem_alteracoes", "").strip() == "1"
     if editar_id:
         try:
@@ -4907,6 +5725,44 @@ def reembolso(request):
         except (SolicitacaoReembolso.DoesNotExist, ValueError):
             messages.error(request, "Solicitação não encontrada.")
             return redirect("intra:meus_reembolsos")
+
+    programas = _programas_formulario(
+        incluir=solicitacao_editar.centro_custo if solicitacao_editar else None
+    )
+    incluir_codigos = []
+    if solicitacao_editar is not None:
+        incluir_codigos = [
+            (item.cod_despesa or "").strip()
+            for item in solicitacao_editar.itens.all()
+            if (item.cod_despesa or "").strip()
+        ]
+    incluir_set = {c for c in incluir_codigos}
+    codigos = (
+        CentroCusto.objects.exclude(CODIGO__isnull=True)
+        .exclude(CODIGO__exact="")
+        .exclude(DESCRICAO__isnull=True)
+        .exclude(DESCRICAO__exact="")
+        .order_by("CODIGO")
+    )
+    codigos_visiveis = [
+        c for c in codigos
+        if (c.CODIGO or "").strip() != "2.5"
+        and (c.ativo or (c.CODIGO or "").strip() in incluir_set)
+    ]
+    codigos_por_programa = {}
+    for c in codigos_visiveis:
+        programa = c.PROGRAMA or ""
+        if programa not in codigos_por_programa:
+            codigos_por_programa[programa] = []
+        codigos_por_programa[programa].append({
+            "codigo": c.CODIGO,
+            "descricao": c.DESCRICAO,
+        })
+    codigos_json = [
+        {"codigo": c.CODIGO, "descricao": c.DESCRICAO, "programa": c.PROGRAMA or ""}
+        for c in codigos_visiveis
+    ]
+    codigos_context = codigos_visiveis
     
     # Lista de bancos para o select
     BANCOS_CHOICES = [
@@ -4938,8 +5794,9 @@ def reembolso(request):
     context = {
         "programas": programas,
         "codigos": codigos_context,
-        "tipos_despesa": TIPOS_DESPESA,
-        "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
+        "tipos_despesa": _tipos_despesa_choices(),
+        "tipos_despesa_json": json.dumps(_tipos_despesa_choices()),
+        "tipos_despesa_flags_json": json.dumps(_tipos_despesa_flags()),
         "codigos_despesa_json": json.dumps(codigos_json),
         "codigos_por_programa_json": json.dumps(codigos_por_programa),
         "perfil": perfil,
@@ -5166,7 +6023,7 @@ def reembolso(request):
                 if not _item_tem_anexo_obrigatorio(item, request, anexos_ref):
                     messages.error(
                         request,
-                        "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus).",
+                        "Cada item de despesa precisa de um anexo (exceto tipos com anexo opcional).",
                     )
                     erro_validacao = True
                     break
@@ -5186,14 +6043,16 @@ def reembolso(request):
                             "data_despesa": request.POST.get(f"data_despesa_{idx}", ""),
                             "descricao": request.POST.get(f"descricao_{idx}", ""),
                             "valor": request.POST.get(f"valor_{idx}", ""),
+                            "km": request.POST.get(f"km_{idx}", ""),
                         }
                         itens_post.append(item_post)
                 
                 context = {
                     "programas": programas,
                     "codigos": codigos,
-                    "tipos_despesa": TIPOS_DESPESA,
-                    "tipos_despesa_json": json.dumps(TIPOS_DESPESA),
+                    "tipos_despesa": _tipos_despesa_choices(),
+                    "tipos_despesa_json": json.dumps(_tipos_despesa_choices()),
+                    "tipos_despesa_flags_json": json.dumps(_tipos_despesa_flags()),
                     "codigos_despesa_json": json.dumps(codigos_json),
                     "codigos_por_programa_json": json.dumps(codigos_por_programa),
                     "perfil": perfil,
@@ -5355,7 +6214,7 @@ def reembolso(request):
                     if item["tipo_despesa"] != "PASSAGENS" and not anexo:
                         messages.error(
                             request,
-                            "Cada item de despesa precisa de um anexo (exceto Passagens de Ônibus).",
+                            "Cada item de despesa precisa de um anexo (exceto tipos com anexo opcional).",
                         )
                         if editar_id:
                             return redirect(f"{reverse('intra:reembolso')}?editar={editar_id}")
@@ -5758,7 +6617,7 @@ def ultimos_reembolsos(request):
     # Labels para os filtros - usar os nomes do STATUS_CHOICES
     status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
-    tipo_labels = dict(TIPOS_DESPESA)
+    tipo_labels = _tipos_despesa_labels()
     
     # Construir lista de badges de filtros ativos
     active_filter_badges = []
@@ -5833,7 +6692,7 @@ def ultimos_reembolsos(request):
             },
             "status_choices": status_choices,
             "centros_custo": CENTROS_CUSTO,
-            "tipos_despesa": TIPOS_DESPESA,
+            "tipos_despesa": _tipos_despesa_choices(ativos_apenas=False),
             "active_filter_badges": active_filter_badges,
         },
     )
@@ -6140,7 +6999,7 @@ def ultimos_reembolsos_gestor(request):
     # Labels para os filtros - usar os nomes do STATUS_CHOICES
     status_labels = dict(SolicitacaoReembolso.STATUS_CHOICES)
     centro_labels = dict(CENTROS_CUSTO)
-    tipo_labels = dict(TIPOS_DESPESA)
+    tipo_labels = _tipos_despesa_labels()
     
     # Construir lista de badges de filtros ativos
     active_filter_badges = []
@@ -6215,7 +7074,7 @@ def ultimos_reembolsos_gestor(request):
             },
             "status_choices": status_choices,
             "centros_custo": CENTROS_CUSTO,
-            "tipos_despesa": TIPOS_DESPESA,
+            "tipos_despesa": _tipos_despesa_choices(ativos_apenas=False),
             "active_filter_badges": active_filter_badges,
         },
     )

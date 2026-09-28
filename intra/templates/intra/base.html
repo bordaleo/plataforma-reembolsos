@@ -758,6 +758,7 @@
                 <li><a href="/aprovar-reembolsos/" {% if request.resolver_match.url_name == 'aprovar_reembolsos' %}class="active"{% endif %}>Aprovar Reembolsos</a></li>
                 <li><a href="{% url 'intra:ultimos_reembolsos' %}" {% if request.resolver_match.url_name == 'ultimos_reembolsos' %}class="active"{% endif %}>Últimos Reembolsos</a></li>
                 <li><a href="{% url 'intra:gestao_cadastros' %}" {% if request.resolver_match.url_name == 'gestao_cadastros' or request.resolver_match.url_name == 'gestao_cadastro_editar' %}class="active"{% endif %}>Gestão de Cadastros</a></li>
+                <li><a href="{% url 'intra:gestao_despesas' %}" {% if request.resolver_match.url_name == 'gestao_despesas' or request.resolver_match.url_name == 'gestao_tipo_despesa_novo' or request.resolver_match.url_name == 'gestao_tipo_despesa_editar' or request.resolver_match.url_name == 'gestao_codigo_orcamento_novo' or request.resolver_match.url_name == 'gestao_codigo_orcamento_editar' or request.resolver_match.url_name == 'gestao_programa_novo' or request.resolver_match.url_name == 'gestao_programa_editar' %}class="active"{% endif %}>Catálogo de despesas</a></li>
                 <li><a href="{% url 'intra:logout' %}">Sair</a></li>
                 {% elif is_gestor_simples %}
                 <li><a href="{% url 'intra:reembolso' %}" {% if request.resolver_match.url_name == 'reembolso' %}class="active"{% endif %}>Reembolso</a></li>

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso
+from .models import PerfilSolicitante, RegraUsuario, SolicitacaoReembolso, CentroCusto, TipoDespesa, Programa
 
 User = get_user_model()
 
@@ -46,3 +46,27 @@ class SolicitacaoReembolsoAdmin(admin.ModelAdmin):
     list_display = ("user", "centro_custo", "cod_despesa", "valor_total", "status", "criado_em")
     list_filter = ("status", "criado_em")
     search_fields = ("user__email", "centro_custo", "cod_despesa")
+
+
+@admin.register(TipoDespesa)
+class TipoDespesaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "codigo", "rotulo_pdf", "ordem", "ativo", "exige_km", "anexo_opcional")
+    list_filter = ("ativo", "exige_km", "anexo_opcional")
+    search_fields = ("nome", "codigo", "rotulo_pdf")
+    ordering = ("ordem", "nome")
+
+
+@admin.register(CentroCusto)
+class CentroCustoAdmin(admin.ModelAdmin):
+    list_display = ("PROGRAMA", "CODIGO", "DESCRICAO", "ativo")
+    list_filter = ("PROGRAMA", "ativo")
+    search_fields = ("PROGRAMA", "CODIGO", "DESCRICAO")
+    ordering = ("PROGRAMA", "CODIGO")
+
+
+@admin.register(Programa)
+class ProgramaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "ordem", "ativo")
+    list_filter = ("ativo",)
+    search_fields = ("nome",)
+    ordering = ("ordem", "nome")

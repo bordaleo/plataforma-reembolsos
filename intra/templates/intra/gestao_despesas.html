@@ -1,0 +1,492 @@
+﻿{% extends "intra/base.html" %}
+{% load static %}
+{% block title %}Catálogo de despesas - Plataforma de Reembolsos{% endblock %}
+{% block extra_css %}
+<style>
+    .page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .page-head .page-title { margin: 0 0 0.4rem; }
+    .page-intro { margin: 0; color: #7f8c8d; font-size: 1rem; max-width: 42rem; }
+    .page-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .card-head h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        color: #2c3e50;
+    }
+    .filtros {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.1rem;
+        align-items: end;
+    }
+    .filtros .form-group {
+        margin: 0;
+        flex: 1;
+        min-width: 200px;
+    }
+    .filtros label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-weight: 600;
+        color: #34495e;
+        font-size: 0.85rem;
+    }
+    .filtros input,
+    .filtros select {
+        width: 100%;
+        padding: 0.55rem 0.75rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+    }
+    .btn {
+        padding: 0.6rem 1.1rem;
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 0.9rem;
+    }
+    .btn:hover { background: #1a252f; color: #fff; }
+    .btn-secondary { background: #7f8c8d; }
+    .btn-secondary:hover { background: #636e72; color: #fff; }
+    .btn-danger { background: #c0392b; }
+    .btn-danger:hover { background: #922b21; color: #fff; }
+    .btn-small {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        border-radius: 6px;
+    }
+    .resumo {
+        margin: 0 0 0.85rem;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+    .tabela-gestao {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabela-gestao th,
+    .tabela-gestao td {
+        padding: 0.8rem 0.7rem;
+        text-align: left;
+        border-bottom: 1px solid #e1e8ed;
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+    .tabela-gestao th {
+        background: #f4f6f8;
+        color: #34495e;
+        font-weight: 700;
+    }
+    .tabela-gestao tr:hover td { background: #f8fafb; }
+    .badge {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    .badge-ok { background: #e8f8ef; color: #1e7a45; }
+    .badge-off { background: #f0f0f0; color: #7f8c8d; }
+    .badge-km { background: #e8f4fd; color: #1a6aa5; }
+    .badge-anexo { background: #fff4e5; color: #a65d00; }
+    .tabela-gestao th.col-acoes,
+    .tabela-gestao td.col-acoes {
+        width: 1%;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .acoes {
+        display: inline-flex;
+        gap: 0.4rem;
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+    .acoes form {
+        margin: 0;
+        display: inline-flex;
+    }
+    .acoes .btn-small {
+        min-width: 5.75rem;
+        text-align: center;
+        box-sizing: border-box;
+        line-height: 1.25;
+        padding: 0.42rem 0.5rem;
+    }
+    .paginacao {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .paginacao a,
+    .paginacao span {
+        padding: 0.4rem 0.7rem;
+        border-radius: 6px;
+        border: 1px solid #d1d9e0;
+        text-decoration: none;
+        color: #2c3e50;
+        font-size: 0.85rem;
+    }
+    .paginacao .atual {
+        background: #2c3e50;
+        color: #fff;
+        border-color: #2c3e50;
+    }
+    .vazio {
+        text-align: center;
+        color: #7f8c8d;
+        padding: 1.75rem 1rem;
+        margin: 0;
+    }
+    .codigo-interno {
+        font-family: Consolas, monospace;
+        font-size: 0.8rem;
+        color: #7f8c8d;
+    }
+    @media (max-width: 768px) {
+        .tabela-gestao thead { display: none; }
+        .tabela-gestao tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+        .tabela-gestao td {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border: none;
+            padding: 0.4rem 0;
+        }
+        .tabela-gestao td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #34495e;
+        }
+        .tabela-gestao td.col-acoes {
+            white-space: normal;
+        }
+        .acoes {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Catálogo de despesas</h1>
+        <p class="page-intro">Gerencie as opções do formulário de reembolso. Use os botões para cadastrar; a edição abre em outra tela.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn" href="{% url 'intra:gestao_programa_novo' %}">Adicionar programa</a>
+        <a class="btn" href="{% url 'intra:gestao_tipo_despesa_novo' %}">Adicionar tipo</a>
+        <a class="btn btn-secondary" href="{% url 'intra:gestao_codigo_orcamento_novo' %}">Adicionar código</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2>Programas</h2>
+        <a class="btn btn-small" href="{% url 'intra:gestao_programa_novo' %}">Adicionar programa</a>
+    </div>
+    <form method="get" class="filtros">
+        {% if q_tipo %}<input type="hidden" name="q_tipo" value="{{ q_tipo }}">{% endif %}
+        {% if q_codigo %}<input type="hidden" name="q_codigo" value="{{ q_codigo }}">{% endif %}
+        {% if programa_filtro %}<input type="hidden" name="programa" value="{{ programa_filtro }}">{% endif %}
+        <div class="form-group">
+            <label for="q_programa">Pesquisar programa</label>
+            <input type="text" id="q_programa" name="q_programa" value="{{ q_programa }}" placeholder="Nome do programa">
+        </div>
+        <button type="submit" class="btn">Filtrar</button>
+        {% if q_programa %}
+        <a class="btn btn-secondary" href="{% url 'intra:gestao_despesas' %}{% if q_tipo or q_codigo or programa_filtro %}?{% if q_tipo %}q_tipo={{ q_tipo|urlencode }}{% endif %}{% if q_tipo and q_codigo %}&{% endif %}{% if q_codigo %}q_codigo={{ q_codigo|urlencode }}{% endif %}{% if programa_filtro %}{% if q_tipo or q_codigo %}&{% endif %}programa={{ programa_filtro|urlencode }}{% endif %}{% endif %}">Limpar</a>
+        {% endif %}
+    </form>
+    <p class="resumo">{{ total_programas }} programa{{ total_programas|pluralize }} encontrado{{ total_programas|pluralize }}</p>
+
+    {% if programas_cadastro %}
+    <div style="overflow-x: auto;">
+        <table class="tabela-gestao">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Códigos</th>
+                    <th>Ordem</th>
+                    <th>Status</th>
+                    <th class="col-acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in programas_cadastro %}
+                <tr>
+                    <td data-label="Nome">{{ p.nome }}</td>
+                    <td data-label="Códigos">{{ p.qtd_codigos }}</td>
+                    <td data-label="Ordem">{{ p.ordem }}</td>
+                    <td data-label="Status">
+                        {% if p.ativo %}
+                        <span class="badge badge-ok">Ativo</span>
+                        {% else %}
+                        <span class="badge badge-off">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Ações" class="col-acoes">
+                        <div class="acoes">
+                            <a class="btn btn-small" href="{% url 'intra:gestao_programa_editar' p.pk %}">Editar</a>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="toggle_programa">
+                                <input type="hidden" name="programa_id" value="{{ p.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-secondary">{% if p.ativo %}Inativar{% else %}Ativar{% endif %}</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('Excluir o programa {{ p.nome }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="excluir_programa">
+                                <input type="hidden" name="programa_id" value="{{ p.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-danger">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="vazio">{% if q_programa %}Nenhum programa encontrado para essa pesquisa.{% else %}Nenhum programa cadastrado.{% endif %}</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2>Tipos de despesa</h2>
+        <a class="btn btn-small" href="{% url 'intra:gestao_tipo_despesa_novo' %}">Adicionar tipo</a>
+    </div>
+    <form method="get" class="filtros">
+        {% if q_codigo %}<input type="hidden" name="q_codigo" value="{{ q_codigo }}">{% endif %}
+        {% if q_programa %}<input type="hidden" name="q_programa" value="{{ q_programa }}">{% endif %}
+        {% if programa_filtro %}<input type="hidden" name="programa" value="{{ programa_filtro }}">{% endif %}
+        <div class="form-group">
+            <label for="q_tipo">Pesquisar tipo</label>
+            <input type="text" id="q_tipo" name="q_tipo" value="{{ q_tipo }}" placeholder="Nome, código interno ou rótulo do PDF">
+        </div>
+        <button type="submit" class="btn">Filtrar</button>
+        {% if q_tipo %}
+        <a class="btn btn-secondary" href="{% url 'intra:gestao_despesas' %}{% if q_codigo or programa_filtro %}?{% if q_codigo %}q_codigo={{ q_codigo|urlencode }}{% endif %}{% if q_codigo and programa_filtro %}&{% endif %}{% if programa_filtro %}programa={{ programa_filtro|urlencode }}{% endif %}{% endif %}">Limpar</a>
+        {% endif %}
+    </form>
+    <p class="resumo">{{ total_tipos }} tipo{{ total_tipos|pluralize }} encontrado{{ total_tipos|pluralize }}</p>
+
+    {% if tipos %}
+    <div style="overflow-x: auto;">
+        <table class="tabela-gestao">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>PDF</th>
+                    <th>Ordem</th>
+                    <th>Status</th>
+                    <th>Opções</th>
+                    <th class="col-acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tipos %}
+                <tr>
+                    <td data-label="Nome">
+                        {{ t.nome }}
+                        <div class="codigo-interno">{{ t.codigo }}</div>
+                    </td>
+                    <td data-label="PDF">{{ t.rotulo_pdf|default:t.nome }}</td>
+                    <td data-label="Ordem">{{ t.ordem }}</td>
+                    <td data-label="Status">
+                        {% if t.ativo %}
+                        <span class="badge badge-ok">Ativo</span>
+                        {% else %}
+                        <span class="badge badge-off">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Opções">
+                        {% if t.exige_km %}<span class="badge badge-km">KM</span>{% endif %}
+                        {% if t.anexo_opcional %}<span class="badge badge-anexo">Anexo opcional</span>{% endif %}
+                        {% if not t.exige_km and not t.anexo_opcional %}—{% endif %}
+                    </td>
+                    <td data-label="Ações" class="col-acoes">
+                        <div class="acoes">
+                            <a class="btn btn-small" href="{% url 'intra:gestao_tipo_despesa_editar' t.pk %}">Editar</a>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="toggle_tipo">
+                                <input type="hidden" name="tipo_id" value="{{ t.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-secondary">{% if t.ativo %}Inativar{% else %}Ativar{% endif %}</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('Excluir o tipo {{ t.nome }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="excluir_tipo">
+                                <input type="hidden" name="tipo_id" value="{{ t.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-danger">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="vazio">{% if q_tipo %}Nenhum tipo encontrado para essa pesquisa.{% else %}Nenhum tipo de despesa cadastrado.{% endif %}</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-head">
+        <h2>Códigos no orçamento</h2>
+        <a class="btn btn-small" href="{% url 'intra:gestao_codigo_orcamento_novo' %}">Adicionar código</a>
+    </div>
+    <form method="get" class="filtros">
+        {% if q_tipo %}<input type="hidden" name="q_tipo" value="{{ q_tipo }}">{% endif %}
+        {% if q_programa %}<input type="hidden" name="q_programa" value="{{ q_programa }}">{% endif %}
+        <div class="form-group">
+            <label for="q_codigo">Pesquisar código</label>
+            <input type="text" id="q_codigo" name="q_codigo" value="{{ q_codigo }}" placeholder="Código, descrição ou programa">
+        </div>
+        <div class="form-group" style="max-width: 240px;">
+            <label for="filtro_programa">Programa</label>
+            <select id="filtro_programa" name="programa">
+                <option value="">Todos</option>
+                {% for p in programas %}
+                <option value="{{ p }}" {% if programa_filtro == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn">Filtrar</button>
+        {% if q_codigo or programa_filtro %}
+        <a class="btn btn-secondary" href="{% url 'intra:gestao_despesas' %}{% if q_tipo or q_programa %}?{% if q_tipo %}q_tipo={{ q_tipo|urlencode }}{% endif %}{% if q_tipo and q_programa %}&{% endif %}{% if q_programa %}q_programa={{ q_programa|urlencode }}{% endif %}{% endif %}">Limpar</a>
+        {% endif %}
+    </form>
+    <p class="resumo">{{ total_codigos }} código{{ total_codigos|pluralize }} encontrado{{ total_codigos|pluralize }}</p>
+
+    {% if page_obj.object_list %}
+    <div style="overflow-x: auto;">
+        <table class="tabela-gestao">
+            <thead>
+                <tr>
+                    <th>Programa</th>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Status</th>
+                    <th class="col-acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in page_obj %}
+                <tr>
+                    <td data-label="Programa">{{ c.PROGRAMA|default:"—" }}</td>
+                    <td data-label="Código">{{ c.CODIGO }}</td>
+                    <td data-label="Descrição">{{ c.DESCRICAO|default:"—" }}</td>
+                    <td data-label="Status">
+                        {% if c.ativo %}
+                        <span class="badge badge-ok">Ativo</span>
+                        {% else %}
+                        <span class="badge badge-off">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Ações" class="col-acoes">
+                        <div class="acoes">
+                            <a class="btn btn-small" href="{% url 'intra:gestao_codigo_orcamento_editar' c.pk %}">Editar</a>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="toggle_codigo">
+                                <input type="hidden" name="codigo_id" value="{{ c.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-secondary">{% if c.ativo %}Inativar{% else %}Ativar{% endif %}</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('Excluir o código {{ c.CODIGO }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="acao" value="excluir_codigo">
+                                <input type="hidden" name="codigo_id" value="{{ c.pk }}">
+                                <input type="hidden" name="q_tipo" value="{{ q_tipo }}">
+                                <input type="hidden" name="q_codigo" value="{{ q_codigo }}">
+                                <input type="hidden" name="q_programa" value="{{ q_programa }}">
+                                <input type="hidden" name="programa_filtro" value="{{ programa_filtro }}">
+                                <button type="submit" class="btn btn-small btn-danger">Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="paginacao">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if q_tipo %}&q_tipo={{ q_tipo|urlencode }}{% endif %}{% if q_codigo %}&q_codigo={{ q_codigo|urlencode }}{% endif %}{% if q_programa %}&q_programa={{ q_programa|urlencode }}{% endif %}{% if programa_filtro %}&programa={{ programa_filtro|urlencode }}{% endif %}">Anterior</a>
+        {% endif %}
+        <span class="atual">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if q_tipo %}&q_tipo={{ q_tipo|urlencode }}{% endif %}{% if q_codigo %}&q_codigo={{ q_codigo|urlencode }}{% endif %}{% if q_programa %}&q_programa={{ q_programa|urlencode }}{% endif %}{% if programa_filtro %}&programa={{ programa_filtro|urlencode }}{% endif %}">Próxima</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="vazio">{% if q_codigo or programa_filtro %}Nenhum código encontrado para essa pesquisa.{% else %}Nenhum código no orçamento cadastrado.{% endif %}</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -753,6 +753,9 @@
     {% if solicitacao_editar and not eh_edicao_admin %}
     <input type="hidden" name="editar_id" value="{{ solicitacao_editar.pk }}">
     {% endif %}
+    {% if eh_edicao_admin %}
+    <input type="hidden" name="status_admin" id="status_admin_hidden" value="{{ status_admin_atual|default:'' }}">
+    {% endif %}
 
     <div class="card">
         <div class="card-header">
@@ -775,6 +778,17 @@
                        placeholder="Digite o e-mail do gestor/aprovador">
             </div>
         </div>
+        {% if eh_edicao_admin %}
+        <div class="form-group">
+            <label for="status_descritivo">Status da solicitação</label>
+            <select name="status_admin" id="status_descritivo" class="form-control" form="form-reembolso">
+                {% for opcao in status_admin_choices %}
+                <option value="{{ opcao.0 }}" {% if opcao.0 == status_admin_atual %}selected{% endif %}>{{ opcao.1 }}</option>
+                {% endfor %}
+            </select>
+            <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: #7f8c8d;">A alteração de status não dispara e-mails automáticos de aprovação ou rejeição.</p>
+        </div>
+        {% endif %}
     </div>
 
     <div class="card">
@@ -817,6 +831,7 @@
                         <div class="campo-valor-inner">
                             <label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label>
                             <input type="text" name="valor_0" step="0.01" min="0" placeholder="0,00" required class="form-control">
+                            <input type="hidden" name="km_0" value="">
                         </div>
                         <div class="campo-anexo-inner">
                             <label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label>
@@ -1020,11 +1035,37 @@
     var btnAdd = document.getElementById('btn-add-linha');
     var centroCusto = document.getElementById('centro_custo');
     var tiposDespesa = {{ tipos_despesa_json|safe }};
+    var tiposDespesaFlags = {{ tipos_despesa_flags_json|default:"{}"|safe }};
     var codigosDespesa = {{ codigos_despesa_json|safe }};
     var codigosPorPrograma = {{ codigos_por_programa_json|safe }};
     var aprovadorInput = document.getElementById('nome_gestor');
     var emailUsuarioLogado = '{{ request.user.email|default:""|escapejs }}';
     var count = 1;
+
+    function tipoExigeKm(codigo) {
+        if (Object.prototype.hasOwnProperty.call(tiposDespesaFlags, codigo)) {
+            return !!tiposDespesaFlags[codigo].exige_km;
+        }
+        return codigo === 'DESLOCAMENTO';
+    }
+    function tipoAnexoOpcional(codigo) {
+        if (Object.prototype.hasOwnProperty.call(tiposDespesaFlags, codigo)) {
+            return !!tiposDespesaFlags[codigo].anexo_opcional;
+        }
+        return codigo === 'PASSAGENS';
+    }
+    function aplicarAnexoOpcional(linha, codigo) {
+        var inputAnexo = linha.querySelector('input[name^="anexo_"]');
+        var asteriscoAnexo = linha.querySelector('.anexo-required');
+        if (!inputAnexo) return;
+        if (tipoAnexoOpcional(codigo)) {
+            inputAnexo.removeAttribute('required');
+            if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
+        } else {
+            inputAnexo.setAttribute('required', 'required');
+            if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
+        }
+    }
     
     // Função para obter data máxima (hoje) no formato YYYY-MM-DD
     function obterDataMaxima() {
@@ -1192,11 +1233,13 @@
     var btnModalCancelar = document.getElementById('modal-cancelar');
     var valorInputRef = null;
     var tipoDespesaRef = null;
+    var kmInputRef = null;
 
     function abrirModalDeslocamento(linha) {
         valorInputRef = linha.querySelector('input[name^="valor_"]');
         tipoDespesaRef = linha.querySelector('select[name^="tipo_despesa_"]');
-        inputKm.value = '';
+        kmInputRef = linha.querySelector('input[name^="km_"]');
+        inputKm.value = (kmInputRef && kmInputRef.value) ? kmInputRef.value : '';
         inputKm.focus();
         modal.classList.add('aberto');
         modal.setAttribute('aria-hidden', 'false');
@@ -1205,11 +1248,14 @@
     function fecharModalDeslocamento(manterTipoSelecionado) {
         if (!manterTipoSelecionado && tipoDespesaRef) {
             tipoDespesaRef.value = '';
+            if (kmInputRef) kmInputRef.value = '';
+            if (valorInputRef) valorInputRef.readOnly = false;
         }
         modal.classList.remove('aberto');
         modal.setAttribute('aria-hidden', 'true');
         valorInputRef = null;
         tipoDespesaRef = null;
+        kmInputRef = null;
     }
 
     btnModalConfirmar.addEventListener('click', function() {
@@ -1219,6 +1265,9 @@
             return;
         }
         var valor = Math.round(km * 1.10 * 100) / 100;
+        if (kmInputRef) {
+            kmInputRef.value = km;
+        }
         if (valorInputRef) {
             valorInputRef.value = valor.toLocaleString('pt-BR', {
                 minimumFractionDigits: 2,
@@ -1304,24 +1353,13 @@
             var linha = sel.closest('.linha-despesa');
             if (linha) {
                 var inputValorLinha = linha.querySelector('input[name^="valor_"]');
-                if (inputValorLinha && sel.value !== 'DESLOCAMENTO') {
+                if (inputValorLinha && !tipoExigeKm(sel.value)) {
                     inputValorLinha.readOnly = false;
                 }
-                if (sel.value === 'DESLOCAMENTO') {
+                if (tipoExigeKm(sel.value)) {
                     abrirModalDeslocamento(linha);
                 }
-                // Tornar anexo opcional quando for Passagens de Ônibus
-                var inputAnexo = linha.querySelector('input[name^="anexo_"]');
-                var asteriscoAnexo = linha.querySelector('.anexo-required');
-                if (inputAnexo) {
-                    if (sel.value === 'PASSAGENS') {
-                        inputAnexo.removeAttribute('required');
-                        if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
-                    } else {
-                        inputAnexo.setAttribute('required', 'required');
-                        if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
-                    }
-                }
+                aplicarAnexoOpcional(linha, sel.value);
             }
         }
         // Mostrar campo "Outro" para código no orçamento por linha
@@ -1392,7 +1430,7 @@
             '<div class="form-group"><label>Data da Despesa <span style="color: #e74c3c;">*</span></label><input type="date" name="data_despesa_' + count + '" required class="form-control" max="' + dataMaxima + '"></div>' +
             '<div class="form-group"><label>Tipo de Despesa <span style="color: #e74c3c;">*</span></label><select name="tipo_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsTipo + '</select></div>' +
             '<div class="form-group"><label>Código no Orçamento <span style="color: #e74c3c;">*</span></label><select name="cod_despesa_' + count + '" required class="form-control"><option value="">Selecione...</option>' + optsCod + '<option value="Outro">Outro</option></select><input type="text" name="cod_despesa_outro_' + count + '" class="form-control" placeholder="Digite o código no orçamento" maxlength="50" style="margin-top: 8px; display: none;"></div>' +
-            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
+            '<div class="form-group-desc-valor-linha"><div class="desc-valor-campos"><div class="campo-desc-inner"><label>Descrição <span style="color: #e74c3c;">*</span></label><input type="text" name="descricao_' + count + '" placeholder="Descrição do item" required class="form-control desc-input" maxlength="300"></div><div class="campo-valor-inner"><label>Valor Solicitado (R$) <span style="color: #e74c3c;">*</span></label><input type="text" name="valor_' + count + '" step="0.01" min="0" placeholder="0,00" required class="form-control"><input type="hidden" name="km_' + count + '" value=""></div><div class="campo-anexo-inner"><label>Anexo <span class="anexo-required" style="color: #e74c3c;">*</span></label><div class="anexo-wrapper"><input type="file" name="anexo_' + count + '" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,image/*" required class="input-anexo form-control" id="anexo-input-' + count + '"><label for="anexo-input-' + count + '" class="custom-file-label" id="anexo-label-' + count + '">Clique para selecionar um arquivo</label><div class="anexo-info hidden" id="anexo-info-' + count + '"><span class="nome-arquivo"></span><button type="button" class="btn-remover-arquivo">Remover</button></div></div></div></div><div class="char-counter char-counter-desc"><span class="char-count">0</span>/300 caracteres</div></div>' +
             '<div class="acoes-linha-container"><div></div><button type="button" class="btn-remover" title="Remover este item">Remover Item</button></div>';
         // Adicionar listener para tornar anexo opcional quando for Passagens de Ônibus
         var selectTipo = div.querySelector('select[name^="tipo_despesa_"]');
@@ -1400,13 +1438,7 @@
         var asteriscoAnexo = div.querySelector('.anexo-required');
         if (selectTipo && inputAnexo) {
             selectTipo.addEventListener('change', function() {
-                if (this.value === 'PASSAGENS') {
-                    inputAnexo.removeAttribute('required');
-                    if (asteriscoAnexo) asteriscoAnexo.style.display = 'none';
-                } else {
-                    inputAnexo.setAttribute('required', 'required');
-                    if (asteriscoAnexo) asteriscoAnexo.style.display = 'inline';
-                }
+                aplicarAnexoOpcional(div, this.value);
             });
             setupAnexo(inputAnexo);
         }
@@ -1465,13 +1497,7 @@
         var asteriscoAnexoInicial = linhaInicial.querySelector('.anexo-required');
         if (selectTipoInicial && inputAnexoInicial) {
             selectTipoInicial.addEventListener('change', function() {
-                if (this.value === 'PASSAGENS') {
-                    inputAnexoInicial.removeAttribute('required');
-                    if (asteriscoAnexoInicial) asteriscoAnexoInicial.style.display = 'none';
-                } else {
-                    inputAnexoInicial.setAttribute('required', 'required');
-                    if (asteriscoAnexoInicial) asteriscoAnexoInicial.style.display = 'inline';
-                }
+                aplicarAnexoOpcional(linhaInicial, this.value);
             });
             setupAnexo(inputAnexoInicial);
         }
@@ -2328,6 +2354,7 @@
                     data_despesa: '{{ item.data_despesa|date:"Y-m-d"|default:"" }}',
                     descricao: '{{ item.descricao|default:""|escapejs }}',
                     valor: {% if item.valor %}{{ item.valor }}{% else %}0{% endif %},
+                    km: {% if item.km is not None %}{{ item.km }}{% else %}null{% endif %},
                     anexo_url: {% if item.anexo %}'{{ item.anexo.url }}'{% else %}null{% endif %},
                     anexo_nome: {% if item.anexo %}'{{ item.anexo.name|default:""|escapejs }}'{% else %}null{% endif %}
                 }{% if not forloop.last %},{% endif %}
@@ -2483,6 +2510,7 @@
             }
             if (tipoDespesa && item.tipo_despesa) {
                 tipoDespesa.value = item.tipo_despesa;
+                aplicarAnexoOpcional(linha, item.tipo_despesa);
             }
             if (codDespesa && item.cod_despesa) {
                 // Aguardar um pouco para garantir que os códigos foram carregados.
@@ -2513,23 +2541,30 @@
             // Preencher valor com delay para garantir que o campo está pronto
             setTimeout(function() {
                 var valorEl = linha.querySelector('input[name="valor_' + index + '"]');
-                if (valorEl && item.valor) {
-                    // Converter valor para formato brasileiro com máscara
-                    var valorNum = parseFloat(item.valor);
-                    if (!isNaN(valorNum) && valorNum > 0) {
-                        // Formatar com ponto para milhares e vírgula para decimais
-                        var valorFormatado = valorNum.toLocaleString('pt-BR', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                        valorEl.value = valorFormatado;
-                        // Disparar evento input para atualizar total
-                        setTimeout(function() {
-                            if (typeof atualizarTotal === 'function') {
-                                atualizarTotal();
-                            }
-                        }, 50);
-                    }
+                var kmEl = linha.querySelector('input[name="km_' + index + '"]');
+                var valorNum = parseFloat(item.valor);
+                if (valorEl && !isNaN(valorNum) && valorNum > 0) {
+                    valorEl.value = valorNum.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    setTimeout(function() {
+                        if (typeof atualizarTotal === 'function') {
+                            atualizarTotal();
+                        }
+                    }, 50);
+                }
+                var kmNum = (item.km !== null && item.km !== undefined && item.km !== '')
+                    ? parseFloat(item.km)
+                    : NaN;
+                if (isNaN(kmNum) && tipoExigeKm(item.tipo_despesa) && !isNaN(valorNum) && valorNum > 0) {
+                    kmNum = Math.round((valorNum / 1.10) * 100) / 100;
+                }
+                if (kmEl && !isNaN(kmNum)) {
+                    kmEl.value = kmNum;
+                }
+                if (tipoExigeKm(item.tipo_despesa) && valorEl) {
+                    valorEl.readOnly = true;
                 }
             }, 100);
             
@@ -2774,8 +2809,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
+        function sincronizarStatusAdmin() {
+            var statusSelect = document.getElementById('status_descritivo');
+            var statusHidden = document.getElementById('status_admin_hidden');
+            if (!statusSelect || !statusHidden) return;
+            statusSelect.disabled = false;
+            statusHidden.disabled = false;
+            statusHidden.value = statusSelect.value || '';
+        }
+
+        var statusSelectInit = document.getElementById('status_descritivo');
+        if (statusSelectInit) {
+            statusSelectInit.addEventListener('change', sincronizarStatusAdmin);
+            sincronizarStatusAdmin();
+        }
+
         // Usar capture phase e invalid event para interceptar antes da validação
         form.addEventListener('submit', function(e) {
+            sincronizarStatusAdmin();
             var submitter = e.submitter;
             var acao = obterAcaoSubmit(submitter);
             var salvarRascunho = acao === 'rascunho';
@@ -2799,7 +2850,7 @@ document.addEventListener('DOMContentLoaded', function() {
             function itemTemAnexo(linha) {
                 var tipoSel = linha.querySelector('select[name^="tipo_despesa_"]');
                 var tipo = tipoSel ? tipoSel.value : '';
-                if (tipo === 'PASSAGENS') return true;
+                if (tipoAnexoOpcional(tipo)) return true;
                 var input = linha.querySelector('input[type="file"][name^="anexo_"]');
                 if (!input) return false;
                 if (input.files && input.files.length > 0) return true;

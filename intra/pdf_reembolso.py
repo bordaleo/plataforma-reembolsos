@@ -9,6 +9,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
 from intra.docusign_integration import DOCUSIGN_ANCHOR_GESTOR, DOCUSIGN_ANCHOR_SOLICITANTE
 
 try:
@@ -31,6 +33,8 @@ ROTULOS_TIPO = {
     "DESLOCAMENTO": "DESLOCAMENTO KM",
     "OUTROS_MATERIAIS": "OUTROS",
 }
+
+FATOR_REEMBOLSO_KM = Decimal("1.10")
 
 # Lista de classificações para orientações
 CLASSIFICACOES = [
@@ -57,6 +61,35 @@ def _formatar_valor(valor):
         return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except (TypeError, ValueError):
         return "-"
+
+
+def _formatar_km(km):
+    if km is None or km == "":
+        return "-"
+    try:
+        v = Decimal(str(km))
+        if v == v.to_integral_value():
+            return str(int(v))
+        return f"{v:.2f}".replace(".", ",")
+    except (InvalidOperation, TypeError, ValueError):
+        return "-"
+
+
+def _km_item_para_pdf(item, exige_km_codigos=None):
+    if getattr(item, "km", None) is not None:
+        return item.km
+    tipo = (getattr(item, "tipo_despesa", None) or "").strip().upper()
+    valor = getattr(item, "valor", None)
+    if exige_km_codigos is None:
+        exige_km_codigos = {"DESLOCAMENTO"}
+    if tipo in exige_km_codigos and valor not in (None, ""):
+        try:
+            return (Decimal(str(valor)) / FATOR_REEMBOLSO_KM).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        except (InvalidOperation, TypeError, ValueError, ZeroDivisionError):
+            return None
+    return None
 
 
 def _linhas_quebra_pdf(canvas_obj, texto, largura_max, fonte="Helvetica", tamanho=7):
@@ -360,7 +393,7 @@ def _gerar_folha_rosto(solicitacao):
     data_str = solicitacao.criado_em.strftime("%d/%m/%Y") if solicitacao.criado_em else "-"
     
     # Buscar descrições dos códigos de despesa
-    from intra.models import CentroCusto
+    from intra.models import CentroCusto, TipoDespesa
     codigos_descricoes = {}
     for centro_custo in CentroCusto.objects.exclude(CODIGO__isnull=True).exclude(CODIGO__exact=''):
         codigo = (centro_custo.CODIGO or "").strip()
@@ -369,6 +402,15 @@ def _gerar_folha_rosto(solicitacao):
         if centro_custo.DESCRICAO:
             codigos_descricoes[codigo] = centro_custo.DESCRICAO
     codigos_descricoes.setdefault("2.5", "DESPESAS NÃO ORÇADAS")
+    rotulos_tipo = dict(ROTULOS_TIPO)
+    exige_km_codigos = {"DESLOCAMENTO"}
+    try:
+        for t in TipoDespesa.objects.all():
+            rotulos_tipo[t.codigo] = (t.rotulo_pdf or t.nome or t.codigo).strip().upper()
+            if t.exige_km:
+                exige_km_codigos.add(t.codigo)
+    except Exception:
+        pass
     
     y_table_bottom = y
     
@@ -387,7 +429,7 @@ def _gerar_folha_rosto(solicitacao):
             if cod_desp == "2.5":
                 cod_descricao = "DESPESAS NÃO ORÇADAS"
             cod_label = f"{cod_desp} - {cod_descricao}" if cod_descricao else cod_desp
-            tipo_label = ROTULOS_TIPO.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
+            tipo_label = rotulos_tipo.get(item.tipo_despesa, item.tipo_despesa.replace("_", " ").title())
             descricao_item = (item.descricao or "-").strip()
 
             largura_programa = col_cod - col_programa - 3 * mm
@@ -434,7 +476,7 @@ def _gerar_folha_rosto(solicitacao):
             _desenhar_linhas_pdf(c, linhas_desc, col_desc, y, fonte_tabela, tamanho_tabela, entre_linhas_tabela)
 
             # KM - alinhar com a primeira linha da descrição
-            km_str = _formatar_valor(item.km) if item.km is not None else "-"
+            km_str = _formatar_km(_km_item_para_pdf(item, exige_km_codigos))
             c.drawString(col_km, y, km_str)
 
             # Valor - alinhar com a primeira linha da descrição

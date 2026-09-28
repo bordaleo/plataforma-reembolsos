@@ -1,0 +1,108 @@
+﻿{% extends "intra/base.html" %}
+{% load static %}
+{% block title %}{% if eh_novo %}Adicionar{% else %}Editar{% endif %} Código no Orçamento - Plataforma de Reembolsos{% endblock %}
+{% block extra_css %}
+<style>
+    .voltar-link { display: inline-block; margin-bottom: 1rem; color: #34495e; font-weight: 600; text-decoration: none; }
+    .voltar-link:hover { text-decoration: underline; }
+    .page-intro { margin: 0 0 1.5rem; color: #7f8c8d; font-size: 1rem; }
+    .card {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 0;
+        max-width: 680px;
+        overflow: hidden;
+    }
+    .card-header {
+        padding: 1.15rem 1.5rem;
+        background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+        color: #fff;
+    }
+    .card-header h2 { margin: 0; font-size: 1.05rem; }
+    .card-body { padding: 1.5rem; }
+    .form-group { margin-bottom: 1.15rem; }
+    .form-group label { display: block; margin-bottom: 0.45rem; font-weight: 600; color: #34495e; font-size: 0.9rem; }
+    .form-help { margin: 0.4rem 0 0; color: #7f8c8d; font-size: 0.82rem; }
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        border: 2px solid #d1d9e0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #34495e;
+        box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.12);
+    }
+    .form-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.4rem; }
+    .btn {
+        padding: 0.65rem 1.15rem;
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn:hover { background: #1a252f; color: #fff; }
+    .btn-secondary { background: #7f8c8d; }
+</style>
+{% endblock %}
+{% block content %}
+<a class="voltar-link" href="{% url 'intra:gestao_despesas' %}">← Voltar para Catálogo de despesas</a>
+<h1 class="page-title">{% if eh_novo %}Adicionar código no orçamento{% else %}Editar código no orçamento{% endif %}</h1>
+<p class="page-intro">
+    {% if eh_novo %}
+    O código fica ligado a um programa e aparece no formulário de reembolso.
+    {% else %}
+    Altere o programa, o código ou a descrição.
+    {% endif %}
+</p>
+
+<div class="card">
+    <div class="card-header">
+        <h2>{% if eh_novo %}Novo código{% else %}{{ registro.CODIGO }} — {{ registro.PROGRAMA }}{% endif %}</h2>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="programa">Programa *</label>
+                <select id="programa" name="programa" required>
+                    <option value="">Selecione...</option>
+                    {% for p in programas %}
+                    <option value="{{ p }}" {% if registro.PROGRAMA == p %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+                <p class="form-help">Não encontrou o programa? <a href="{% url 'intra:gestao_programa_novo' %}">Cadastre um novo</a>.</p>
+            </div>
+            <div class="form-group">
+                <label for="codigo">Código *</label>
+                <input type="text" id="codigo" name="codigo" required value="{{ registro.CODIGO|default:'' }}" placeholder="Ex.: 3.1">
+            </div>
+            <div class="form-group">
+                <label for="descricao">Descrição *</label>
+                <input type="text" id="descricao" name="descricao" required value="{{ registro.DESCRICAO|default:'' }}" placeholder="Ex.: Transporte">
+            </div>
+            <label class="opcao-box" style="display:flex;align-items:flex-start;gap:0.7rem;padding:0.85rem 1rem;border:2px solid #e1e8ed;border-radius:8px;cursor:pointer;margin-bottom:1.25rem;">
+                <input type="checkbox" name="ativo" {% if registro.ativo %}checked{% endif %} style="margin-top:0.2rem;">
+                <span>
+                    <strong style="display:block;color:#2c3e50;font-size:0.9rem;">Ativo</strong>
+                    <small style="display:block;margin-top:0.2rem;color:#7f8c8d;font-size:0.8rem;">Se desmarcado, o código some do formulário de reembolso, mas continua nas solicitações antigas.</small>
+                </span>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="btn">{% if eh_novo %}Adicionar código{% else %}Salvar alteração{% endif %}</button>
+                <a class="btn btn-secondary" href="{% url 'intra:gestao_despesas' %}">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

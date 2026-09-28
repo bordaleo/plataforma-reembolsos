@@ -386,9 +386,58 @@ class CentroCusto(models.Model):
     PROGRAMA = models.CharField(max_length=150000, null=True, blank=True)
     CODIGO = models.CharField(max_length=150000, null=True, blank=True)
     DESCRICAO = models.CharField(max_length=150000, null=True, blank=True)
+    ativo = models.BooleanField("Ativo", default=True)
+
+    class Meta:
+        verbose_name = "Código no orçamento"
+        verbose_name_plural = "Códigos no orçamento"
 
     def __str__(self):
         return f"{self.CODIGO} - {self.DESCRICAO}"
+
+
+class Programa(models.Model):
+    """Programa / centro de custo exibido no formulário de reembolso."""
+
+    nome = models.CharField("Nome", max_length=200, unique=True)
+    ordem = models.PositiveSmallIntegerField("Ordem", default=0)
+    ativo = models.BooleanField("Ativo", default=True)
+
+    class Meta:
+        verbose_name = "Programa"
+        verbose_name_plural = "Programas"
+        ordering = ["ordem", "nome"]
+
+    def __str__(self):
+        return self.nome
+
+
+class TipoDespesa(models.Model):
+    """Tipo de despesa disponível no formulário de reembolso."""
+
+    codigo = models.CharField("Código interno", max_length=30, unique=True)
+    nome = models.CharField("Nome", max_length=80)
+    rotulo_pdf = models.CharField("Rótulo no PDF", max_length=80, blank=True)
+    ordem = models.PositiveSmallIntegerField("Ordem", default=0)
+    ativo = models.BooleanField("Ativo", default=True)
+    exige_km = models.BooleanField(
+        "Reembolso por KM",
+        default=False,
+        help_text="Abre o cálculo de quilometragem (KM × R$ 1,10).",
+    )
+    anexo_opcional = models.BooleanField(
+        "Anexo opcional",
+        default=False,
+        help_text="Não exige comprovante anexado (como Passagens de Ônibus).",
+    )
+
+    class Meta:
+        verbose_name = "Tipo de despesa"
+        verbose_name_plural = "Tipos de despesa"
+        ordering = ["ordem", "nome"]
+
+    def __str__(self):
+        return self.nome
 
 
 class HistoricoReembolso(models.Model):

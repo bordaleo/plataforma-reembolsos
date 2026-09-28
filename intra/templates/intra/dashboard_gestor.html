@@ -327,8 +327,35 @@
         border: none;
     }
 
-    .btn-exportar-pptx {
+    .insights-export-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-exportar-pptx,
+    .btn-exportar-excel {
         white-space: nowrap;
+        min-width: auto;
+    }
+
+    .btn-exportar-excel {
+        background: linear-gradient(135deg, #276749 0%, #22543d 100%);
+        color: #ffffff;
+    }
+
+    .btn-exportar-excel:hover {
+        background: linear-gradient(135deg, #22543d 0%, #1c4532 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(39, 103, 73, 0.3);
+    }
+
+    .btn-exportar-excel:disabled,
+    .btn-exportar-pptx:disabled {
+        opacity: 0.7;
+        cursor: wait;
+        transform: none;
     }
     
     .insights-grid {
@@ -972,7 +999,8 @@
             align-items: flex-start;
         }
         
-        .btn-exportar-pptx {
+        .btn-exportar-pptx,
+        .btn-exportar-excel {
             width: 100%;
         }
         
@@ -1099,7 +1127,10 @@
     <div class="insights-section">
         <div class="insights-header">
             <h2>💡 Insights e Análises</h2>
-            <button type="button" class="btn btn-primary btn-exportar-pptx" onclick="abrirExportacaoPPTX()">📤 Exportar PPTX</button>
+            <div class="insights-export-actions">
+                <button type="button" class="btn btn-primary btn-exportar-pptx" onclick="abrirExportacaoPPTX()">📤 Exportar PPTX</button>
+                <button type="button" class="btn btn-exportar-excel" id="btn-exportar-excel" onclick="exportarExcel()">📊 Exportar Excel</button>
+            </div>
         </div>
         <div class="insights-grid">
             {% if area_mais_concluidos %}
@@ -1565,6 +1596,107 @@ function exportarPPTX() {
     })
     .catch(function(err) {
         alert(err.message || 'Erro ao exportar PPTX');
+    });
+}
+function rotuloSelect(id) {
+    var el = document.getElementById(id);
+    if (!el || !el.value) return '';
+    if (el.tagName === 'SELECT' && el.selectedIndex >= 0) {
+        return (el.options[el.selectedIndex].text || el.value).trim();
+    }
+    return el.value;
+}
+function exportarExcel() {
+    var btn = document.getElementById('btn-exportar-excel');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Gerando Excel...';
+    }
+    var elDi = document.getElementById('data_inicio');
+    var elDf = document.getElementById('data_fim');
+    var di = (elDi && elDi.value) ? elDi.value : '';
+    var df = (elDf && elDf.value) ? elDf.value : '';
+    var periodo = (di || df) ? ('Período: ' + (di || '—') + ' a ' + (df || '—')) : '';
+    var payload = {
+        filtros: {
+            data_inicio: di,
+            data_fim: df,
+            status: (document.getElementById('status') && document.getElementById('status').value) || '',
+            centro_custo: (document.getElementById('centro_custo') && document.getElementById('centro_custo').value) || '',
+            tipo_despesa: (document.getElementById('tipo_despesa') && document.getElementById('tipo_despesa').value) || '',
+            id: (document.getElementById('id') && document.getElementById('id').value) || ''
+        },
+        filtros_label: {
+            periodo: periodo,
+            status: rotuloSelect('status'),
+            centro_custo: rotuloSelect('centro_custo'),
+            tipo_despesa: rotuloSelect('tipo_despesa'),
+            id: (document.getElementById('id') && document.getElementById('id').value) || ''
+        },
+        kpis: {
+            total_geral_valor: {{ total_geral_valor|default:0 }},
+            total_geral_count: {{ total_geral_count|default:0 }},
+            total_concluido: {{ total_concluido|default:0 }},
+            count_concluido: {{ count_concluido|default:0 }},
+            total_em_processo: {{ total_em_processo|default:0 }},
+            count_em_processo: {{ count_em_processo|default:0 }},
+            total_rejeitado: {{ total_rejeitado|default:0 }},
+            count_rejeitado: {{ count_rejeitado|default:0 }},
+            taxa_aprovacao: {{ taxa_aprovacao|default:0 }},
+            taxa_rejeicao: {{ taxa_rejeicao|default:0 }},
+            taxa_em_processo: {{ taxa_em_processo|default:0 }}
+        },
+        insights: {
+            area_mais_concluidos: (typeof areasOrdenadasConcluidos !== 'undefined' && areasOrdenadasConcluidos[0]) ? areasOrdenadasConcluidos[0] : null,
+            area_mais_rejeitados: (typeof areasOrdenadasRejeitados !== 'undefined' && areasOrdenadasRejeitados[0]) ? areasOrdenadasRejeitados[0] : null,
+            area_maior_taxa_rejeicao: (typeof areasOrdenadasTaxaRejeicao !== 'undefined' && areasOrdenadasTaxaRejeicao[0]) ? areasOrdenadasTaxaRejeicao[0] : null
+        },
+        areas: (typeof estatisticasPorArea !== 'undefined') ? estatisticasPorArea : [],
+        tipos: {
+            labels: (typeof tiposLabels !== 'undefined') ? tiposLabels : [],
+            valores: (typeof tiposValores !== 'undefined') ? tiposValores : []
+        },
+        meses: {
+            labels: (typeof mesesLabels !== 'undefined') ? mesesLabels : [],
+            concluidos: (typeof mesesConcluidos !== 'undefined') ? mesesConcluidos : [],
+            em_processo: (typeof mesesEmProcesso !== 'undefined') ? mesesEmProcesso : [],
+            rejeitados: (typeof mesesRejeitados !== 'undefined') ? mesesRejeitados : []
+        }
+    };
+    var csrftoken = getCookie('csrftoken') || '';
+    fetch("{% url 'intra:dashboard_export_excel' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) {
+        if (!res.ok) return res.text().then(function(t){ throw new Error(t || 'Falha ao gerar Excel'); });
+        var disposition = res.headers.get('Content-Disposition') || '';
+        var match = /filename="?([^"]+)"?/.exec(disposition);
+        var filename = (match && match[1]) ? match[1] : 'dashboard_reembolsos.xlsx';
+        return res.blob().then(function(blob) { return { blob: blob, filename: filename }; });
+    })
+    .then(function(result) {
+        var url = window.URL.createObjectURL(result.blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(function(err) {
+        alert(err.message || 'Erro ao exportar Excel');
+    })
+    .finally(function() {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📊 Exportar Excel';
+        }
     });
 }
 // Dados dos gráficos

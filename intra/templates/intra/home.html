@@ -256,6 +256,16 @@
             <h3>Últimos Reembolsos</h3>
             <p>Acompanhe o histórico completo de todas as solicitações de reembolso.</p>
         </a>
+        <a href="{% url 'intra:gestao_cadastros' %}" class="action-card" data-tour-step="4" data-tour-title="👥 Gestão de Cadastros" data-tour-text="Edite dados de acesso, perfil e senha dos usuários cadastrados na plataforma.">
+            <span class="action-card-icon">👥</span>
+            <h3>Gestão de Cadastros</h3>
+            <p>Consulte e edite os cadastros dos solicitantes.</p>
+        </a>
+        <a href="{% url 'intra:gestao_despesas' %}" class="action-card" data-tour-step="5" data-tour-title="🗂️ Catálogo de despesas" data-tour-text="Cadastre tipos de despesa, programas e códigos no orçamento. Ative ou inative itens sem apagar o histórico.">
+            <span class="action-card-icon">🗂️</span>
+            <h3>Catálogo de despesas</h3>
+            <p>Gerencie tipos, programas e códigos usados no formulário de reembolso.</p>
+        </a>
         {% elif is_gestor_simples %}
         <a href="{% url 'intra:reembolso' %}" class="action-card" data-tour-step="1" data-tour-title="➕ Criar Reembolso" data-tour-text="Crie uma nova solicitação de reembolso preenchendo os dados gerais (centro de custo e gestor), adicionando itens de despesa com códigos corretos e anexando os comprovantes necessários. Você pode adicionar múltiplos itens em uma única solicitação.">
             <span class="action-card-icon">➕</span>
@@ -291,7 +301,7 @@
         {% endif %}
     </div>
 
-    <div class="info-banner" id="info-banner" data-tour-step="{% if is_gestor_admin %}4{% elif is_gestor_simples %}5{% else %}3{% endif %}" data-tour-title="💡 Dicas Importantes" data-tour-text="{% if is_gestor_admin %}Como gestor administrativo, você tem acesso completo a todas as funcionalidades. Use o Dashboard para acompanhar métricas importantes e mantenha-se atualizado sobre todos os reembolsos do sistema. Revise cuidadosamente os documentos antes de aprovar ou rejeitar solicitações.{% elif is_gestor_simples %}Como gestor, você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar. Mantenha seus dados bancários atualizados no seu perfil.{% else %}Mantenha seus dados bancários atualizados no seu perfil (acesse pelo menu lateral) e certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso. Anexe sempre os comprovantes necessários para agilizar a aprovação.{% endif %}">
+    <div class="info-banner" id="info-banner" data-tour-step="{% if is_gestor_admin %}6{% elif is_gestor_simples %}5{% else %}3{% endif %}" data-tour-title="💡 Dicas Importantes" data-tour-text="{% if is_gestor_admin %}Como gestor administrativo, você tem acesso completo a todas as funcionalidades. Use o Dashboard para acompanhar métricas importantes e mantenha-se atualizado sobre todos os reembolsos do sistema. Revise cuidadosamente os documentos antes de aprovar ou rejeitar solicitações.{% elif is_gestor_simples %}Como gestor, você pode aprovar reembolsos dos seus solicitantes e também criar suas próprias solicitações. Revise cuidadosamente os documentos antes de aprovar. Mantenha seus dados bancários atualizados no seu perfil.{% else %}Mantenha seus dados bancários atualizados no seu perfil (acesse pelo menu lateral) e certifique-se de preencher todos os campos obrigatórios ao solicitar um reembolso. Anexe sempre os comprovantes necessários para agilizar a aprovação.{% endif %}">
         <p><strong>💡 Dica:</strong> 
         {% if is_gestor_admin %}
             Como gestor administrativo, você tem acesso completo a todas as funcionalidades do sistema. Use o Dashboard para acompanhar métricas e estatísticas importantes.

@@ -143,43 +143,36 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
         tab_solicitante = _tab_anchor(DOCUSIGN_ANCHOR_SOLICITANTE)
         tab_gestor = _tab_anchor(DOCUSIGN_ANCHOR_GESTOR)
 
+        def _signer(email, nome, recipient_id, routing_order, tabs):
+            return {
+                "email": email,
+                "name": nome,
+                "recipientId": recipient_id,
+                "routingOrder": routing_order,
+                "clientUserId": _client_user_id(email),
+                "embeddedRecipientStartURL": "SIGN_AT_DOCUSIGN",
+                "tabs": tabs,
+            }
+
         if segundo_signatario and eg == es:
             # Mesmo e-mail: um destinatário com duas assinaturas em âncoras distintas (evita duplicar envelope/recipient).
             signers = [
-                {
-                    "email": email_solicitante,
-                    "name": nome_solicitante,
-                    "recipientId": "1",
-                    "routingOrder": "1",
-                    "tabs": {"signHereTabs": [tab_solicitante, tab_gestor]},
-                }
+                _signer(
+                    email_solicitante,
+                    nome_solicitante,
+                    "1",
+                    "1",
+                    {"signHereTabs": [tab_solicitante, tab_gestor]},
+                )
             ]
         elif segundo_signatario:
             signers = [
-                {
-                    "email": email_solicitante,
-                    "name": nome_solicitante,
-                    "recipientId": "1",
-                    "routingOrder": "1",
-                    "tabs": {"signHereTabs": [tab_solicitante]},
-                },
-                {
-                    "email": email_gestor,
-                    "name": nome_gestor,
-                    "recipientId": "2",
-                    "routingOrder": "2",
-                    "tabs": {"signHereTabs": [tab_gestor]},
-                },
+                _signer(email_solicitante, nome_solicitante, "1", "1", {"signHereTabs": [tab_solicitante]}),
+                _signer(email_gestor, nome_gestor, "2", "2", {"signHereTabs": [tab_gestor]}),
             ]
         else:
             signers = [
-                {
-                    "email": email_solicitante,
-                    "name": nome_solicitante,
-                    "recipientId": "1",
-                    "routingOrder": "1",
-                    "tabs": {"signHereTabs": [tab_solicitante]},
-                }
+                _signer(email_solicitante, nome_solicitante, "1", "1", {"signHereTabs": [tab_solicitante]})
             ]
 
         body = {
@@ -213,6 +206,92 @@ def enviar_documento_para_assinatura(pdf_bytes, email_solicitante, nome_solicita
         raise
 
 
+def _client_user_id(email):
+    """Identificador estável para abrir a assinatura dentro da plataforma."""
+    return "reembolso-" + (email or "").strip().lower()
+
+
+def _headers_docusign(token):
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+
+def _url_envelope(envelope_id):
+    return (
+        f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
+        f"{_docusign_account_id()}/envelopes/{envelope_id}"
+    )
+
+
+def criar_url_assinatura(envelope_id, email, return_url):
+    """
+    Gera um link que abre direto a tela de assinatura do DocuSign
+    para o e-mail informado, se for a vez dessa pessoa.
+    """
+    email_alvo = (email or "").strip().lower()
+    if not email_alvo:
+        raise Exception("Usuário sem e-mail para assinar.")
+
+    token = gerar_token()
+    headers = _headers_docusign(token)
+    base = _url_envelope(envelope_id)
+    resposta = requests.get(base + "/recipients", headers=headers)
+    if resposta.status_code not in (200, 201):
+        logger.error("Erro ao listar signatários DocuSign: %s", resposta.text)
+        raise Exception("Não foi possível consultar quem precisa assinar.")
+
+    signer = None
+    for item in resposta.json().get("signers") or []:
+        if (item.get("email") or "").strip().lower() != email_alvo:
+            continue
+        if (item.get("status") or "").lower() in ("sent", "delivered"):
+            signer = item
+            break
+    if signer is None:
+        raise Exception("Este documento não está aguardando a sua assinatura.")
+
+    client_user_id = (signer.get("clientUserId") or "").strip() or _client_user_id(email_alvo)
+    if not (signer.get("clientUserId") or "").strip():
+        atualizacao = requests.put(
+            base + "/recipients",
+            headers=headers,
+            json={
+                "signers": [
+                    {
+                        "recipientId": signer.get("recipientId"),
+                        "clientUserId": client_user_id,
+                        "embeddedRecipientStartURL": "SIGN_AT_DOCUSIGN",
+                    }
+                ]
+            },
+        )
+        if atualizacao.status_code not in (200, 201):
+            logger.error("Erro ao preparar assinatura embutida: %s", atualizacao.text)
+            raise Exception("Não foi possível abrir a assinatura agora.")
+
+    view = requests.post(
+        base + "/views/recipient",
+        headers=headers,
+        json={
+            "returnUrl": return_url,
+            "authenticationMethod": "none",
+            "email": signer.get("email"),
+            "userName": signer.get("name"),
+            "clientUserId": client_user_id,
+            "recipientId": signer.get("recipientId"),
+        },
+    )
+    if view.status_code not in (200, 201):
+        logger.error("Erro ao criar link de assinatura: %s", view.text)
+        raise Exception("Não foi possível abrir a página de assinatura.")
+    url = (view.json() or {}).get("url")
+    if not url:
+        raise Exception("O DocuSign não devolveu o link de assinatura.")
+    return url
+
+
 def consultar_status_envelope(envelope_id):
     """
     Consulta o status de um envelope no DocuSign.
@@ -228,7 +307,7 @@ def consultar_status_envelope(envelope_id):
 
         url = (
             f"{_docusign_base_uri()}/restapi/v2.1/accounts/"
-            f"{_docusign_account_id()}/envelopes/{envelope_id}"
+            f"{_docusign_account_id()}/envelopes/{envelope_id}?include=recipients"
         )
 
         headers = {

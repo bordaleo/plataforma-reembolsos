@@ -48,6 +48,7 @@ from .docusign_integration import (
     enviar_documento_para_assinatura,
     baixar_pdf_assinado,
     consultar_status_envelope,
+    criar_url_assinatura,
     reenviar_envelope_docusign,
 )
 
@@ -169,8 +170,8 @@ def _get_status_assinatura_docusign(solicitacao, use_cache=True):
             }
             signers_info.append(signer_info)
             
-            # Se não assinou, está aguardando
-            if signer_status in ['sent', 'delivered', 'created']:
+            # created = ainda não chegou a vez. sent/delivered = documento já enviado a esta pessoa.
+            if signer_status in ['sent', 'delivered']:
                 aguardando_assinatura.append(signer_info)
         
         result = {
@@ -3129,6 +3130,40 @@ def reembolso_enviar_docusign(request, pk):
     else:
         messages.error(request, f"Não foi possível enviar ao DocuSign: {extra}")
     return redirect("intra:ultimos_reembolsos")
+
+
+def _docusign_return_url(request, path):
+    """DocuSign exige HTTPS no returnUrl; em produção usa CSRF_TRUSTED_ORIGINS se a request for HTTP."""
+    retorno = request.build_absolute_uri(path)
+    if retorno.startswith("https://"):
+        return retorno
+    for origin in getattr(settings, "CSRF_TRUSTED_ORIGINS", []) or []:
+        origin = (origin or "").rstrip("/")
+        if origin.startswith("https://"):
+            return origin + path
+    return retorno
+
+
+@login_required
+def reembolso_assinar(request, pk):
+    """Abre a tela de assinatura do DocuSign para o usuário que está na vez."""
+    sol = get_object_or_404(SolicitacaoReembolso, pk=pk)
+    voltar = _safe_next_url(request.GET.get("next"), default_name="intra:meus_reembolsos")
+    if not sol.envelope_id_docusign:
+        messages.error(request, "Esta solicitação ainda não foi enviada para assinatura.")
+        return redirect(voltar)
+    email = (request.user.email or "").strip()
+    try:
+        url = criar_url_assinatura(
+            sol.envelope_id_docusign,
+            email,
+            _docusign_return_url(request, voltar),
+        )
+    except Exception as e:
+        logger.warning("Falha ao abrir assinatura da solicitação #%s: %s", pk, e)
+        messages.error(request, str(e) or "Não foi possível abrir a assinatura.")
+        return redirect(voltar)
+    return redirect(url)
 
 
 @login_required

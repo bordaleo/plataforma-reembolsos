@@ -3,6 +3,21 @@ from django import template
 register = template.Library()
 
 
+@register.filter(name='pode_assinar')
+def pode_assinar(solicitacao, email):
+    """Verdadeiro só quando o status é pago aguardando assinaturas e é a vez deste e-mail."""
+    if getattr(solicitacao, "status_descritivo", None) != "pago_aguardando_assinaturas":
+        return False
+    info = getattr(solicitacao, "status_docusign_info", None) or {}
+    email_alvo = (email or "").strip().lower()
+    if not email_alvo:
+        return False
+    for signer in info.get("aguardando_assinatura") or []:
+        if (signer.get("email") or "").strip().lower() == email_alvo:
+            return True
+    return False
+
+
 @register.filter(name='currency_br')
 def currency_br(value):
     """

@@ -24,6 +24,11 @@ urlpatterns = [
         name="reembolso_enviar_docusign",
     ),
     path(
+        "reembolso/<int:pk>/assinar/",
+        views.reembolso_assinar,
+        name="reembolso_assinar",
+    ),
+    path(
         "reembolso/<int:pk>/reenviar-docusign/",
         views.reembolso_reenviar_docusign,
         name="reembolso_reenviar_docusign",

@@ -1,5 +1,6 @@
 {% extends "intra/base.html" %}
 {% load static %}
+{% load currency_filters %}
 {% block title %}Últimos Reembolsos - Plataforma de Reembolsos{% endblock %}
 {% block extra_css %}
 <style>
@@ -776,7 +777,8 @@
             margin-top: 1rem;
         }
         .reembolso-card-mobile-actions .btn-ver-solicitacao,
-        .reembolso-card-mobile-actions .btn-pdf {
+        .reembolso-card-mobile-actions .btn-pdf,
+        .reembolso-card-mobile-actions .btn-assinar {
             width: 100%;
             padding: 0.75rem 1rem;
         }
@@ -1065,7 +1067,11 @@
                         {% endif %}
                     </td>
                     <td class="acoes">
+                        {% if s|pode_assinar:request.user.email %}
+                        {% include "intra/_botao_assinar.html" %}
+                        {% else %}
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -1127,7 +1133,11 @@
                 </div>
                 <div class="reembolso-card-mobile-actions">
                     <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                    {% if s|pode_assinar:request.user.email %}
+                    {% include "intra/_botao_assinar.html" %}
+                    {% else %}
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

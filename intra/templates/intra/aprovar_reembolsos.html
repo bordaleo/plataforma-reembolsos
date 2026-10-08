@@ -1,4 +1,5 @@
 {% extends "intra/base.html" %}
+{% load currency_filters %}
 {% block title %}Aprovar Reembolsos - Plataforma de Reembolsos{% endblock %}
 {% block extra_css %}
 <style>
@@ -825,6 +826,7 @@
         .reembolso-card-mobile-actions .btn-concluir,
         .reembolso-card-mobile-actions .btn-ver-solicitacao,
         .reembolso-card-mobile-actions .btn-pdf,
+        .reembolso-card-mobile-actions .btn-assinar,
         .reembolso-card-mobile-actions .btn-modificar-admin {
             width: 100%;
             padding: 0.75rem 1rem;
@@ -1104,7 +1106,11 @@
                 </td>
                 <td>{{ s.centro_custo|default:"—" }}</td>
                 <td class="acoes">
+                    {% if s|pode_assinar:request.user.email %}
+                    {% include "intra/_botao_assinar.html" %}
+                    {% else %}
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                    {% endif %}
                 </td>
                 <td style="text-align: center;">
                     {% if s.status_descritivo == 'aguardando_gestor' %}<span class="status-aguardando-gestor">Aguardando aprovação de gestor</span>{% endif %}
@@ -1211,7 +1217,11 @@
             </div>
             <div class="reembolso-card-mobile-actions">
                 <button type="button" class="btn-ver-solicitacao" data-pk="{{ s.pk }}">Ver Solicitação</button>
+                {% if s|pode_assinar:request.user.email %}
+                {% include "intra/_botao_assinar.html" %}
+                {% else %}
                 <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                {% endif %}
                 {% if is_gestor_admin %}
                     <a href="{% url 'intra:reembolso_admin_editar' s.pk %}?next={{ request.get_full_path|urlencode }}" class="btn-modificar-admin" style="text-align:center;">Modificar</a>
                 {% endif %}

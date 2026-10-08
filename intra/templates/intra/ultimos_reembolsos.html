@@ -1,5 +1,6 @@
 {% extends "intra/base.html" %}
 {% load static %}
+{% load currency_filters %}
 {% block title %}Últimos Reembolsos - Plataforma de Reembolsos{% endblock %}
 {% block extra_css %}
 <style>
@@ -941,6 +942,7 @@
         }
         .reembolso-card-mobile-actions .btn-ver,
         .reembolso-card-mobile-actions .btn-pdf,
+        .reembolso-card-mobile-actions .btn-assinar,
         .reembolso-card-mobile-actions .btn-concluir,
         .reembolso-card-mobile-actions .btn-marcar-pago,
         .reembolso-card-mobile-actions .btn-editar-programar,
@@ -1218,7 +1220,11 @@
                         {% endif %}
                     </td>
                     <td class="acoes">
+                        {% if s|pode_assinar:request.user.email %}
+                        {% include "intra/_botao_assinar.html" %}
+                        {% else %}
                         <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">Visualizar PDF</a>
+                        {% endif %}
                     </td>
                     <td class="acoes">
                         {% if s.pago and not s.envelope_id_docusign %}
@@ -1293,7 +1299,11 @@
                 </div>
                 <div class="reembolso-card-mobile-actions">
                     <button type="button" class="btn-ver" data-pk="{{ s.pk }}">Ver</button>
+                    {% if s|pode_assinar:request.user.email %}
+                    {% include "intra/_botao_assinar.html" %}
+                    {% else %}
                     <a href="/reembolso/{{ s.pk }}/pdf/" class="btn-pdf" target="_blank" rel="noopener">PDF</a>
+                    {% endif %}
                     {% if s.pago and not s.envelope_id_docusign %}
                         <button type="button" class="btn-marcar-pago js-modal-confirm-post" style="width: 100%; background: #5c4d7d; border-color: #5c4d7d;"
                             data-post-url="{% url 'intra:reembolso_enviar_docusign' s.pk %}"
